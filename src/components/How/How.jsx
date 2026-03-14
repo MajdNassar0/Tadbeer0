@@ -7,7 +7,7 @@ import img4 from '../../assets/img/4.png';
 const How = () => {
     return (
         <div>
-           <section className="bg-gray-50 py-20">
+           <section className=" py-20" dir="ltr">
       <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
 
         {/* Images Grid */}
@@ -37,7 +37,7 @@ const How = () => {
         {/* Text Content */}
         <div dir="rtl" className="space-y-8 m-2 sm:m-5">
 
-          <h2 className="text-3xl font-bold ">
+          <h2 className="text-3xl text-gray-800 font-bold ">
             كيف يعمل تدبير؟
           </h2>
 
@@ -51,7 +51,7 @@ const How = () => {
               1
             </div>
             <div>
-              <h3 className="font-semibold text-lg">وصف المشكلة</h3>
+              <h3 className="font-semibold text-lg text-gray-900">وصف المشكلة</h3>
               <p className="text-gray-500">
                 أخبرنا بنوع العطل أو أرسل المشكلة بكلمات بسيطة عبر تطبيقنا.
               </p>
@@ -64,7 +64,7 @@ const How = () => {
               2
             </div>
             <div>
-              <h3 className="font-semibold text-lg">تحليل الذكاء الصناعي</h3>
+              <h3 className="font-semibold text-gray-800 text-lg">تحليل الذكاء الصناعي</h3>
               <p className="text-gray-500">
                 نقوم بتحليل المشكلة واختيار الفني الأنسب والأقرب لموقعك آليًا.
               </p>
@@ -77,7 +77,7 @@ const How = () => {
               3
             </div>
             <div>
-              <h3 className="font-semibold text-lg">إتمام الإصلاح</h3>
+              <h3 className="font-semibold text-gray-800 text-lg">إتمام الإصلاح</h3>
               <p className="text-gray-500">
                 احصل على خدمة احترافية مع ضمان شامل على قطع الغيار والعمل.
               </p>
