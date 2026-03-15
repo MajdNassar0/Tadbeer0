@@ -79,16 +79,22 @@ function Navbar() {
 
           {/* Action Buttons - تظهر فقط في الشاشات الكبيرة */}
           <div className="hidden lg:flex items-center gap-4">
-            <button className="text-gray-700 font-bold px-4 hover:text-yellow-600 transition-colors">
-              تسجيل الدخول
-            </button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-yellow-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-yellow-100"
+            <NavLink
+              to="/login"
+              className="text-gray-700 font-bold px-4 hover:text-yellow-600 transition-colors"
             >
-              إنشاء حساب
-            </motion.button>
+              تسجيل الدخول
+            </NavLink>
+
+            <NavLink to="/signup">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-yellow-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-yellow-100"
+              >
+                إنشاء حساب
+              </motion.button>
+            </NavLink>
           </div>
 
           {/* Mobile/Tablet Menu Button - يظهر في الآيباد والجوال */}
@@ -136,12 +142,17 @@ function Navbar() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
               >
-                <button className="w-full bg-gray-50 text-gray-800 py-4 rounded-2xl font-bold active:scale-95 transition-transform">
-                  تسجيل الدخول
-                </button>
-                <button className="w-full bg-yellow-500 text-white py-4 rounded-2xl font-bold shadow-xl shadow-yellow-100 active:scale-95 transition-transform">
-                  إنشاء حساب
-                </button>
+                <NavLink to="/login">
+                  <button className="w-full bg-gray-50 text-gray-800 py-4 rounded-2xl font-bold active:scale-95 transition-transform">
+                    تسجيل الدخول
+                  </button>
+                </NavLink>
+
+                <NavLink to="/signup">
+                  <button className="w-full bg-yellow-500 text-white py-4 rounded-2xl font-bold shadow-xl shadow-yellow-100 active:scale-95 transition-transform">
+                    إنشاء حساب
+                  </button>
+                </NavLink>
               </motion.div>
             </div>
           </motion.div>
