@@ -121,7 +121,7 @@ const Signup = () => {
               variants={itemVariants}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full bg-yellow-600 hover:bg-yellow-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-yellow-200 transition-all flex items-center justify-center gap-2"
+              className="w-full bg-yellow-500 hover:bg-yellow-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-yellow-200 transition-all flex items-center justify-center gap-2"
             >
               إنشاء الحساب
               <ArrowRight size={20} className="rotate-180" />

@@ -9,6 +9,8 @@ import Footer from "./components/Footer/Footer";
 import AboutSection from "./components/AboutSection/AboutSection";
 import ServicesSection from "./components/ServicesSection/ServicesSection";
 import Signup from "./pages/Signup/Signup";
+import Login from "./pages/Login/Login";
+
 
 function App() {
   return (
@@ -39,6 +41,14 @@ function App() {
           <Footer/>
           </>
         } />
+        {/* Login Page */}
+        <Route path="/login" element={
+          <>
+          <Login />
+          <Footer/>
+          </>
+        } />
+
 
         
 
