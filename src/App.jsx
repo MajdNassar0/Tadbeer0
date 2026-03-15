@@ -10,6 +10,7 @@ import AboutSection from "./components/AboutSection/AboutSection";
 import ServicesSection from "./components/ServicesSection/ServicesSection";
 import Signup from "./pages/Signup/Signup";
 import Login from "./pages/Login/Login";
+import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
 
 
 function App() {
@@ -45,6 +46,12 @@ function App() {
         <Route path="/login" element={
           <>
           <Login />
+          <Footer/>
+          </>
+        } />
+        <Route path="/forgotpassword" element={
+          <>
+          <ForgotPassword />
           <Footer/>
           </>
         } />

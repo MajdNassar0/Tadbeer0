@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Mail, Lock } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Login = () => {
   // Animation Variants
@@ -85,9 +86,12 @@ const Login = () => {
                 <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-[#162c4d] focus:ring-blue-900 cursor-pointer" />
                 <span className="text-gray-500 select-none">تذكرني</span>
               </div>
-              <button type="button" className="text-yellow-500 hover:text-yellow-500 font-bold transition-colors">
-                نسيت كلمة المرور؟
-              </button>
+              <Link
+  to="/forgotpassword"
+  className="text-yellow-500 hover:text-yellow-500 font-bold transition-colors"
+>
+  نسيت كلمة المرور؟
+</Link>
             </motion.div>
 
             {/* Login Button */}
@@ -111,9 +115,12 @@ const Login = () => {
           {/* Footer */}
           <motion.p variants={itemVariants} className="text-center text-sm text-gray-500">
             ليس لديك حساب؟{" "}
-            <span className="text-[#001e3c]  font-bold cursor-pointer hover:underline transition-all">
-              إنشاء حساب جديد
-            </span>
+            <Link
+    to="/signup"
+    className="text-[#001e3c] font-bold cursor-pointer hover:underline transition-all"
+  >
+    إنشاء حساب جديد
+  </Link>
           </motion.p>
         </div>
       </motion.div>

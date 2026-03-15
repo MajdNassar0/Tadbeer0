@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion"; // Install this: npm install framer-motion
 import { User, Mail, Phone, Lock, ShieldCheck, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Signup = () => {
   // Animation Variants
@@ -135,7 +136,10 @@ const Signup = () => {
             className="text-center text-sm text-gray-500 mt-8"
           >
             لديك حساب بالفعل؟{" "}
-            <span className="text-blue-800 font-bold cursor-pointer hover:underline transition-all">سجل دخولك الآن</span>
+             <Link
+                to="/login"
+             className="text-[#001e3c] font-bold cursor-pointer hover:underline transition-all"
+             >سجل دخولك الآن</Link>
           </motion.p>
         </div>
       </motion.div>
