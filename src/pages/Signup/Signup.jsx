@@ -137,7 +137,7 @@ const Signup = () => {
           >
             لديك حساب بالفعل؟{" "}
              <Link
-                to="/login"
+                to="/auth/login"
              className="text-[#001e3c] font-bold cursor-pointer hover:underline transition-all"
              >سجل دخولك الآن</Link>
           </motion.p>

@@ -80,13 +80,13 @@ function Navbar() {
           {/* Action Buttons - تظهر فقط في الشاشات الكبيرة */}
           <div className="hidden lg:flex items-center gap-4">
             <NavLink
-              to="/login"
+              to="auth/login"
               className="text-gray-700 font-bold px-4 hover:text-yellow-600 transition-colors"
             >
               تسجيل الدخول
             </NavLink>
 
-            <NavLink to="/signup">
+            <NavLink to="auth/signup">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -142,13 +142,13 @@ function Navbar() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
               >
-                <NavLink to="/login">
+                <NavLink to="auth/login">
                   <button className="w-full bg-gray-50 text-gray-800 py-4 rounded-2xl font-bold active:scale-95 transition-transform">
                     تسجيل الدخول
                   </button>
                 </NavLink>
 
-                <NavLink to="/signup">
+                <NavLink to="auth/signup">
                   <button className="w-full bg-yellow-500 text-white py-4 rounded-2xl font-bold shadow-xl shadow-yellow-100 active:scale-95 transition-transform">
                     إنشاء حساب
                   </button>

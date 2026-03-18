@@ -87,7 +87,7 @@ const Login = () => {
                 <span className="text-gray-500 select-none">تذكرني</span>
               </div>
               <Link
-  to="/forgotpassword"
+  to="/auth/forgotpassword"
   className="text-yellow-500 hover:text-yellow-500 font-bold transition-colors"
 >
   نسيت كلمة المرور؟
@@ -116,7 +116,7 @@ const Login = () => {
           <motion.p variants={itemVariants} className="text-center text-sm text-gray-500">
             ليس لديك حساب؟{" "}
             <Link
-    to="/signup"
+    to="/auth/signup"
     className="text-[#001e3c] font-bold cursor-pointer hover:underline transition-all"
   >
     إنشاء حساب جديد
