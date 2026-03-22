@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, RotateCcw, Send } from "lucide-react";
-import axios from "axios"; // نستخدم axios للـ HTTP requests
+import axios from "axios"; 
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -16,20 +16,17 @@ const ForgotPassword = () => {
     setErrorMsg("");
 
     try {
-      // بدك تحطي هنا رابط endpoint تبع الباك إند
-      const response = await axios.post(" https://tadbeer0.runasp.net/api/Identity/Auth/forgot-password ", {
-        email,
-      });
-
+      
+      const response = await axios.post("https://tadbeer0.runasp.net/api/Identity/Auth/forgot-password", {
+        email,});
       setSuccessMsg(response.data.message || "تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني");
     } catch (error) {
-      setErrorMsg(error.response?.data?.message || "حدث خطأ. حاول مرة أخرى.");
+      setErrorMsg(error.response?.data?.message || "حدث خطأ. حاول مرة أخرى");
     } finally {
       setLoading(false);
     }
   };
 
-  // باقي الكود زي ما عندك مع تعديل زر الإرسال
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f0f2f5] p-4 font-sans" dir="rtl">
       <motion.div
