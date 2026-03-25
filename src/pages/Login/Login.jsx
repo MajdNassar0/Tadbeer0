@@ -87,7 +87,7 @@ const Login = () => {
                 <span className="text-gray-500 select-none">تذكرني</span>
               </div>
               <Link
-  to="/auth/forgotpassword"
+  to="/auth/ForgotPassword"
   className="text-yellow-500 hover:text-yellow-500 font-bold transition-colors"
 >
   نسيت كلمة المرور؟

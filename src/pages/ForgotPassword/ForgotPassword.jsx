@@ -1,25 +1,43 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, RotateCcw, Send } from "lucide-react";
-import axios from "axios"; 
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+const API_BASE = "https://tadbeer0.runasp.net/api";
 
 const ForgotPassword = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setSuccessMsg("");
     setErrorMsg("");
 
     try {
-      
-      const response = await axios.post("https://tadbeer0.runasp.net/api/Identity/Auth/forgot-password", {
-        email,});
-      setSuccessMsg(response.data.message || "تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني");
+      const trimmed = email.trim();
+      const response = await axios.post(
+        `${API_BASE}/Identity/Auth/forgot-password`,
+        { email: trimmed },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      const payload = response.data;
+      if (payload && payload.isSuccess === false) {
+        setErrorMsg(payload.message || payload.Message || "تعذّر إرسال الكود. حاول مرة أخرى");
+        return;
+      }
+      const flashMessage =
+        payload?.message ||
+        payload?.Message ||
+        "تم إرسال كود إعادة التعيين إلى بريدك الإلكتروني";
+      const qs = new URLSearchParams({ email: trimmed }).toString();
+      navigate(`/auth/ResetPassword?${qs}`, {
+        replace: true,
+        state: { email: trimmed, flashMessage },
+      });
     } catch (error) {
       setErrorMsg(error.response?.data?.message || "حدث خطأ. حاول مرة أخرى");
     } finally {
@@ -45,7 +63,7 @@ const ForgotPassword = () => {
 
           <h1 className="text-xl font-bold mb-2">استعادة كلمة المرور</h1>
           <p className="text-gray-300 text-xs leading-relaxed max-w-[280px] mx-auto">
-            أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة المرور
+            أدخل بريدك الإلكتروني وسنرسل لك كود لإعادة تعيين كلمة المرور
           </p>
         </div>
 
@@ -77,11 +95,9 @@ const ForgotPassword = () => {
               className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3.5 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-yellow-100 transition-all"
             >
               <Send size={18} className="rotate-180" />
-              <span>{loading ? "جاري الإرسال..." : "إرسال رابط إعادة التعيين"}</span>
+              <span>{loading ? "جاري الإرسال..." : "إرسال كود إعادة التعيين"}</span>
             </motion.button>
 
-            {/* Success / Error Messages */}
-            {successMsg && <p className="text-green-500 text-sm mt-2">{successMsg}</p>}
             {errorMsg && <p className="text-red-500 text-sm mt-2">{errorMsg}</p>}
           </form>
 
