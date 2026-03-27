@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import heroImg from "../../assets/img/hero.jpeg";
-
+import { NavLink } from "react-router-dom";
 const Hero = () => {
   return (
     <section
@@ -47,9 +47,12 @@ const Hero = () => {
               <button className="group relative bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-4 rounded-2xl shadow-lg shadow-yellow-200 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 font-bold text-lg">
                 ابدأ الآن
               </button>
-              <button className="bg-white border-2 border-gray-100 hover:border-yellow-500 hover:text-yellow-600 text-gray-700 px-8 py-4 rounded-2xl transition-all duration-300 font-bold text-lg">
-                اكتشف الخدمات
-              </button>
+              <NavLink
+  to="/services"
+  className="bg-white border-2 border-gray-100 hover:border-yellow-500 hover:text-yellow-600 text-gray-700 px-8 py-4 rounded-2xl transition-all duration-300 font-bold text-lg inline-block"
+>
+  اكتشف الخدمات
+</NavLink>
             </div>
 
             {/* الإحصائيات */}

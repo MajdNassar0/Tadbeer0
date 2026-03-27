@@ -7,7 +7,7 @@ import AuthLayout from "./layout/AuthLayout";
 import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
 import Booking from "./pages/Booking/Booking";
 import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute";
-
+import Services from "./pages/Services/Services";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -42,5 +42,15 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
     },
+    {
+  path: "/services",
+  element: <MainLayout />, // or AuthLayout if intended
+  children: [
+    {
+      index: true,
+      element: <Services />,
+    },
+  ],
+}
 ]);
 export default router
