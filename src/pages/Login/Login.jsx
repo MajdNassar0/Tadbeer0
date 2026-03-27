@@ -4,7 +4,7 @@ import { Mail, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
 import axios from "axios";
-import { Toaster, toast } from "sonner"; // ✅ Added for the success message
+import { Toaster, toast } from "sonner";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -24,8 +24,6 @@ const Login = () => {
     visible: { opacity: 1, y: 0 }
   };
 
-  // ✅ Focus style: Blue-900 border
-
   const formik = useFormik({
     initialValues: { email: "", password: "", remember: false },
     validate: (values) => {
@@ -36,7 +34,6 @@ const Login = () => {
       if (!values.password) errors.password = "كلمة المرور مطلوبة";
       return errors;
     },
-
     onSubmit: async (values, { setSubmitting, setFieldError }) => {
       try {
         const response = await axios.post(
@@ -46,11 +43,7 @@ const Login = () => {
 
         if (response.data?.token) {
           localStorage.setItem("token", response.data.token);
-          
-          // ✅ Success Notification
           toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
-
-          // Delay slightly so the user can see the success message before redirecting
           setTimeout(() => {
             navigate("/");
           }, 1500);
@@ -70,9 +63,8 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-sans" dir="rtl">
-      {/* ✅ Toaster component must be present to show the message */}
       <Toaster position="top-center" richColors />
-      
+
       <motion.div 
         variants={containerVariants}
         initial="hidden"
@@ -141,7 +133,11 @@ const Login = () => {
                 />
                 <span className="text-gray-600 select-none group-hover:text-[#001e3c]">تذكرني</span>
               </div>
-              <Link to="/auth/forgotpassword" title="نسيت كلمة المرور" className="text-yellow-600 font-bold hover:text-yellow-700 transition-colors">
+              <Link 
+                to="/auth/forgotpassword" 
+                title="نسيت كلمة المرور" 
+                className="text-yellow-600 font-bold hover:text-yellow-700 transition-colors"
+              >
                 نسيت كلمة المرور؟
               </Link>
             </div>
