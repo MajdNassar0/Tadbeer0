@@ -1,39 +1,113 @@
 import React from "react";
 import { motion } from "framer-motion";
-import {
-  Home,
-  Sparkles,
-  Zap,
-  Wrench,
-  TreeDeciduous,
-  Hammer,
-  Bug,
-  Paintbrush,
-  Camera,           // fixed
-  Droplet,
-  Tractor,
-  Columns,
-  ArrowLeft,
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 const services = [
-  { title: "الأجهزة المنزلية", desc: "صيانة وإصلاح كافة الأجهزة", icon: Home },
-  { title: "خدمات التنظيف", desc: "تنظيف شامل وعميق للمنازل", icon: Sparkles },
-  { title: "أعمال الكهرباء", desc: "فحص وتمديد وصيانة آمنة", icon: Zap },
-  { title: "سباكة", desc: "حلول سريعة لكافة التسريبات", icon: Wrench },
-  { title: "تنسيق الحدائق", desc: "تصميم وصيانة المسطحات الخضراء", icon: TreeDeciduous },
-  { title: "أعمال النجارة", desc: "صيانة وتفصيل الأثاث الخشبي", icon: Hammer },
-  { title: "مكافحة الحشرات", desc: "رش مبيدات آمنة وفعالة", icon: Bug },
-  { title: "دهانات وتشطيبات", desc: "ديكورات داخلية وخارجية", icon: Paintbrush },
-  { title: "كاميرات المراقبة", desc: "تركيب وبرمجة أنظمة الأمان", icon: Camera },
-  { title: "خزانات المياه", desc: "تعقيم وعزل خزانات المياه", icon: Droplet },
-  { title: "أعمال الزراعة", desc: "عناية دورية بالتربة والأشجار", icon: Tractor },
-  { title: "أعمال الألمنيوم", desc: "تركيب وصيانة النوافذ والأبواب", icon: Columns },
+  {
+    title: "الأجهزة المنزلية",
+    desc: "صيانة وإصلاح كافة الأجهزة",
+    image: new URL("../../assets/img/services/اجهزة منزلية.webp", import.meta.url).href,
+  },
+  {
+    title: "خدمات التنظيف",
+    desc: "تنظيف شامل وعميق للمنازل",
+    image: new URL("../../assets/img/services/تنظيف منزل.webp", import.meta.url).href,
+  },
+  {
+    title: "أعمال الكهرباء",
+    desc: "فحص وتمديد وصيانة آمنة",
+    image: new URL("../../assets/img/services/اعمال كهرباء.webp", import.meta.url).href,
+  },
+  {
+    title: "سباكة",
+    desc: "حلول سريعة لكافة التسريبات",
+    image: new URL("../../assets/img/services/سباكة.webp", import.meta.url).href,
+  },
+  {
+    title: "تنسيق الحدائق",
+    desc: "تصميم وصيانة المسطحات الخضراء",
+    image: new URL("../../assets/img/services/حدائق.webp", import.meta.url).href,
+  },
+  {
+    title: "أعمال النجارة",
+    desc: "صيانة وتفصيل الأثاث الخشبي",
+    image: new URL("../../assets/img/services/اعمال نجارة.webp", import.meta.url).href,
+  },
+  {
+    title: "مكافحة الحشرات",
+    desc: "رش مبيدات آمنة وفعالة",
+    image: new URL("../../assets/img/services/التعقيم.webp", import.meta.url).href,
+  },
+  {
+    title: "دهانات وتشطيبات",
+    desc: "ديكورات داخلية وخارجية",
+    image: new URL("../../assets/img/services/الدهانات و التشطيب.webp", import.meta.url).href,
+  },
+  {
+    title: "كاميرات المراقبة",
+    desc: "تركيب وبرمجة أنظمة الأمان",
+    image: new URL("../../assets/img/services/كمرات مراقبة.png", import.meta.url).href,
+  },
+  {
+    title: "خزانات المياه",
+    desc: "تعقيم وعزل خزانات المياه",
+    image: new URL("../../assets/img/services/العوازل.webp", import.meta.url).href,
+  },
+  {
+    title: "أعمال الزراعة",
+    desc: "عناية دورية بالتربة والأشجار",
+    image: new URL("../../assets/img/services/حدائق.webp", import.meta.url).href,
+  },
+  {
+    title: "أعمال الألمنيوم",
+    desc: "تركيب وصيانة النوافذ والأبواب",
+    image: new URL("../../assets/img/services/اعمال المنيوم.webp", import.meta.url).href,
+  },
+  {
+    title: "أرضيات وحوائط",
+    desc: "تركيب وتشطيب احترافي للأرضيات والجدران",
+    image: new URL("../../assets/img/services/ارضيات و حوائط.webp", import.meta.url).href,
+  },
+  {
+    title: "أعمال الحدادة",
+    desc: "تصنيع وتركيب أعمال الحديد بمواصفات دقيقة",
+    image: new URL("../../assets/img/services/اعمال حدادة.webp", import.meta.url).href,
+  },
+  {
+    title: "البوابات الكهربائية",
+    desc: "تركيب وصيانة البوابات الأوتوماتيكية",
+    image: new URL("../../assets/img/services/البوابات الكهربائيه.webp", import.meta.url).href,
+  },
+  {
+    title: "الطاقة الشمسية",
+    desc: "حلول تركيب وصيانة أنظمة الطاقة الشمسية",
+    image: new URL("../../assets/img/services/الطاقة الشمسية.webp", import.meta.url).href,
+  },
+  {
+    title: "المصاعد",
+    desc: "خدمات تركيب وصيانة المصاعد المنزلية والتجارية",
+    image: new URL("../../assets/img/services/المصاعد.webp", import.meta.url).href,
+  },
+  {
+    title: "خدمة حرفي",
+    desc: "توفير فني متعدد المهارات للصيانة المنزلية",
+    image: new URL("../../assets/img/services/حرفي.webp", import.meta.url).href,
+  },
+  {
+    title: "خدمات خزان ماء",
+    desc: "تنظيف وصيانة وتعقيم خزانات المياه",
+    image: new URL("../../assets/img/services/خدمات خزان ماء.webp", import.meta.url).href,
+  },
+  {
+    title: "فني ستالايت",
+    desc: "تركيب وضبط وصيانة أنظمة الستالايت",
+    image: new URL("../../assets/img/services/فني ستالايت.webp", import.meta.url).href,
+  },
 ];
 
 const ServicesSection = () => {
   return (
-    <section className="bg-white py-24 px-4 font-sans" dir="rtl">
+    <section className="bg-[#f8f6f3] py-24 px-4 font-sans" dir="rtl">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
@@ -62,7 +136,6 @@ const ServicesSection = () => {
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
           {services.map((service, index) => {
-            const Icon = service.icon;
             return (
               <motion.div
                 key={index}
@@ -73,10 +146,17 @@ const ServicesSection = () => {
                 whileHover={{ y: -6 }}
                 className="bg-white p-8 rounded-[1.8rem] border border-gray-100 shadow-sm flex flex-col items-center text-center transition-all duration-300 hover:shadow-lg"
               >
-                {/* Icon */}
-                <div className="w-14 h-14 bg-[#f9f4e8] rounded-full flex items-center justify-center mb-5">
-                  <Icon className="text-[#c5a059]" size={24} />
-                </div>
+                {/* Service image */}
+                {service.image ? (
+                  <img
+                    src={service.image}
+                    alt={service.title}
+                    className="w-20 h-12 md:w-24 md:h-14 object-cover rounded-xl mb-5"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-20 h-12 md:w-24 md:h-14 rounded-xl mb-5 bg-[#f3eee3]" />
+                )}
 
                 {/* Title */}
                 <h3 className="font-bold text-[#002b5b] text-lg mb-2">{service.title}</h3>
