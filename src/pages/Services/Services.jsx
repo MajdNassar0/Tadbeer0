@@ -1,115 +1,128 @@
+// src/pages/Services/Services.jsx
+
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
+// Your services array
 const services = [
   {
     title: "الأجهزة المنزلية",
+    slug: "appliances",
     desc: "صيانة وإصلاح كافة الأجهزة",
     image: new URL("../../assets/img/services/اجهزة منزلية.webp", import.meta.url).href,
   },
   {
     title: "خدمات التنظيف",
+    slug: "cleaning",
     desc: "تنظيف شامل وعميق للمنازل",
     image: new URL("../../assets/img/services/تنظيف منزل.webp", import.meta.url).href,
   },
   {
     title: "أعمال الكهرباء",
+    slug: "electricity",
     desc: "فحص وتمديد وصيانة آمنة",
     image: new URL("../../assets/img/services/اعمال كهرباء.webp", import.meta.url).href,
   },
   {
-    title: "سباكة",
+    title: "السباكة",
+    slug: "plumbing",
     desc: "حلول سريعة لكافة التسريبات",
     image: new URL("../../assets/img/services/سباكة.webp", import.meta.url).href,
   },
   {
     title: "تنسيق الحدائق",
+    slug: "gardening",
     desc: "تصميم وصيانة المسطحات الخضراء",
     image: new URL("../../assets/img/services/حدائق.webp", import.meta.url).href,
   },
   {
     title: "أعمال النجارة",
+    slug: "carpentry",
     desc: "صيانة وتفصيل الأثاث الخشبي",
     image: new URL("../../assets/img/services/اعمال نجارة.webp", import.meta.url).href,
   },
   {
     title: "مكافحة الحشرات",
+    slug: "pest_control",
     desc: "رش مبيدات آمنة وفعالة",
     image: new URL("../../assets/img/services/التعقيم.webp", import.meta.url).href,
   },
   {
     title: "دهانات وتشطيبات",
+    slug: "painting",
     desc: "ديكورات داخلية وخارجية",
     image: new URL("../../assets/img/services/الدهانات و التشطيب.webp", import.meta.url).href,
   },
   {
     title: "كاميرات المراقبة",
+    slug: "cameras",
     desc: "تركيب وبرمجة أنظمة الأمان",
     image: new URL("../../assets/img/services/كمرات مراقبة.png", import.meta.url).href,
   },
   {
     title: "خزانات المياه",
+    slug: "water_tanks",
     desc: "تعقيم وعزل خزانات المياه",
     image: new URL("../../assets/img/services/العوازل.webp", import.meta.url).href,
   },
   {
-    title: "أعمال الزراعة",
-    desc: "عناية دورية بالتربة والأشجار",
-    image: new URL("../../assets/img/services/حدائق.webp", import.meta.url).href,
-  },
-  {
     title: "أعمال الألمنيوم",
+    slug: "aluminum",
     desc: "تركيب وصيانة النوافذ والأبواب",
     image: new URL("../../assets/img/services/اعمال المنيوم.webp", import.meta.url).href,
   },
   {
     title: "أرضيات وحوائط",
+    slug: "flooring",
     desc: "تركيب وتشطيب احترافي للأرضيات والجدران",
     image: new URL("../../assets/img/services/ارضيات و حوائط.webp", import.meta.url).href,
   },
   {
     title: "أعمال الحدادة",
+    slug: "blacksmith",
     desc: "تصنيع وتركيب أعمال الحديد بمواصفات دقيقة",
     image: new URL("../../assets/img/services/اعمال حدادة.webp", import.meta.url).href,
   },
   {
     title: "البوابات الكهربائية",
+    slug: "gates",
     desc: "تركيب وصيانة البوابات الأوتوماتيكية",
     image: new URL("../../assets/img/services/البوابات الكهربائيه.webp", import.meta.url).href,
   },
   {
     title: "الطاقة الشمسية",
+    slug: "solar",
     desc: "حلول تركيب وصيانة أنظمة الطاقة الشمسية",
     image: new URL("../../assets/img/services/الطاقة الشمسية.webp", import.meta.url).href,
   },
   {
     title: "المصاعد",
+    slug: "elevators",
     desc: "خدمات تركيب وصيانة المصاعد المنزلية والتجارية",
     image: new URL("../../assets/img/services/المصاعد.webp", import.meta.url).href,
   },
   {
     title: "خدمة حرفي",
+    slug: "handyman",
     desc: "توفير فني متعدد المهارات للصيانة المنزلية",
     image: new URL("../../assets/img/services/حرفي.webp", import.meta.url).href,
   },
   {
-    title: "خدمات خزان ماء",
-    desc: "تنظيف وصيانة وتعقيم خزانات المياه",
-    image: new URL("../../assets/img/services/خدمات خزان ماء.webp", import.meta.url).href,
-  },
-  {
     title: "فني ستالايت",
+    slug: "satellite",
     desc: "تركيب وضبط وصيانة أنظمة الستالايت",
     image: new URL("../../assets/img/services/فني ستالايت.webp", import.meta.url).href,
   },
 ];
 
-const ServicesSection = () => {
+const Services = () => {
+  const navigate = useNavigate();
+
   return (
-    <section className="bg-[#f8f6f3] py-24 px-4 font-sans" dir="rtl">
+    <section dir="rtl" className="bg-[#f8f6f3] py-24 px-4 font-sans">
       <div className="max-w-6xl mx-auto">
-        
         {/* Header */}
         <div className="text-center mb-12">
           <motion.h2
@@ -135,82 +148,31 @@ const ServicesSection = () => {
           }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          {services.map((service, index) => {
-            return (
-              <motion.div
-                key={index}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0 },
-                }}
-                whileHover={{ y: -6 }}
-                className="bg-white p-8 rounded-[1.8rem] border border-gray-100 shadow-sm flex flex-col items-center text-center transition-all duration-300 hover:shadow-lg"
-              >
-                {/* Service image */}
-                {service.image ? (
-                  <img
-                    src={service.image}
-                    alt={service.title}
-                    className="w-20 h-12 md:w-24 md:h-14 object-cover rounded-xl mb-5"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-20 h-12 md:w-24 md:h-14 rounded-xl mb-5 bg-[#f3eee3]" />
-                )}
-
-                {/* Title */}
-                <h3 className="font-bold text-[#002b5b] text-lg mb-2">{service.title}</h3>
-
-                {/* Description */}
-                <p className="text-gray-500 text-sm leading-relaxed">{service.desc}</p>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-
-        {/* CTA Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          className="mt-20 p-6 md:p-8 rounded-3xl border border-gray-100 bg-[#f8f6f3] flex flex-col md:flex-row items-center justify-between gap-6"
-        >
-          {/* Left Side */}
-          <div className="flex items-center gap-4">
-            <img
-              src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=150&h=150&fit=crop"
-              alt="Worker"
-              className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-2xl grayscale hover:grayscale-0 transition"
-            />
-
-            <div className="text-right">
-              <h3 className="text-lg md:text-xl font-bold text-gray-900">
-                هل تحتاج لخدمة خاصة؟
-              </h3>
-              <p className="text-gray-500 text-sm">
-                تواصل معنا وسنوفر لك الفني المناسب فوراً.
-              </p>
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex gap-3">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md"
+          {services.map((service) => (
+            <motion.div
+              key={service.slug}
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 },
+              }}
+              whileHover={{ y: -6 }}
+              onClick={() => navigate(`/services/${service.slug}`)}
+              className="bg-white p-8 rounded-[1.8rem] border border-gray-100 shadow-sm flex flex-col items-center text-center transition-all duration-300 hover:shadow-lg cursor-pointer"
             >
-              اطلب الآن
-              <ArrowLeft size={18} />
-            </motion.button>
-
-            <button className="text-gray-600 hover:text-gray-900 font-medium px-4 transition">
-              مشاهدة الكل
-            </button>
-          </div>
+              <img
+                src={service.image}
+                alt={service.title}
+                className="w-20 h-12 md:w-24 md:h-14 object-cover rounded-xl mb-5"
+                loading="lazy"
+              />
+              <h3 className="font-bold text-[#002b5b] text-lg mb-2">{service.title}</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">{service.desc}</p>
+            </motion.div>
+          ))}
         </motion.div>
       </div>
     </section>
   );
 };
 
-export default ServicesSection;
+export default Services;

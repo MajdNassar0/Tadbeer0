@@ -9,6 +9,7 @@ import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute";
 import Services from "./pages/Services/Services";
 import ForgotPassword from "./pages/ForgotPassword/ForgotPassword"
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
+import ServicesDetails from "./pages/ServicesDetails/servicesDetails";
 
 const router = createBrowserRouter([
   {
@@ -48,14 +49,20 @@ const router = createBrowserRouter([
         ),
     },
     {
+  
   path: "/services",
-  element: <MainLayout />, // or AuthLayout if intended
+  element: <MainLayout />,
   children: [
     {
       index: true,
       element: <Services />,
     },
+    {
+      path: ":slug",  
+      element: <ServicesDetails />,
+    },
   ],
 }
+
 ]);
 export default router
