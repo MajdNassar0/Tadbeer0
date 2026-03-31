@@ -7,6 +7,7 @@ import AuthLayout from "./layout/AuthLayout";
 import Booking from "./pages/Booking/Booking";
 import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute";
 import Services from "./pages/Services/Services";
+import Workers from "./pages/Workers/Workers";
 import ForgotPassword from "./pages/ForgotPassword/ForgotPassword"
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
 
@@ -56,6 +57,16 @@ const router = createBrowserRouter([
       element: <Services />,
     },
   ],
-}
+},
+{
+  path: "/workers",
+  element: <MainLayout />,
+  children: [
+    {
+      index: true,
+      element: <Workers />,
+    },
+  ],
+},
 ]);
 export default router
