@@ -27,13 +27,9 @@ function Navbar() {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo Section */}
           <NavLink to="/" className="flex items-center gap-3">
-            <motion.div
-              whileHover={{ rotate: 360 }}
-              transition={{ duration: 0.5 }}
-              className="bg-yellow-500 w-9 h-9 rounded-lg flex items-center justify-center shadow-md shadow-yellow-100"
-            >
-              <span className="text-white font-black text-xl">T</span>
-            </motion.div>
+            <div className="w-10 h-10">
+              <img src="/src/assets/img/tadbeerLogo/logo.5.png" alt="Tadbeer logo" />
+            </div>
             <span className="text-2xl font-bold text-gray-900 tracking-tight">
               تدبير
             </span>
