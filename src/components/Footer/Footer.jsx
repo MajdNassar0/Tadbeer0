@@ -1,5 +1,4 @@
 import React from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { Mail, Phone, Facebook, Instagram} from "lucide-react";
 
@@ -77,9 +76,13 @@ function Footer() {
           {/* About Tadbeer */}
           
           <div dir="rtl">
-            <h3 className="text-xl font-bold text-[#ffc258] mb-4">
-             تدبير Tadbeer 
-            </h3>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 shrink-0">
+                <img src="/src/assets/img/tadbeerLogo/logo.5.png" alt="Tadbeer logo" />
+              </div>
+              <h3 className="text-xl font-bold text-[#ffc258]">تدبير</h3>
+            </div>
+
 
             <p className="text-gray-300 mb-6 leading-relaxed">
               تدبير هو شريكك المتكامل لجميع خدمات الصيانة المنزلية في فلسطين.
