@@ -41,20 +41,41 @@ const Login = () => {
           { email: values.email, password: values.password }
         );
 
-        if (response.data?.token) {
-          localStorage.setItem("token", response.data.token);
+        console.log("LOGIN RESPONSE:", response.data);
+
+        // ✅ Success
+        if (response.data?.isSuccess || response.data?.token) {
+
+          if (response.data?.token) {
+            localStorage.setItem("token", response.data.token);
+          }
+
           toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
+
           setTimeout(() => {
             navigate("/");
           }, 1500);
         }
+
       } catch (error) {
         const backend = error.response?.data;
-        if (error.response?.status === 401) {
-            setFieldError("email", "خطأ في البريد الإلكتروني أو كلمة المرور");
-        } else {
-            toast.error(backend?.message || "حدث خطأ أثناء تسجيل الدخول");
+
+        // 🔥 Email not confirmed
+        if (backend?.message?.toLowerCase().includes("not confirmed")) {
+          toast.error("يرجى تأكيد البريد الإلكتروني أولاً 📩");
         }
+
+        // ❌ Wrong email or password
+        else if (error.response?.status === 401) {
+          setFieldError("email", "خطأ في البريد الإلكتروني");
+          setFieldError("password", "خطأ في كلمة المرور");
+        }
+
+        // ❌ Other errors
+        else {
+          toast.error(backend?.message || "حدث خطأ أثناء تسجيل الدخول");
+        }
+
       } finally {
         setSubmitting(false);
       }
