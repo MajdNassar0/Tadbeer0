@@ -43,39 +43,41 @@ const Login = () => {
 
         console.log("LOGIN RESPONSE:", response.data);
 
-        // ✅ Success
-        if (response.data?.isSuccess || response.data?.token) {
+        // 🔹 استخراج البيانات بأمان مع fallback
+        const user = {
+          name: response.data?.firstName || "Admin",
+          email: response.data?.email || values.email,
+          role: response.data?.role || "admin", // fallback لتجربة الأدمن
+        };
 
-          if (response.data?.token) {
-            localStorage.setItem("token", response.data.token);
-          }
-
-          toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
-
-          setTimeout(() => {
-            navigate("/");
-          }, 1500);
+        localStorage.setItem("user", JSON.stringify(user));
+        if (response.data?.token) {
+          localStorage.setItem("token", response.data.token);
         }
+
+        toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
+
+        // 🔹 توجيه حسب الدور
+        setTimeout(() => {
+          const userRole = user.role.toLowerCase();
+          if (userRole === "admin") {
+            navigate("/admin");
+          } else {
+            navigate("/");
+          }
+        }, 1500);
 
       } catch (error) {
         const backend = error.response?.data;
 
-        // 🔥 Email not confirmed
         if (backend?.message?.toLowerCase().includes("not confirmed")) {
           toast.error("يرجى تأكيد البريد الإلكتروني أولاً 📩");
-        }
-
-        // ❌ Wrong email or password
-        else if (error.response?.status === 401) {
+        } else if (error.response?.status === 401) {
           setFieldError("email", "خطأ في البريد الإلكتروني");
           setFieldError("password", "خطأ في كلمة المرور");
-        }
-
-        // ❌ Other errors
-        else {
+        } else {
           toast.error(backend?.message || "حدث خطأ أثناء تسجيل الدخول");
         }
-
       } finally {
         setSubmitting(false);
       }
@@ -155,7 +157,7 @@ const Login = () => {
                 <span className="text-gray-600 select-none group-hover:text-[#001e3c]">تذكرني</span>
               </div>
               <Link 
-                to="/auth/forgotpassword" 
+                to="/auth/forgot-password" 
                 title="نسيت كلمة المرور" 
                 className="text-yellow-600 font-bold hover:text-yellow-700 transition-colors"
               >
