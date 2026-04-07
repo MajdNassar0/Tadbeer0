@@ -10,6 +10,7 @@ import Services from "./pages/Services/Services";
 import Workers from "./pages/Workers/Workers";
 import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
+import WorkerProfile from "./pages/WorkerProfile/WorkerProfile";
 
 const router = createBrowserRouter([
   {
@@ -28,6 +29,9 @@ const router = createBrowserRouter([
       {
         path: "workers",
         element: <Workers />,
+      },{
+        path: "worker-profile/:id",
+        element: <WorkerProfile />,
       },
     ],
   },
