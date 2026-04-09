@@ -15,7 +15,7 @@ function Navbar() {
     { name: "الرئيسية", path: "/" },
     { name: "عن المنصة", path: "#about" },
     { name: "الخدمات", path: "/services" },
-    { name: "اتصل بنا", path: "/contact" },
+    { name: "اتصل بنا", path: "#ContactSection" },
   ];
 
   return (
