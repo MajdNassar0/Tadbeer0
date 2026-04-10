@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuth } from "../../context/AuthContext";
 import { motion } from "framer-motion";
 import { Mail, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -8,7 +9,7 @@ import { Toaster, toast } from "sonner";
 
 const Login = () => {
   const navigate = useNavigate();
-
+  const { login } = useAuth();
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
     visible: { 
@@ -52,12 +53,7 @@ const Login = () => {
           role: apiRole, 
         };
 
-        // تخزين البيانات في المتصفح
-        localStorage.setItem("user", JSON.stringify(user));
-        if (response.data?.token) {
-          localStorage.setItem("token", response.data.token);
-        }
-
+        login(user, response.data.token);
         toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
 
         // التوجيه بناءً على الرتبة بعد ثانية ونصف
