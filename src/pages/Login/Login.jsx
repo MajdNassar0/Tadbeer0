@@ -43,13 +43,16 @@ const Login = () => {
 
         console.log("LOGIN RESPONSE:", response.data);
 
-        // 🔹 استخراج البيانات بأمان مع fallback
+        // استخراج الدور - Worker كقيمة افتراضية للأمان
+        const apiRole = response.data?.role || "Worker"; 
+
         const user = {
-          name: response.data?.firstName || "Admin",
+          name: response.data?.firstName || "User",
           email: response.data?.email || values.email,
-          role: response.data?.role || "admin", // fallback لتجربة الأدمن
+          role: apiRole, 
         };
 
+        // تخزين البيانات في المتصفح
         localStorage.setItem("user", JSON.stringify(user));
         if (response.data?.token) {
           localStorage.setItem("token", response.data.token);
@@ -57,9 +60,9 @@ const Login = () => {
 
         toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
 
-        // 🔹 توجيه حسب الدور
+        // التوجيه بناءً على الرتبة بعد ثانية ونصف
         setTimeout(() => {
-          const userRole = user.role.toLowerCase();
+          const userRole = user.role.toLowerCase(); 
           if (userRole === "admin") {
             navigate("/admin");
           } else {
@@ -69,7 +72,6 @@ const Login = () => {
 
       } catch (error) {
         const backend = error.response?.data;
-
         if (backend?.message?.toLowerCase().includes("not confirmed")) {
           toast.error("يرجى تأكيد البريد الإلكتروني أولاً 📩");
         } else if (error.response?.status === 401) {
@@ -114,8 +116,8 @@ const Login = () => {
                   {...formik.getFieldProps("email")}
                   placeholder="البريد الإلكتروني"
                   className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
-      ${formik.touched.email && formik.errors.email ? "border-red-500" : "border-transparent"}
-      focus:outline-none focus:border-blue-900`}
+                  ${formik.touched.email && formik.errors.email ? "border-red-500" : "border-transparent"}
+                  focus:outline-none focus:border-blue-900`}
                 />
                 <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               </div>
@@ -135,8 +137,8 @@ const Login = () => {
                   {...formik.getFieldProps("password")}
                   placeholder="كلمة المرور"
                   className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
-      ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
-      focus:outline-none focus:border-blue-900`}
+                  ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
+                  focus:outline-none focus:border-blue-900`}
                 />
                 <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               </div>
@@ -158,7 +160,6 @@ const Login = () => {
               </div>
               <Link 
                 to="/auth/forgot-password" 
-                title="نسيت كلمة المرور" 
                 className="text-yellow-600 font-bold hover:text-yellow-700 transition-colors"
               >
                 نسيت كلمة المرور؟
