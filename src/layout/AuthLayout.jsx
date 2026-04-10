@@ -1,10 +1,12 @@
 import React from 'react'
 import { Outlet } from 'react-router-dom'
+import ScrollToTop from "../components/ScrollToTop/ScrollToTop"; 
 
 function AuthLayout() {
   return (
     <>
-       <Outlet/>
+    <ScrollToTop />
+    <Outlet/>
 
     </>
   )
