@@ -80,7 +80,7 @@ const Services = () => {
                 className="bg-white p-8 rounded-[1.8rem] border border-gray-100 shadow-sm flex flex-col items-center text-center transition-all duration-300 hover:shadow-lg cursor-pointer group"
               >
                 {/* Image / Icon */}
-                <div className="w-20 h-14 mb-5 flex items-center justify-center bg-gray-50 rounded-xl overflow-hidden">
+                <div className="w-32 h-18 mb-5 flex items-center justify-center  rounded-xl overflow-hidden">
                   {service.iconUrl ? (
                     <img
                       src={getImageUrl(service.iconUrl)}
