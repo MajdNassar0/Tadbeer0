@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import WorkerProfile from "./pages/WorkerProfile/WorkerProfile";
 import Admin from "./pages/Admin/Admin";
 import TechnicanDashboard from "./pages/TechnicanDashboard/TechnicanDashboard";
+import UserProfile from"./pages/UserProfile/UserProfile"
 
 const router = createBrowserRouter([
   {
@@ -34,6 +35,13 @@ const router = createBrowserRouter([
       {
         path: "worker-profile/:id",
         element: <WorkerProfile />,
+      },{
+        path: "user-profile",
+        element: (
+          <ProtectedRoute> 
+             <UserProfile />
+          </ProtectedRoute>
+        ),
       },
     ],
   },
