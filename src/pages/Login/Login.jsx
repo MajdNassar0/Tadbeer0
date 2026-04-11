@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuth } from "../../context/AuthContext";
 import { motion } from "framer-motion";
 import { Mail, Lock, UserPlus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -9,7 +10,7 @@ import { jwtDecode } from "jwt-decode";
 
 const Login = () => {
   const navigate = useNavigate();
-
+  const { login } = useAuth();
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
     visible: { 
@@ -48,59 +49,38 @@ const Login = () => {
           return;
         }
 
-        const decoded = jwtDecode(response.data.token);
+
+        // استخراج الدور - Worker كقيمة افتراضية للأمان
+        const apiRole = response.data?.role || "Worker"; 
+
         const user = {
-          name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
-          email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
-          role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User",
+          name: response.data?.firstName || "User",
+          email: response.data?.email || values.email,
+          role: apiRole, 
         };
 
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("token", response.data.token);
-
+        login(user, response.data.token);
         toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
 
+        // التوجيه بناءً على الرتبة بعد ثانية ونصف
         setTimeout(() => {
-          const role = user.role?.trim().toLowerCase();
-          if (role === "admin" || role === "superadmin") navigate("/admin");
-          else if (role === "worker") navigate("/technical");
-          else navigate("/");
-        }, 1000);
+          const userRole = user.role.toLowerCase(); 
+          if (userRole === "admin") {
+            navigate("/admin");
+          } else {
+            navigate("/");
+          }
+        }, 1500);
 
       } catch (error) {
-        const backendMessage = error.response?.data?.message || "";
-        const status = error.response?.status;
-
-        // ✅ 1. Styled Email Confirmation Toast
-        if (backendMessage.toLowerCase().includes("not confirmed")) {
-          toast.warning("تنبيه: الحساب غير نشط", {
-            description: "يرجى تأكيد بريدك الإلكتروني لتتمكن من الدخول.",
-            duration: 6000,
-            action: {
-              label: "فتح البريد",
-              onClick: () => window.open("https://mail.google.com", "_blank"),
-            },
-          });
-        } 
-        
-        // ✅ 2. Specific Field-Level Errors (Email vs Password)
-        else if (status === 401 || status === 400) {
-          if (backendMessage.toLowerCase().includes("password")) {
-            setFieldError("password", "كلمة المرور التي أدخلتها غير صحيحة");
-            toast.error("خطأ في كلمة المرور");
-          } 
-          else if (backendMessage.toLowerCase().includes("email") || backendMessage.toLowerCase().includes("user")) {
-            setFieldError("email", "هذا البريد الإلكتروني غير مسجل لدينا");
-            toast.error("البريد الإلكتروني غير موجود");
-          } 
-          else {
-            toast.error("خطأ في البيانات، يرجى التأكد من البريد وكلمة المرور");
-          }
-        } 
-        
-        // ✅ 3. Server/Network Error
-        else {
-          toast.error("تعذر الاتصال بالخادم. يرجى المحاولة لاحقاً");
+        const backend = error.response?.data;
+        if (backend?.message?.toLowerCase().includes("not confirmed")) {
+          toast.error("يرجى تأكيد البريد الإلكتروني أولاً 📩");
+        } else if (error.response?.status === 401) {
+          setFieldError("email", "خطأ في البريد الإلكتروني");
+          setFieldError("password", "خطأ في كلمة المرور");
+        } else {
+          toast.error(backend?.message || "حدث خطأ أثناء تسجيل الدخول");
         }
       } finally {
         setSubmitting(false);
@@ -138,10 +118,11 @@ const Login = () => {
                 <input 
                   type="text"
                   {...formik.getFieldProps("email")}
-                  placeholder="example@mail.com"
-                  className={`w-full bg-[#f8f9fa] border-2 rounded-xl py-3.5 pr-11 pl-4 text-right transition-all
-                  ${formik.touched.email && formik.errors.email ? "border-red-500 bg-red-50/30" : "border-transparent focus:border-blue-900"}
-                  focus:outline-none`}
+
+                  placeholder="البريد الإلكتروني"
+                  className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
+                  ${formik.touched.email && formik.errors.email ? "border-red-500" : "border-transparent"}
+                  focus:outline-none focus:border-blue-900`}
                 />
                 <Mail className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${formik.touched.email && formik.errors.email ? "text-red-400" : "text-gray-400"}`} size={20} />
               </div>
@@ -159,10 +140,11 @@ const Login = () => {
                 <input 
                   type="password"
                   {...formik.getFieldProps("password")}
-                  placeholder="••••••••"
-                  className={`w-full bg-[#f8f9fa] border-2 rounded-xl py-3.5 pr-11 pl-4 text-right transition-all
-                  ${formik.touched.password && formik.errors.password ? "border-red-500 bg-red-50/30" : "border-transparent focus:border-blue-900"}
-                  focus:outline-none`}
+
+                  placeholder="كلمة المرور"
+                  className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
+                  ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
+                  focus:outline-none focus:border-blue-900`}
                 />
                 <Lock className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${formik.touched.password && formik.errors.password ? "text-red-400" : "text-gray-400"}`} size={20} />
               </div>
@@ -183,7 +165,11 @@ const Login = () => {
                 />
                 <span className="text-gray-600 font-medium">تذكرني</span>
               </div>
-              <Link to="/auth/ForgotPassword" size={20} className="text-[#001e3c] font-black hover:text-blue-700 transition-colors">
+
+              <Link 
+                to="/auth/forgot-password" 
+                className="text-yellow-600 font-bold hover:text-yellow-700 transition-colors"
+              >
                 نسيت كلمة المرور؟
               </Link>
             </div>
