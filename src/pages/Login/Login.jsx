@@ -11,6 +11,7 @@ import { jwtDecode } from "jwt-decode";
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
     visible: { 
@@ -44,43 +45,46 @@ const Login = () => {
           { email: values.email, password: values.password }
         );
 
-        if (!response.data.isSuccess) {
-          toast.error(response.data.message || "حدث خطأ أثناء تسجيل الدخول");
-          return;
+        // التحقق من نجاح العملية من الـ API
+        if (response.data.token) {
+          const token = response.data.token;
+          const decoded = jwtDecode(token);
+
+          // استخراج البيانات من التوكن (حسب مسميات Identity Server)
+          const user = {
+            name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
+            email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
+            role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User",
+          };
+
+          // 🛑 الخطوة السحرية: تحديث الـ Context ليظهر المستخدم في الناف بار فوراً
+          login(user, token);
+
+          toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
+
+          // التوجيه حسب الدور
+          setTimeout(() => {
+            const role = user.role?.trim().toLowerCase();
+            if (role === "admin" || role === "superadmin") navigate("/admin");
+            else if (role === "worker") navigate("/technical");
+            else navigate("/");
+          }, 1000);
         }
 
-
-        // استخراج الدور - Worker كقيمة افتراضية للأمان
-        const apiRole = response.data?.role || "Worker"; 
-
-        const user = {
-          name: response.data?.firstName || "User",
-          email: response.data?.email || values.email,
-          role: apiRole, 
-        };
-
-        login(user, response.data.token);
-        toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
-
-        // التوجيه بناءً على الرتبة بعد ثانية ونصف
-        setTimeout(() => {
-          const userRole = user.role.toLowerCase(); 
-          if (userRole === "admin") {
-            navigate("/admin");
-          } else {
-            navigate("/");
-          }
-        }, 1500);
-
       } catch (error) {
-        const backend = error.response?.data;
-        if (backend?.message?.toLowerCase().includes("not confirmed")) {
-          toast.error("يرجى تأكيد البريد الإلكتروني أولاً 📩");
-        } else if (error.response?.status === 401) {
-          setFieldError("email", "خطأ في البريد الإلكتروني");
-          setFieldError("password", "خطأ في كلمة المرور");
+        const backendMessage = error.response?.data?.message || "";
+        const status = error.response?.status;
+
+        if (backendMessage.toLowerCase().includes("not confirmed")) {
+          toast.warning("تنبيه: الحساب غير نشط", {
+            description: "يرجى تأكيد بريدك الإلكتروني لتتمكن من الدخول.",
+            duration: 6000,
+          });
+        } else if (status === 401 || status === 400) {
+          setFieldError("email", "خطأ في البريد أو كلمة المرور");
+          toast.error("بيانات الدخول غير صحيحة");
         } else {
-          toast.error(backend?.message || "حدث خطأ أثناء تسجيل الدخول");
+          toast.error("تعذر الاتصال بالخادم. يرجى المحاولة لاحقاً");
         }
       } finally {
         setSubmitting(false);
@@ -90,7 +94,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-sans" dir="rtl">
-      {/* RichColors and Expand make the alerts look modern and stackable */}
       <Toaster position="top-center" richColors expand={true} />
 
       <motion.div 
@@ -99,7 +102,6 @@ const Login = () => {
         animate="visible"
         className="w-full max-w-[450px] bg-white rounded-[24px] shadow-2xl overflow-hidden border border-gray-100"
       >
-        {/* Header Section */}
         <div className="bg-[#001e3c] py-10 px-6 text-center relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-blue-500/10 blur-3xl rounded-full translate-y-[-50%]"></div>
           <h1 className="text-white text-2xl font-bold mb-2 relative z-10 tracking-tight">مرحباً بك مجدداً</h1>
@@ -109,99 +111,67 @@ const Login = () => {
         <div className="p-8 lg:p-10">
           <form onSubmit={formik.handleSubmit} className="space-y-6">
             
-            {/* Email Input */}
             <motion.div variants={itemVariants}>
-              <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">
-                البريد الإلكتروني
-              </label>
+              <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">البريد الإلكتروني</label>
               <div className="relative">
                 <input 
                   type="text"
                   {...formik.getFieldProps("email")}
-
                   placeholder="البريد الإلكتروني"
                   className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
                   ${formik.touched.email && formik.errors.email ? "border-red-500" : "border-transparent"}
                   focus:outline-none focus:border-blue-900`}
                 />
-                <Mail className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${formik.touched.email && formik.errors.email ? "text-red-400" : "text-gray-400"}`} size={20} />
+                <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               </div>
               {formik.touched.email && formik.errors.email && (
                 <p className="text-red-500 text-[11px] mt-1.5 mr-1 text-right font-bold">{formik.errors.email}</p>
               )}
             </motion.div>
 
-            {/* Password Input */}
             <motion.div variants={itemVariants}>
-              <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">
-                كلمة المرور
-              </label>
+              <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">كلمة المرور</label>
               <div className="relative">
                 <input 
                   type="password"
                   {...formik.getFieldProps("password")}
-
                   placeholder="كلمة المرور"
                   className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
                   ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
                   focus:outline-none focus:border-blue-900`}
                 />
-                <Lock className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${formik.touched.password && formik.errors.password ? "text-red-400" : "text-gray-400"}`} size={20} />
+                <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               </div>
               {formik.touched.password && formik.errors.password && (
                 <p className="text-red-500 text-[11px] mt-1.5 mr-1 text-right font-bold">{formik.errors.password}</p>
               )}
             </motion.div>
 
-            {/* Remember & Forgot Password */}
             <div className="flex items-center justify-between text-xs px-1">
               <div className="flex items-center gap-2">
-                <input 
-                  type="checkbox"
-                  name="remember"
-                  onChange={formik.handleChange}
-                  checked={formik.values.remember}
-                  className="w-4 h-4 accent-[#001e3c] rounded cursor-pointer"
-                />
-                <span className="text-gray-600 font-medium">تذكرني</span>
+                <input type="checkbox" name="remember" className="w-4 h-4 accent-[#001e3c]" />
+                <span className="text-gray-600">تذكرني</span>
               </div>
-
-              <Link 
-                to="/auth/forgot-password" 
-                className="text-yellow-600 font-bold hover:text-yellow-700 transition-colors"
-              >
-                نسيت كلمة المرور؟
-              </Link>
+              <Link to="/auth/forgot-password" size="sm" className="text-yellow-600 font-bold hover:underline">نسيت كلمة المرور؟</Link>
             </div>
 
-            {/* Submit Button */}
             <motion.button
               type="submit"
               disabled={formik.isSubmitting}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full bg-yellow-500 hover:bg-yellow-400 py-4 rounded-xl font-black text-[#001e3c] shadow-xl shadow-yellow-500/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-yellow-500 hover:bg-yellow-400 py-4 rounded-xl font-black text-[#001e3c] shadow-xl transition-all disabled:opacity-70"
             >
-              {formik.isSubmitting ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-3 border-[#001e3c] border-t-transparent rounded-full animate-spin"></div>
-                  <span>جاري التحقق...</span>
-                </div>
-              ) : "تسجيل الدخول"}
+              {formik.isSubmitting ? "جاري التحقق..." : "تسجيل الدخول"}
             </motion.button>
 
-            {/* Signup Link Section */}
-            <motion.div variants={itemVariants} className="text-center pt-6 border-t border-gray-100 mt-4">
-               <p className="text-gray-400 text-sm font-medium">ليس لديك حساب حتى الآن؟</p>
-               <Link 
-                to="/auth/signup" 
-                className="flex items-center justify-center gap-2 mt-3 text-[#001e3c] font-black hover:scale-105 transition-transform"
-               >
+            <motion.div variants={itemVariants} className="text-center pt-6 border-t border-gray-100">
+               <p className="text-gray-400 text-sm font-medium">ليس لديك حساب؟</p>
+               <Link to="/auth/signup" className="flex items-center justify-center gap-2 mt-3 text-[#001e3c] font-black">
                  <UserPlus size={18} className="text-yellow-600" />
-                 <span className="border-b-2 border-yellow-500/30">إنشاء حساب جديد</span>
+                 <span>إنشاء حساب جديد</span>
                </Link>
             </motion.div>
-
           </form>
         </div>
       </motion.div>
