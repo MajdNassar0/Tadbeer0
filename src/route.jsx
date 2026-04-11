@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import WorkerProfile from "./pages/WorkerProfile/WorkerProfile";
 import Admin from "./pages/Admin/Admin";
+import TechnicanDashboard from "./pages/TechnicanDashboard/TechnicanDashboard";
 
 const router = createBrowserRouter([
   {
@@ -22,7 +23,6 @@ const router = createBrowserRouter([
         index: true,
         element: <Home />,
       },
-      // 🔹 المسارات الجديدة تحت الـ MainLayout عشان يضل الهيدر والفوتر موجودين
       {
         path: "services",
         element: <Services />,
@@ -35,7 +35,6 @@ const router = createBrowserRouter([
         path: "worker-profile/:id",
         element: <WorkerProfile />,
       },
-      
     ],
   },
   {
@@ -68,14 +67,22 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-    {
-        path: "admin",
-        element: (
-          <ProtectedRoute role="admin">
-            <Admin />
-          </ProtectedRoute>
-        ),
-      },
+  {
+    path: "admin",
+    element: (
+      <ProtectedRoute role={["admin", "superadmin"]}>
+        <Admin />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "technical",
+    element: (
+      <ProtectedRoute role="worker">
+        <TechnicanDashboard />
+      </ProtectedRoute>
+    ),
+  },
 ]);
 
 export default router;
