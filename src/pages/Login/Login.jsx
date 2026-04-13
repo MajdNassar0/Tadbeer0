@@ -45,24 +45,26 @@ const Login = () => {
           { email: values.email, password: values.password }
         );
 
-        // التحقق من نجاح العملية من الـ API
         if (response.data.token) {
           const token = response.data.token;
           const decoded = jwtDecode(token);
+          
+          // سطر للفحص في الكونسول للتأكد من مسميات التوكن
+          console.log("Decoded Token:", decoded);
 
-          // استخراج البيانات من التوكن (حسب مسميات Identity Server)
+          // استخراج البيانات مع ضمان جلب الـ ID بكل المسميات المحتملة لـ API تدبير
           const user = {
-            name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
-            email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
-            role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User",
+            id: decoded.uid || decoded.sub || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"], 
+            name: decoded.name || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
+            email: decoded.email || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
+            role: decoded.role || decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User",
           };
 
-          // 🛑 الخطوة السحرية: تحديث الـ Context ليظهر المستخدم في الناف بار فوراً
+          // تحديث الـ Context بالبيانات الجديدة
           login(user, token);
 
-          toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
+          toast.success("تم تسجيل الدخول بنجاح!");
 
-          // التوجيه حسب الدور
           setTimeout(() => {
             const role = user.role?.trim().toLowerCase();
             if (role === "admin" || role === "superadmin") navigate("/admin");
@@ -72,15 +74,8 @@ const Login = () => {
         }
 
       } catch (error) {
-        const backendMessage = error.response?.data?.message || "";
         const status = error.response?.status;
-
-        if (backendMessage.toLowerCase().includes("not confirmed")) {
-          toast.warning("تنبيه: الحساب غير نشط", {
-            description: "يرجى تأكيد بريدك الإلكتروني لتتمكن من الدخول.",
-            duration: 6000,
-          });
-        } else if (status === 401 || status === 400) {
+        if (status === 401 || status === 400) {
           setFieldError("email", "خطأ في البريد أو كلمة المرور");
           toast.error("بيانات الدخول غير صحيحة");
         } else {
@@ -147,14 +142,6 @@ const Login = () => {
               )}
             </motion.div>
 
-            <div className="flex items-center justify-between text-xs px-1">
-              <div className="flex items-center gap-2">
-                <input type="checkbox" name="remember" className="w-4 h-4 accent-[#001e3c]" />
-                <span className="text-gray-600">تذكرني</span>
-              </div>
-              <Link to="/auth/forgot-password" size="sm" className="text-yellow-600 font-bold hover:underline">نسيت كلمة المرور؟</Link>
-            </div>
-
             <motion.button
               type="submit"
               disabled={formik.isSubmitting}
@@ -166,11 +153,9 @@ const Login = () => {
             </motion.button>
 
             <motion.div variants={itemVariants} className="text-center pt-6 border-t border-gray-100">
-               <p className="text-gray-400 text-sm font-medium">ليس لديك حساب؟</p>
-               <Link to="/auth/signup" className="flex items-center justify-center gap-2 mt-3 text-[#001e3c] font-black">
-                 <UserPlus size={18} className="text-yellow-600" />
-                 <span>إنشاء حساب جديد</span>
-               </Link>
+                <Link to="/auth/signup" className="flex items-center justify-center gap-2 mt-3 text-[#001e3c] font-black underline">
+                  إنشاء حساب جديد في تدبير
+                </Link>
             </motion.div>
           </form>
         </div>
