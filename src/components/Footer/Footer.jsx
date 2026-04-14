@@ -1,4 +1,5 @@
 import React from "react";
+import logoImg from "../../assets/img/tadbeerLogo/logo.5.png";
 
 import { Mail, Phone, Facebook, Instagram} from "lucide-react";
 
@@ -78,7 +79,7 @@ function Footer() {
           <div dir="rtl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 shrink-0">
-                <img src="/src/assets/img/tadbeerLogo/logo.5.png" alt="Tadbeer logo" />
+                <img src={logoImg} alt="Tadbeer logo" />
               </div>
               <h3 className="text-xl font-bold text-[#ffc258]">تدبير</h3>
             </div>
