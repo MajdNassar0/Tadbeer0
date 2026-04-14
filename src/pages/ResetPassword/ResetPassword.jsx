@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, KeyRound, CheckCircle2, Save, Mail } from "lucide-react";
+import { Lock, KeyRound, CheckCircle2, Save, Mail ,ArrowRight} from "lucide-react";
 import axios from "axios";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
@@ -146,6 +146,16 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f0f2f5] p-4 font-sans" dir="rtl">
+      {/* 🔥 TOP CORNER BACK LINK */}
+      <div className="absolute top-8 right-8">
+        <Link 
+          to="/" 
+          className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:opacity-70 transition-opacity"
+        >
+          <ArrowRight size={20} className="text-yellow-600" />
+          <span>العودة للرئيسية</span>
+        </Link>
+      </div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
