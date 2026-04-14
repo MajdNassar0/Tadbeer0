@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import logoImg from "../../assets/img/tadbeerLogo/logo.5.png";
 import { useAuth } from "../../context/AuthContext";
 import {
   LogOut,
@@ -48,7 +49,7 @@ function Navbar() {
               className="w-10 h-10 transition-transform"
             >
               <img
-                src="/src/assets/img/tadbeerLogo/logo.5.png"
+                src={logoImg} 
                 alt="Tadbeer"
                 className="w-full h-full object-contain"
               />
