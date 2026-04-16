@@ -53,6 +53,9 @@ const Login = () => {
         if (response.data.token) {
           const token = response.data.token;
           const decoded = jwtDecode(token);
+          
+          // سطر للفحص في الكونسول للتأكد من مسميات التوكن
+          console.log("Decoded Token:", decoded);
 
           const user = {
             name:
@@ -68,9 +71,11 @@ const Login = () => {
               ] || "User"
           };
 
+
+
           login(user, token);
 
-          toast.success("تم تسجيل الدخول بنجاح! مرحباً بك");
+          toast.success("تم تسجيل الدخول بنجاح!");
 
           setTimeout(() => {
             const role = user.role?.trim().toLowerCase();
@@ -80,8 +85,8 @@ const Login = () => {
           }, 1000);
         }
       } catch (error) {
-        const backendMessage = error.response?.data?.message || "";
         const status = error.response?.status;
+
 
         if (backendMessage.toLowerCase().includes("not confirmed")) {
           toast.warning("تنبيه: الحساب غير نشط", {
@@ -91,6 +96,7 @@ const Login = () => {
         } else if (status === 401 || status === 400) {
           // ✅ ONLY top error (no field error, no toast)
           setAuthError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+
         } else {
           toast.error("تعذر الاتصال بالخادم. يرجى المحاولة لاحقاً");
         }
@@ -257,6 +263,7 @@ const Login = () => {
           </div>
         </motion.div>
       </div>
+
     </div>
   );
 };
