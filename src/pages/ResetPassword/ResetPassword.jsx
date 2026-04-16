@@ -41,7 +41,7 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoBanner, setInfoBanner] = useState("");
-  const [showSuccessToast, setShowSuccessToast] = useState(false); // حالة التنبيه العلوي
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   useEffect(() => {
     const emailFromQuery = searchParams.get("email") || "";
@@ -84,16 +84,21 @@ const ResetPassword = () => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      // تحقق من النجاح بناءً على هيكلية الـ API الخاص بك
       const isOk = response.status === 200 || response.data === "OK" || response.data?.isSuccess;
 
       if (isOk) {
         setInfoBanner("");
-        setShowSuccessToast(true); // إظهار الرسالة العلوية
+        setShowSuccessToast(true);
         
-        // التوجيه لصفحة الهوم بعد 2.5 ثانية
+        // التوجيه لصفحة تسجيل الدخول بعد 2.5 ثانية
+        // نرسل الإيميل والرسالة لصفحة اللوجن لتسهيل العملية على المستخدم
         setTimeout(() => {
-          navigate("/");
+          navigate("/auth/login", { 
+            state: { 
+              email: formData.email, 
+              flashMessage: "تم تحديث كلمة المرور بنجاح، يرجى تسجيل الدخول ببياناتك الجديدة." 
+            } 
+          });
         }, 2500);
       }
     } catch (error) {
@@ -106,7 +111,7 @@ const ResetPassword = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f0f2f5] p-4 font-sans relative" dir="rtl">
       
-      {/* التنبيه العلوي (Success Toast) */}
+      {/* التنبيه العلوي العائم */}
       <AnimatePresence>
         {showSuccessToast && (
           <motion.div
@@ -118,12 +123,14 @@ const ResetPassword = () => {
             <div className="bg-white/20 p-1 rounded-full">
               <CheckCircle2 size={24} />
             </div>
-            <span className="font-bold text-lg">تمت إعادة تعيين كلمة المرور بنجاح! جاري تحويلك...</span>
+            <div className="flex flex-col">
+              <span className="font-bold text-lg">تم تغيير كلمة المرور بنجاح!</span>
+              <span className="text-sm opacity-90">جاري توجيهك لصفحة تسجيل الدخول...</span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* زر العودة للرئيسية */}
       <div className="absolute top-8 right-8">
         <Link 
           to="/" 
@@ -159,7 +166,6 @@ const ResetPassword = () => {
           )}
 
           <form className="space-y-5" onSubmit={handleSubmit}>
-            {/* البريد الإلكتروني */}
             <div className="group">
               <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">البريد الإلكتروني</label>
               <div className="relative">
@@ -175,7 +181,6 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            {/* كود التحقق */}
             <div className="group">
               <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">كود التحقق</label>
               <div className="relative">
@@ -191,7 +196,6 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            {/* كلمة المرور الجديدة */}
             <div className="group">
               <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">كلمة المرور الجديدة</label>
               <div className="relative">
@@ -207,7 +211,6 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            {/* تأكيد كلمة المرور */}
             <div className="group">
               <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">تأكيد كلمة المرور</label>
               <div className="relative">
@@ -234,7 +237,6 @@ const ResetPassword = () => {
               <span>{loading ? "جاري الحفظ..." : "حفظ كلمة المرور الجديدة"}</span>
             </motion.button>
 
-            {/* رسائل الخطأ فقط (رسالة النجاح أصبحت في الأعلى) */}
             {errorMsg && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-600 text-sm text-center font-medium">{errorMsg}</p>
@@ -251,7 +253,7 @@ const ResetPassword = () => {
         </div>
       </motion.div>
 
-      <p className="mt-8 text-gray-400 text-xs">
+      <p className="mt-8 text-gray-400 text-xs italic">
         © 2026 تدبير. جميع الحقوق محفوظة.
       </p>
     </div>
