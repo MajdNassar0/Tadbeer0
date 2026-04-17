@@ -1,32 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import logoImg from "../../assets/img/tadbeerLogo/logo.5.png";
 import { useAuth } from "../../context/AuthContext";
 import {
   LogOut,
   User,
-  LayoutDashboard,
   ChevronDown,
   Menu,
   X,
+  LayoutDashboard,
 } from "lucide-react";
 
 function Navbar() {
   const [open, setOpen] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-
-  // إغلاق القائمة عند تغيير المسار
-  useEffect(() => {
-    setOpen(false);
-  }, [location]);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
 
   const navLinks = [
     { name: "الرئيسية", path: "/" },
@@ -35,6 +26,86 @@ function Navbar() {
     { name: "اتصل بنا", path: "#ContactSection" },
   ];
 
+  // ✅ التحقق من حالة الرابط النشط (اللون والخط)
+  const isLinkActive = (linkPath) => {
+    const currentPath = location.pathname;
+    const currentHash = location.hash;
+
+    if (linkPath.startsWith("#")) {
+      return currentHash === linkPath;
+    }
+
+    if (linkPath === "/") {
+      return currentPath === "/" && currentHash === "";
+    }
+
+    return currentPath === linkPath;
+  };
+
+  // ✅ معالجة الضغط على الروابط لضمان الانتقال الصحيح
+  const handleNavClick = (path) => {
+    setOpen(false);
+
+    if (path.startsWith("#")) {
+      setIsNavigating(true); 
+
+      navigate({ pathname: "/", hash: path });
+
+      // إعادة تفعيل المراقب بعد انتهاء حركة التمرير
+      setTimeout(() => {
+        setIsNavigating(false);
+      }, 800);
+    } else {
+      navigate(path);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  // ✅ التمرير التلقائي عند الدخول للموقع برابط يحتوي على Hash
+  useEffect(() => {
+    if (location.pathname === "/" && location.hash) {
+      const el = document.querySelector(location.hash);
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
+    }
+  }, [location.pathname, location.hash]);
+
+  // ✅ Scroll Spy باستخدام IntersectionObserver لتحديث الرابط أثناء التمرير
+  useEffect(() => {
+    if (location.pathname !== "/" || isNavigating) return;
+
+    const sections = ["#about", "#ContactSection"];
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = "#" + entry.target.id;
+            navigate(
+              { pathname: "/", hash: id },
+              { replace: true }
+            );
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: "-40% 0px -50% 0px", // يحدد المنطقة النشطة في منتصف الشاشة
+        threshold: 0,
+      }
+    );
+
+    sections.forEach((sec) => {
+      const el = document.querySelector(sec);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [location.pathname, isNavigating, navigate]);
+
   return (
     <nav
       className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 font-sans border-b border-gray-100"
@@ -42,75 +113,73 @@ function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16 md:h-20">
+
           {/* Logo Section */}
-          <NavLink to="/" className="flex items-center gap-3 group">
-            <motion.div
-              whileHover={{ rotate: -10 }}
-              className="w-10 h-10 transition-transform"
-            >
+          <div
+            onClick={() => handleNavClick("/")}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
+            <motion.div whileHover={{ rotate: -10 }} className="w-10 h-10">
               <img
-                src={logoImg} 
-                alt="Tadbeer"
+                src={logoImg}
+                alt="Tadbeer Logo"
                 className="w-full h-full object-contain"
               />
             </motion.div>
             <span className="text-2xl font-black text-[#001e3c] tracking-tight">
               تدبير
             </span>
-          </NavLink>
+          </div>
 
           {/* Desktop Navigation Links */}
           <ul className="hidden lg:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <li key={link.path}>
-                {link.path.startsWith("#") ? (
-                  /* روابط السكاشن: دائماً رمادية وتصبح صفراء عند الهوفر */
-                  <a
-                    href={link.path}
-                    className="relative text-sm font-bold text-gray-500 hover:text-yellow-600 transition-all duration-300 py-2 px-1"
+            {navLinks.map((link) => {
+              const active = isLinkActive(link.path);
+
+              return (
+                <li key={link.name}>
+                  <button
+                    onClick={() => handleNavClick(link.path)}
+                    className={`relative text-sm font-bold py-2 px-1 transition-all duration-300 ${
+                      active
+                        ? "text-yellow-600"
+                        : "text-gray-500 hover:text-yellow-600"
+                    }`}
                   >
                     {link.name}
-                  </a>
-                ) : (
-                  /* روابط الصفحات: تعتمد على حالة الـ Active */
-                  <NavLink
-                    to={link.path}
-                    className={({ isActive }) =>
-                      `relative text-sm font-bold transition-all duration-300 py-2 px-1
-            ${isActive ? "text-yellow-600" : "text-gray-500 hover:text-[#001e3c]"}`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {link.name}
-                        {isActive && (
-                          <motion.div
-                            layoutId="nav-pill"
-                            className="absolute -bottom-1 right-0 w-full h-[2px] bg-yellow-500"
-                          />
-                        )}
-                      </>
+
+                    {active && (
+                      <motion.div
+                        layoutId="active-line"
+                        className="absolute -bottom-1 right-0 w-full h-[2px] bg-yellow-500"
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 30,
+                        }}
+                      />
                     )}
-                  </NavLink>
-                )}
-              </li>
-            ))}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
+
           {/* User Actions Area (Desktop) */}
           <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <div className="relative group">
-                {/* User Trigger Button */}
+                {/* User Profile Capsule */}
                 <button className="flex items-center gap-3 p-1.5 pr-4 bg-gray-50 hover:bg-white hover:shadow-md rounded-full border border-gray-100 transition-all duration-300">
                   <span className="text-sm font-bold text-gray-700">
                     {user.name}
                   </span>
-                  <div className="w-8 h-8 rounded-full bg-[#001e3c] flex items-center justify-center text-white text-xs font-bold shadow-inner">
+                  <div className="w-8 h-8 rounded-full bg-[#001e3c] flex items-center justify-center text-white text-xs font-bold shadow-inner transition-transform group-hover:scale-105">
                     {user.name.charAt(0).toUpperCase()}
                   </div>
-                  <ChevronDown
-                    size={14}
-                    className="text-gray-400 group-hover:rotate-180 transition-transform duration-300"
+                  <ChevronDown 
+                    size={14} 
+                    className="text-gray-400 group-hover:rotate-180 transition-transform duration-300" 
                   />
                 </button>
 
@@ -118,35 +187,31 @@ function Navbar() {
                 <div className="absolute left-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-50 overflow-hidden">
                   <div className="p-2 space-y-1">
                     <div className="px-4 py-3 border-b border-gray-50 mb-1">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                        الحساب
-                      </p>
-                      <p className="text-xs text-gray-600 truncate">
-                        {user.email}
-                      </p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">الحساب الشخصي</p>
+                      <p className="text-xs text-gray-600 truncate">{user.email || "أهلاً بك"}</p>
                     </div>
 
                     {user.role?.toLowerCase() === "admin" && (
-                      <NavLink
-                        to="/admin"
-                        className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 rounded-xl transition-colors"
+                      <button
+                        onClick={() => navigate("/admin")}
+                        className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-[#001e3c] hover:bg-blue-50 rounded-xl transition-colors"
                       >
                         <LayoutDashboard size={18} className="text-blue-600" />
                         لوحة التحكم
-                      </NavLink>
+                      </button>
                     )}
 
-                    <NavLink
-                      to="/user-profile"
-                      className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+                    <button
+                      onClick={() => navigate("/user-profile")}
+                      className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
                     >
                       <User size={18} className="text-gray-400" />
                       الملف الشخصي
-                    </NavLink>
+                    </button>
 
                     <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                      onClick={logout}
+                      className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                     >
                       <LogOut size={18} />
                       تسجيل الخروج
@@ -155,98 +220,75 @@ function Navbar() {
                 </div>
               </div>
             ) : (
+              /* Guest Actions */
               <div className="flex items-center gap-2">
-                <NavLink
-                  to="/auth/login"
+                <button
+                  onClick={() => navigate("/auth/login")}
                   className="text-gray-600 font-bold px-5 py-2 hover:text-[#001e3c] transition-colors text-sm"
                 >
                   تسجيل دخول
-                </NavLink>
-                <NavLink to="/auth/signup">
-                  <motion.button
-                    whileHover={{
-                      scale: 1.03,
-                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                    }}
-                    whileTap={{ scale: 0.97 }}
-                    className="bg-[#001e3c] text-white px-7 py-2.5 rounded-full text-sm font-bold transition-all"
-                  >
-                    انشاء حساب
-                  </motion.button>
-                </NavLink>
+                </button>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => navigate("/auth/signup")}
+                  className="bg-[#001e3c] text-white px-7 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-900/10 transition-all"
+                >
+                  انشاء حساب
+                </motion.button>
               </div>
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Toggle Button */}
           <button
             onClick={() => setOpen(!open)}
-            className="lg:hidden p-2 rounded-xl bg-gray-50 text-[#001e3c] hover:bg-gray-100 transition-all"
+            className="lg:hidden p-2 bg-gray-50 text-[#001e3c] rounded-xl hover:bg-gray-100 transition-all"
           >
             {open ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer Navigation */}
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
             className="lg:hidden bg-white border-t border-gray-50 shadow-2xl overflow-hidden"
           >
             <div className="px-6 py-8 space-y-6 text-right">
               {navLinks.map((link) => (
-                <NavLink
-                  key={link.path}
-                  to={link.path}
-                  className="block text-lg font-bold text-gray-800 hover:text-yellow-600 transition-colors"
+                <button
+                  key={link.name}
+                  onClick={() => handleNavClick(link.path)}
+                  className={`block w-full text-right text-lg font-bold transition-colors ${
+                    isLinkActive(link.path)
+                      ? "text-yellow-600"
+                      : "text-gray-800 hover:text-yellow-600"
+                  }`}
                 >
                   {link.name}
-                </NavLink>
+                </button>
               ))}
-
-              <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
+              
+              {/* Mobile User Actions */}
+              <div className="pt-6 border-t border-gray-100">
                 {user ? (
-                  <>
-                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl">
-                      <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.role}</p>
-                      </div>
-                    </div>
-                    {user.role?.toLowerCase() === "admin" && (
-                      <NavLink to="/admin" className="w-full">
-                        <button className="w-full bg-blue-50 text-blue-700 py-4 rounded-2xl font-bold">
-                          لوحة التحكم
-                        </button>
-                      </NavLink>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-red-500 font-bold py-2"
-                    >
-                      تسجيل الخروج
-                    </button>
-                  </>
+                  <button
+                    onClick={logout}
+                    className="flex items-center gap-3 text-red-500 font-bold text-lg"
+                  >
+                    <LogOut size={20} />
+                    تسجيل الخروج
+                  </button>
                 ) : (
-                  <>
-                    <NavLink to="/auth/login" className="w-full">
-                      <button className="w-full bg-gray-50 text-gray-800 py-4 rounded-2xl font-bold">
-                        دخول
-                      </button>
-                    </NavLink>
-                    <NavLink to="/auth/signup" className="w-full">
-                      <button className="w-full bg-[#001e3c] text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-900/20">
-                        ابدأ الآن
-                      </button>
-                    </NavLink>
-                  </>
+                  <div className="flex flex-col gap-4">
+                    <button onClick={() => navigate("/auth/login")} className="w-full bg-gray-50 py-3 rounded-xl font-bold">دخول</button>
+                    <button onClick={() => navigate("/auth/signup")} className="w-full bg-[#001e3c] text-white py-3 rounded-xl font-bold">حساب جديد</button>
+                  </div>
                 )}
               </div>
             </div>
