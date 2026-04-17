@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { motion } from "framer-motion";
-import { Mail, Lock, UserPlus, ArrowRight } from "lucide-react";
+import { Mail, Lock, UserPlus, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
 import axios from "axios";
@@ -12,8 +12,9 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // ✅ NEW: general auth error
   const [authError, setAuthError] = useState("");
+  // ✅ الحالة الجديدة لإظهار/إخفاء كلمة المرور
+  const [showPassword, setShowPassword] = useState(false);
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
@@ -42,7 +43,7 @@ const Login = () => {
     },
 
     onSubmit: async (values, { setSubmitting }) => {
-      setAuthError(""); // ✅ clear old error
+      setAuthError(""); 
 
       try {
         const response = await axios.post(
@@ -54,27 +55,13 @@ const Login = () => {
           const token = response.data.token;
           const decoded = jwtDecode(token);
           
-          // سطر للفحص في الكونسول للتأكد من مسميات التوكن
-          console.log("Decoded Token:", decoded);
-
           const user = {
-            name:
-              decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ||
-              "User",
-            email:
-              decoded[
-                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
-              ] || values.email,
-            role:
-              decoded[
-                "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-              ] || "User"
+            name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
+            email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
+            role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User"
           };
 
-
-
           login(user, token);
-
           toast.success("تم تسجيل الدخول بنجاح!");
 
           setTimeout(() => {
@@ -86,7 +73,7 @@ const Login = () => {
         }
       } catch (error) {
         const status = error.response?.status;
-
+        const backendMessage = error.response?.data?.message || "";
 
         if (backendMessage.toLowerCase().includes("not confirmed")) {
           toast.warning("تنبيه: الحساب غير نشط", {
@@ -94,9 +81,7 @@ const Login = () => {
             duration: 6000
           });
         } else if (status === 401 || status === 400) {
-          // ✅ ONLY top error (no field error, no toast)
           setAuthError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
-
         } else {
           toast.error("تعذر الاتصال بالخادم. يرجى المحاولة لاحقاً");
         }
@@ -107,13 +92,9 @@ const Login = () => {
   });
 
   return (
-    <div
-      className="min-h-screen bg-[#f0f2f5] p-4 font-sans"
-      dir="rtl"
-    >
+    <div className="min-h-screen bg-[#f0f2f5] p-4 font-sans" dir="rtl">
       <Toaster position="top-center" richColors expand={true} />
 
-      {/* 🔥 TOP CORNER BACK LINK */}
       <div className="absolute top-8 right-8">
         <Link 
           to="/" 
@@ -144,13 +125,13 @@ const Login = () => {
           <div className="p-8 lg:p-10">
             <form onSubmit={formik.handleSubmit} className="space-y-6">
 
-              {/* ✅ TOP ERROR MESSAGE */}
               {authError && (
                 <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-bold p-3 rounded-lg text-right">
                   {authError}
                 </div>
               )}
 
+              {/* EMAIL */}
               <motion.div variants={itemVariants}>
                 <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">
                   البريد الإلكتروني
@@ -161,15 +142,11 @@ const Login = () => {
                     {...formik.getFieldProps("email")}
                     onChange={(e) => {
                       formik.handleChange(e);
-                      setAuthError(""); // ✅ clear error while typing
+                      setAuthError(""); 
                     }}
                     placeholder="البريد الإلكتروني"
                     className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
-                    ${
-                      formik.touched.email && formik.errors.email
-                        ? "border-red-500"
-                        : "border-transparent"
-                    }
+                    ${formik.touched.email && formik.errors.email ? "border-red-500" : "border-transparent"}
                     focus:outline-none focus:border-blue-900`}
                   />
                   <Mail
@@ -184,31 +161,37 @@ const Login = () => {
                 )}
               </motion.div>
 
+              {/* PASSWORD */}
               <motion.div variants={itemVariants}>
                 <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">
                   كلمة المرور
                 </label>
                 <div className="relative">
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     {...formik.getFieldProps("password")}
                     onChange={(e) => {
                       formik.handleChange(e);
-                      setAuthError(""); // ✅ clear error while typing
+                      setAuthError(""); 
                     }}
                     placeholder="كلمة المرور"
-                    className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
-                    ${
-                      formik.touched.password && formik.errors.password
-                        ? "border-red-500"
-                        : "border-transparent"
-                    }
-                    focus:outline-none focus:border-blue-900`}
+                    className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-12 text-right transition-colors
+                    ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
+                    focus:outline-none focus:border-blue-900 
+                    [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden`}
                   />
                   <Lock
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
                     size={20}
                   />
+                  {/* زر إظهار كلمة المرور */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#001e3c] transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
                 {formik.touched.password && formik.errors.password && (
                   <p className="text-red-500 text-[11px] mt-1.5 mr-1 text-right font-bold">
@@ -263,7 +246,6 @@ const Login = () => {
           </div>
         </motion.div>
       </div>
-
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -9,6 +9,8 @@ import {
   UserCircle,
   Briefcase,
   ArrowRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
@@ -26,6 +28,10 @@ const Signup = () => {
   const passwordRef = useRef(null);
   const confirmPasswordRef = useRef(null);
   const agreeRef = useRef(null);
+
+  // حالات إظهار وإخفاء كلمة المرور
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // تعريف مخطط التحقق باللغة العربية
   const signupSchema = z
@@ -104,7 +110,6 @@ const Signup = () => {
         if (Array.isArray(errorsList)) {
           errorsList.forEach((msg) => {
             const lower = msg.toLowerCase();
-            // تعريب أخطاء السيرفر الشائعة
             if (lower.includes("email")) {
               setFieldError("email", "هذا البريد الإلكتروني مسجل مسبقاً");
             } else if (lower.includes("phone")) {
@@ -213,14 +218,38 @@ const Signup = () => {
             {/* PASSWORD */}
             <motion.div className="relative" ref={passwordRef}>
               <Lock className="absolute right-3 top-3.5 text-gray-400" size={20} />
-              <input type="password" {...formik.getFieldProps("password")} placeholder="كلمة المرور" className={`w-full border-2 rounded-xl py-3 pr-11 pl-4 bg-gray-50/50 outline-none transition-all ${formik.touched.password && formik.errors.password ? "border-red-400" : "border-gray-100 focus:border-blue-900"}`} />
+              <input 
+                type={showPassword ? "text" : "password"} 
+                {...formik.getFieldProps("password")} 
+                placeholder="كلمة المرور" 
+                className={`w-full border-2 rounded-xl py-3 pr-11 pl-12 bg-gray-50/50 outline-none transition-all [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden ${formik.touched.password && formik.errors.password ? "border-red-400" : "border-gray-100 focus:border-blue-900"}`} 
+              />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)} 
+                className="absolute left-3 top-3.5 text-gray-400 hover:text-blue-900 transition-colors"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
               {formik.touched.password && formik.errors.password && <p className="text-red-500 text-[11px] mt-1 whitespace-pre-line font-medium leading-relaxed">{formik.errors.password}</p>}
             </motion.div>
 
             {/* CONFIRM PASSWORD */}
             <motion.div className="relative" ref={confirmPasswordRef}>
               <ShieldCheck className="absolute right-3 top-3.5 text-gray-400" size={20} />
-              <input type="password" {...formik.getFieldProps("confirmPassword")} placeholder="تأكيد كلمة المرور" className={`w-full border-2 rounded-xl py-3 pr-11 pl-4 bg-gray-50/50 outline-none transition-all ${formik.touched.confirmPassword && formik.errors.confirmPassword ? "border-red-400" : "border-gray-100 focus:border-blue-900"}`} />
+              <input 
+                type={showConfirmPassword ? "text" : "password"} 
+                {...formik.getFieldProps("confirmPassword")} 
+                placeholder="تأكيد كلمة المرور" 
+                className={`w-full border-2 rounded-xl py-3 pr-11 pl-12 bg-gray-50/50 outline-none transition-all [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden ${formik.touched.confirmPassword && formik.errors.confirmPassword ? "border-red-400" : "border-gray-100 focus:border-blue-900"}`} 
+              />
+              <button 
+                type="button" 
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                className="absolute left-3 top-3.5 text-gray-400 hover:text-blue-900 transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
               {formik.touched.confirmPassword && formik.errors.confirmPassword && <p className="text-red-500 text-[11px] mt-1 font-medium">{formik.errors.confirmPassword}</p>}
             </motion.div>
 

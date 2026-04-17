@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate, NavLink } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import logoImg from "../../assets/img/tadbeerLogo/logo.5.png";
 import { useAuth } from "../../context/AuthContext";
@@ -19,6 +19,14 @@ function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  // ✅ role + route mapping (NEW)
+  const role = user?.role?.toLowerCase();
+  const dashboardRoutes = {
+    admin: "/admin",
+    superadmin: "/admin",
+    worker: "/technical",
+  };
+
   const navLinks = [
     { name: "الرئيسية", path: "/" },
     { name: "عن المنصة", path: "#about" },
@@ -26,7 +34,6 @@ function Navbar() {
     { name: "اتصل بنا", path: "#ContactSection" },
   ];
 
-  // ✅ التحقق من حالة الرابط النشط (اللون والخط)
   const isLinkActive = (linkPath) => {
     const currentPath = location.pathname;
     const currentHash = location.hash;
@@ -42,16 +49,13 @@ function Navbar() {
     return currentPath === linkPath;
   };
 
-  // ✅ معالجة الضغط على الروابط لضمان الانتقال الصحيح
   const handleNavClick = (path) => {
     setOpen(false);
 
     if (path.startsWith("#")) {
-      setIsNavigating(true); 
-
+      setIsNavigating(true);
       navigate({ pathname: "/", hash: path });
 
-      // إعادة تفعيل المراقب بعد انتهاء حركة التمرير
       setTimeout(() => {
         setIsNavigating(false);
       }, 800);
@@ -61,7 +65,6 @@ function Navbar() {
     }
   };
 
-  // ✅ التمرير التلقائي عند الدخول للموقع برابط يحتوي على Hash
   useEffect(() => {
     if (location.pathname === "/" && location.hash) {
       const el = document.querySelector(location.hash);
@@ -73,7 +76,6 @@ function Navbar() {
     }
   }, [location.pathname, location.hash]);
 
-  // ✅ Scroll Spy باستخدام IntersectionObserver لتحديث الرابط أثناء التمرير
   useEffect(() => {
     if (location.pathname !== "/" || isNavigating) return;
 
@@ -93,7 +95,7 @@ function Navbar() {
       },
       {
         root: null,
-        rootMargin: "-40% 0px -50% 0px", // يحدد المنطقة النشطة في منتصف الشاشة
+        rootMargin: "-40% 0px -50% 0px",
         threshold: 0,
       }
     );
@@ -114,7 +116,7 @@ function Navbar() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16 md:h-20">
 
-          {/* Logo Section */}
+          {/* Logo */}
           <div
             onClick={() => handleNavClick("/")}
             className="flex items-center gap-3 cursor-pointer group"
@@ -131,7 +133,7 @@ function Navbar() {
             </span>
           </div>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Links */}
           <ul className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => {
               const active = isLinkActive(link.path);
@@ -165,11 +167,10 @@ function Navbar() {
             })}
           </ul>
 
-          {/* User Actions Area (Desktop) */}
+          {/* Desktop User Area */}
           <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <div className="relative group">
-                {/* User Profile Capsule */}
                 <button className="flex items-center gap-3 p-1.5 pr-4 bg-gray-50 hover:bg-white hover:shadow-md rounded-full border border-gray-100 transition-all duration-300">
                   <span className="text-sm font-bold text-gray-700">
                     {user.name}
@@ -183,20 +184,25 @@ function Navbar() {
                   />
                 </button>
 
-                {/* Dropdown Menu */}
+                {/* Dropdown */}
                 <div className="absolute left-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-50 overflow-hidden">
                   <div className="p-2 space-y-1">
                     <div className="px-4 py-3 border-b border-gray-50 mb-1">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">الحساب الشخصي</p>
-                      <p className="text-xs text-gray-600 truncate">{user.email || "أهلاً بك"}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                        الحساب الشخصي
+                      </p>
+                      <p className="text-xs text-gray-600 truncate">
+                        {user.email || "أهلاً بك"}
+                      </p>
                     </div>
 
-                    {user.role?.toLowerCase() === "admin" && (
+                    {/* ✅ FIXED (logic only) */}
+                    {dashboardRoutes[role] && (
                       <button
-                        onClick={() => navigate("/admin")}
-                        className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-[#001e3c] hover:bg-blue-50 rounded-xl transition-colors"
+                        onClick={() => navigate(dashboardRoutes[role])}
+                        className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-blue-50 rounded-xl transition-colors"
                       >
-                        <LayoutDashboard size={18} className="text-blue-600" />
+                        <LayoutDashboard size={18} className="text-gray-400" />
                         لوحة التحكم
                       </button>
                     )}
@@ -220,7 +226,6 @@ function Navbar() {
                 </div>
               </div>
             ) : (
-              /* Guest Actions */
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => navigate("/auth/login")}
@@ -240,57 +245,50 @@ function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Toggle Button */}
+          {/* Mobile Toggle */}
           <button
             onClick={() => setOpen(!open)}
-            className="lg:hidden p-2 bg-gray-50 text-[#001e3c] rounded-xl hover:bg-gray-100 transition-all"
+            className="lg:hidden p-2 bg-gray-50 text-[#001e3c] rounded-xl"
           >
             {open ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Drawer Navigation */}
+      {/* Mobile */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden bg-white border-t border-gray-50 shadow-2xl overflow-hidden"
-          >
+          <motion.div className="lg:hidden bg-white border-t border-gray-50 shadow-2xl">
             <div className="px-6 py-8 space-y-6 text-right">
               {navLinks.map((link) => (
                 <button
                   key={link.name}
                   onClick={() => handleNavClick(link.path)}
-                  className={`block w-full text-right text-lg font-bold transition-colors ${
-                    isLinkActive(link.path)
-                      ? "text-yellow-600"
-                      : "text-gray-800 hover:text-yellow-600"
-                  }`}
+                  className="block w-full text-right text-lg font-bold"
                 >
                   {link.name}
                 </button>
               ))}
-              
-              {/* Mobile User Actions */}
-              <div className="pt-6 border-t border-gray-100">
-                {user ? (
-                  <button
-                    onClick={logout}
-                    className="flex items-center gap-3 text-red-500 font-bold text-lg"
-                  >
-                    <LogOut size={20} />
-                    تسجيل الخروج
-                  </button>
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    <button onClick={() => navigate("/auth/login")} className="w-full bg-gray-50 py-3 rounded-xl font-bold">دخول</button>
-                    <button onClick={() => navigate("/auth/signup")} className="w-full bg-[#001e3c] text-white py-3 rounded-xl font-bold">حساب جديد</button>
-                  </div>
-                )}
-              </div>
+
+              {user && dashboardRoutes[role] && (
+                <button
+                  onClick={() => navigate(dashboardRoutes[role])}
+                  className="flex items-center gap-3 text-blue-600 font-bold text-lg"
+                >
+                  <LayoutDashboard size={20} />
+                  Dashboard
+                </button>
+              )}
+
+              {user && (
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-3 text-red-500 font-bold text-lg mt-4"
+                >
+                  <LogOut size={20} />
+                  تسجيل الخروج
+                </button>
+              )}
             </div>
           </motion.div>
         )}
