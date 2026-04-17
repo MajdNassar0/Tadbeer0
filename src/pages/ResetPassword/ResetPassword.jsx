@@ -1,261 +1,280 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, KeyRound, CheckCircle2, Save, Mail, ArrowRight } from "lucide-react";
+import {
+  Lock, KeyRound, CheckCircle2, Save, Mail, ArrowRight,
+  Eye, EyeOff, AlertCircle, Info, X
+} from "lucide-react";
 import axios from "axios";
 import { Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
 
 const API_BASE = "https://tadbeer0.runasp.net/api";
 
-/** ترجمة رسائل السيرفر **/
-const RESET_SERVER_MSG_AR = {
-  "Password reset failed.": "فشلت إعادة التعيين. تحقق من الكود والإيميل، ومن أن كلمة المرور تطابق شروط النظام.",
-  "Invalid or expired reset code.": "الكود غير صالح أو منتهي الصلاحية. اطلب كوداً جديداً.",
+/* ─── Toast Types Styling ─── */
+const TOAST_STYLES = {
+  success: {
+    bg: "bg-white",
+    border: "border-emerald-500",
+    text: "text-emerald-800",
+    iconBg: "bg-emerald-100",
+    iconColor: "text-emerald-600",
+    Icon: CheckCircle2,
+    progress: "bg-emerald-500"
+  },
+  error: {
+    bg: "bg-white",
+    border: "border-red-500",
+    text: "text-red-800",
+    iconBg: "bg-red-100",
+    iconColor: "text-red-600",
+    Icon: AlertCircle,
+    progress: "bg-red-500"
+  },
+  info: {
+    bg: "bg-[#001e3c]",
+    border: "border-blue-400",
+    text: "text-white",
+    iconBg: "bg-white/10",
+    iconColor: "text-blue-300",
+    Icon: Info,
+    progress: "bg-blue-400"
+  },
 };
 
-function translateResetServerMessage(msg) {
-  if (typeof msg !== "string") return msg;
-  const key = msg.trim();
-  return RESET_SERVER_MSG_AR[key] || RESET_SERVER_MSG_AR[msg] || msg;
-}
+/* ─── Toast Component ─── */
+const Toast = ({ toast, onDismiss }) => {
+  const style = TOAST_STYLES[toast.type] || TOAST_STYLES.info;
 
-function parseResetPasswordError(error) {
-  const data = error.response?.data;
-  if (!data) return "حدث خطأ في الاتصال. حاول مرة أخرى";
-  if (typeof data === "string") return translateResetServerMessage(data);
-  if (data.message || data.Message) return translateResetServerMessage(data.message || data.Message);
-  return "حدث خطأ. تأكد من البيانات وحاول مرة أخرى";
-}
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(toast.id), 5000);
+    return () => clearTimeout(timer);
+  }, [toast.id, onDismiss]);
 
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: 50, scale: 0.9 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+      className={`group pointer-events-auto flex items-center gap-4 p-4 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border-l-4 ${style.bg} ${style.border} ${style.text} min-w-[320px] max-w-[400px] overflow-hidden relative`}
+    >
+      <div className={`${style.iconBg} ${style.iconColor} p-2 rounded-lg shrink-0`}>
+        <style.Icon size={22} />
+      </div>
+      
+      <div className="flex-1">
+        <p className="text-[13px] font-bold leading-tight">
+          {toast.type === 'success' ? 'نجاح العملية' : toast.type === 'error' ? 'تنبيه خطأ' : 'ملاحظة'}
+        </p>
+        <p className="text-[12px] opacity-90 mt-1">{toast.message}</p>
+      </div>
+
+      <button
+        onClick={() => onDismiss(toast.id)}
+        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/5 rounded-md"
+      >
+        <X size={16} />
+      </button>
+
+      {/* Progress Bar */}
+      <motion.div
+        initial={{ width: "100%" }}
+        animate={{ width: "0%" }}
+        transition={{ duration: 5, ease: "linear" }}
+        className={`absolute bottom-0 left-0 h-[3px] ${style.progress} opacity-30`}
+      />
+    </motion.div>
+  );
+};
+
+/* ─── Main Component ─── */
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    email: "",
-    token: "",
-    newPassword: "",
-    confirmPassword: "",
+    email: "", token: "", newPassword: "", confirmPassword: "",
   });
 
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [infoBanner, setInfoBanner] = useState("");
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const addToast = useCallback((message, type = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   useEffect(() => {
     const emailFromQuery = searchParams.get("email") || "";
-    const tokenFromQuery = searchParams.get("token") || searchParams.get("code") || searchParams.get("otp") || "";
+    const tokenFromQuery = searchParams.get("token") || searchParams.get("code") || "";
     const emailFromState = location.state?.email || "";
     const flashMessage = location.state?.flashMessage;
-    
-    if (flashMessage) setInfoBanner(flashMessage);
 
     setFormData((prev) => ({
       ...prev,
       email: emailFromState || emailFromQuery || prev.email,
       token: tokenFromQuery || prev.token,
     }));
-  }, [searchParams, location.state]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+    if (flashMessage) addToast(flashMessage, "info");
+    else addToast("يرجى إدخال الكود المرسل لإكمال تعيين كلمة المرور", "info");
+  }, [addToast, location.state, searchParams]);
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
-      setErrorMsg("كلمات المرور غير متطابقة");
+      addToast("كلمات المرور غير متطابقة", "error");
       return;
     }
 
     setLoading(true);
-    setErrorMsg("");
-
     try {
-      const response = await axios.patch(
-        `${API_BASE}/Identity/Auth/reset-password`,
-        {
-          email: formData.email.trim(),
-          code: formData.token.trim(),
-          newPassword: formData.newPassword,
-          confirmNewPassword: formData.confirmPassword,
-        },
-        { headers: { "Content-Type": "application/json" } }
-      );
+      const response = await axios.patch(`${API_BASE}/Identity/Auth/reset-password`, {
+        email: formData.email.trim(),
+        code: formData.token.trim(),
+        newPassword: formData.newPassword,
+        confirmNewPassword: formData.confirmPassword,
+      });
 
-      const isOk = response.status === 200 || response.data === "OK" || response.data?.isSuccess;
-
-      if (isOk) {
-        setInfoBanner("");
-        setShowSuccessToast(true);
-        
-        // التوجيه لصفحة تسجيل الدخول بعد 2.5 ثانية
-        // نرسل الإيميل والرسالة لصفحة اللوجن لتسهيل العملية على المستخدم
-        setTimeout(() => {
-          navigate("/auth/login", { 
-            state: { 
-              email: formData.email, 
-              flashMessage: "تم تحديث كلمة المرور بنجاح، يرجى تسجيل الدخول ببياناتك الجديدة." 
-            } 
-          });
-        }, 2500);
+      if (response.status === 200 || response.data?.isSuccess) {
+        addToast("تم تحديث كلمة المرور بنجاح!", "success");
+        setTimeout(() => navigate("/auth/login", { 
+          state: { email: formData.email, flashMessage: "تم التحديث، يمكنك تسجيل الدخول الآن." } 
+        }), 2000);
       }
     } catch (error) {
-      setErrorMsg(parseResetPasswordError(error));
+      const msg = error.response?.data?.message || "فشلت العملية، تأكد من صحة الكود";
+      addToast(msg, "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f0f2f5] p-4 font-sans relative" dir="rtl">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] p-4 font-sans relative" dir="rtl">
       
-      {/* التنبيه العلوي العائم */}
-      <AnimatePresence>
-        {showSuccessToast && (
-          <motion.div
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 30, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            className="fixed top-0 z-[999] bg-green-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-green-400"
-          >
-            <div className="bg-white/20 p-1 rounded-full">
-              <CheckCircle2 size={24} />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg">تم تغيير كلمة المرور بنجاح!</span>
-              <span className="text-sm opacity-90">جاري توجيهك لصفحة تسجيل الدخول...</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Fixed Toast Container (Top Left or Right) ── */}
+      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-4 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <Toast key={toast.id} toast={toast} onDismiss={dismissToast} />
+          ))}
+        </AnimatePresence>
+      </div>
 
+      {/* ── Back to Home ── */}
       <div className="absolute top-8 right-8">
-        <Link 
-          to="/" 
-          className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:opacity-70 transition-opacity"
-        >
-          <ArrowRight size={20} className="text-yellow-600" />
+        <Link to="/" className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:translate-x-[-5px] transition-transform">
+          <ArrowRight size={20} className="text-[#fbbc05]" />
           <span>العودة للرئيسية</span>
         </Link>
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[450px] bg-white rounded-2xl shadow-2xl overflow-hidden"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-[460px] bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden border border-gray-100"
       >
-        <div className="bg-[#001e3c] py-10 px-6 text-center text-white relative">
-          <div className="flex justify-center mb-4">
-            <div className="bg-white/10 p-4 rounded-full border border-white/20">
-              <Lock size={32} className="text-white" />
-            </div>
+        {/* Header Section */}
+        <div className="bg-[#001e3c] pt-12 pb-10 px-8 text-center text-white relative">
+          <div className="inline-flex p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 mb-5">
+            <Lock size={32} className="text-[#fbbc05]" />
           </div>
-          <h1 className="text-xl font-bold mb-2">إعادة تعيين كلمة المرور</h1>
-          <p className="text-gray-300 text-xs leading-relaxed max-w-[280px] mx-auto">
-            أدخل كود التحقق وكلمة المرور الجديدة لتحديث حسابك
-          </p>
+          <h1 className="text-2xl font-bold">تعيين كلمة المرور</h1>
+          <p className="text-blue-100/70 text-sm mt-2 font-light">قم بتحديث بيانات الدخول الخاصة بحسابك</p>
         </div>
 
-        <div className="p-8">
-          {infoBanner && (
-            <div className="mb-5 p-3 bg-blue-50 border border-blue-100 rounded-lg text-[#001e3c] text-sm text-center font-medium">
-              {infoBanner}
-            </div>
-          )}
-
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div className="group">
-              <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">البريد الإلكتروني</label>
-              <div className="relative">
+        {/* Form Section */}
+        <div className="p-10">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            
+            {/* Read-only Email */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-gray-600 mr-1">البريد الإلكتروني</label>
+              <div className="relative group">
                 <input
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full bg-[#f8f9fa] border-2 border-transparent rounded-lg py-3 px-4 pr-12 text-right outline-none focus:border-blue-900 focus:bg-white transition-all duration-300"
+                  name="email" type="email" readOnly value={formData.email}
+                  className="w-full bg-gray-50 border-2 border-transparent rounded-xl py-3.5 px-4 pr-12 text-gray-500 cursor-not-allowed text-sm"
                 />
-                <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
               </div>
             </div>
 
-            <div className="group">
-              <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">كود التحقق</label>
-              <div className="relative">
+            {/* Verification Code */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-gray-600 mr-1">كود التحقق</label>
+              <div className="relative group">
                 <input
-                  name="token"
-                  type="text"
-                  required
-                  value={formData.token}
-                  onChange={handleChange}
-                  className="w-full bg-[#f8f9fa] border-2 border-transparent rounded-lg py-3 px-4 pr-12 text-right outline-none focus:border-blue-900 focus:bg-white transition-all duration-300"
+                  name="token" type="text" required value={formData.token} onChange={handleChange}
+                  placeholder="أدخل الكود هنا"
+                  className="w-full bg-gray-50 border-2 border-transparent rounded-xl py-3.5 px-4 pr-12 text-sm outline-none focus:border-[#001e3c] focus:bg-white transition-all"
                 />
-                <KeyRound className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <KeyRound className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#001e3c] transition-colors" size={18} />
               </div>
             </div>
 
-            <div className="group">
-              <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">كلمة المرور الجديدة</label>
-              <div className="relative">
+            {/* New Password */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-gray-600 mr-1">كلمة المرور الجديدة</label>
+              <div className="relative group">
                 <input
-                  name="newPassword"
-                  type="password"
-                  required
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  className="w-full bg-[#f8f9fa] border-2 border-transparent rounded-lg py-3 px-4 pr-12 text-right outline-none focus:border-blue-900 focus:bg-white transition-all duration-300"
+                  name="newPassword" type={showNewPassword ? "text" : "password"} required
+                  value={formData.newPassword} onChange={handleChange}
+                  className="w-full bg-gray-50 border-2 border-transparent rounded-xl py-3.5 px-12 pr-12 text-sm outline-none focus:border-[#001e3c] focus:bg-white transition-all"
                 />
-                <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#001e3c] transition-colors" size={18} />
+                <button
+                  type="button" onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#001e3c]"
+                >
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
-            <div className="group">
-              <label className="block text-xs font-bold text-gray-700 mb-2 mr-1">تأكيد كلمة المرور</label>
-              <div className="relative">
+            {/* Confirm Password */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-gray-600 mr-1">تأكيد كلمة المرور</label>
+              <div className="relative group">
                 <input
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full bg-[#f8f9fa] border-2 border-transparent rounded-lg py-3 px-4 pr-12 text-right outline-none focus:border-blue-900 focus:bg-white transition-all duration-300"
+                  name="confirmPassword" type={showConfirmPassword ? "text" : "password"} required
+                  value={formData.confirmPassword} onChange={handleChange}
+                  className="w-full bg-gray-50 border-2 border-transparent rounded-xl py-3.5 px-12 pr-12 text-sm outline-none focus:border-[#001e3c] focus:bg-white transition-all"
                 />
-                <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#001e3c] transition-colors" size={18} />
+                <button
+                  type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#001e3c]"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
             <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3.5 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all mt-4 disabled:bg-gray-400"
+              type="submit" disabled={loading}
+              whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
+              className="w-full bg-[#fbbc05] hover:bg-[#eab308] text-[#001e3c] py-4 rounded-xl font-extrabold shadow-lg shadow-yellow-200 transition-all disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 mt-4"
             >
-              <Save size={18} />
-              <span>{loading ? "جاري الحفظ..." : "حفظ كلمة المرور الجديدة"}</span>
+              {loading ? "جاري التحديث..." : "تحديث كلمة المرور"}
             </motion.button>
-
-            {errorMsg && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm text-center font-medium">{errorMsg}</p>
-              </motion.div>
-            )}
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-400">
-              تذكرت كلمة المرور؟{" "}
-              <Link to="/auth/login" className="text-[#001e3c] font-bold hover:underline inline-block">تسجيل الدخول</Link>
-            </p>
+          <div className="mt-10 text-center">
+            <Link to="/auth/login" className="text-sm font-medium text-gray-400 hover:text-[#001e3c] transition-colors">
+              تذكرت كلمة المرور؟ <span className="text-[#001e3c] font-bold underline underline-offset-4">سجل دخولك</span>
+            </Link>
           </div>
         </div>
       </motion.div>
-
-      <p className="mt-8 text-gray-400 text-xs italic">
-        © 2026 تدبير. جميع الحقوق محفوظة.
-      </p>
     </div>
   );
 };
