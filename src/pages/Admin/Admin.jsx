@@ -106,8 +106,6 @@ const Admin = () => {
             onClick={() => navigate("/")}
             className="flex items-center gap-4 w-full px-4 py-3 mb-6 text-yellow-500 border border-yellow-500/20 rounded-xl hover:bg-yellow-500 hover:text-[#0a1d37] transition-all group"
           >
-            <Globe size={20} className="group-hover:rotate-12 transition-transform" />
-            <span className="font-bold text-sm">عرض الموقع العام</span>
           </button>
 
           <NavItem icon={<LayoutDashboard size={20}/>} label="لوحة القيادة" active />

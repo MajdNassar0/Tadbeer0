@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate, NavLink } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import logoImg from "../../assets/img/tadbeerLogo/logo.5.png";
 import { useAuth } from "../../context/AuthContext";
@@ -17,7 +17,15 @@ function Navbar() {
   const [isNavigating, setIsNavigating] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth(); // سحب الدالة من الـ Context
+  const { user, logout } = useAuth();
+
+  // ✅ منطق الأدوار والروابط (تم دمجه من التحديث الجديد)
+  const role = user?.role?.toLowerCase();
+  const dashboardRoutes = {
+    admin: "/admin",
+    superadmin: "/admin",
+    worker: "/technical",
+  };
 
   const navLinks = [
     { name: "الرئيسية", path: "/" },
@@ -26,11 +34,11 @@ function Navbar() {
     { name: "اتصل بنا", path: "#ContactSection" },
   ];
 
-  // دالة الخروج الجديدة
+  // ✅ دالة الخروج (تم الحفاظ عليها)
   const handleLogout = async () => {
     await logout();
     setOpen(false);
-    navigate("/"); // التوجيه للهوم بعد الخروج
+    navigate("/");
   };
 
   const isLinkActive = (linkPath) => {
@@ -44,7 +52,7 @@ function Navbar() {
   const handleNavClick = (path) => {
     setOpen(false);
     if (path.startsWith("#")) {
-      setIsNavigating(true); 
+      setIsNavigating(true);
       navigate({ pathname: "/", hash: path });
       setTimeout(() => setIsNavigating(false), 800);
     } else {
@@ -85,7 +93,7 @@ function Navbar() {
     <nav className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 font-sans border-b border-gray-100" dir="rtl">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16 md:h-20">
-          
+
           {/* Logo Section */}
           <div onClick={() => handleNavClick("/")} className="flex items-center gap-3 cursor-pointer group">
             <motion.div whileHover={{ rotate: -10 }} className="w-10 h-10">
@@ -94,7 +102,7 @@ function Navbar() {
             <span className="text-2xl font-black text-[#001e3c] tracking-tight">تدبير</span>
           </div>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Links */}
           <ul className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => {
               const active = isLinkActive(link.path);
@@ -105,16 +113,14 @@ function Navbar() {
                     className={`relative text-sm font-bold py-2 px-1 transition-all duration-300 ${active ? "text-yellow-600" : "text-gray-500 hover:text-yellow-600"}`}
                   >
                     {link.name}
-                    {active && (
-                      <motion.div layoutId="active-line" className="absolute -bottom-1 right-0 w-full h-[2px] bg-yellow-500" />
-                    )}
+                    {active && <motion.div layoutId="active-line" className="absolute -bottom-1 right-0 w-full h-[2px] bg-yellow-500" />}
                   </button>
                 </li>
               );
             })}
           </ul>
 
-          {/* User Actions Area (Desktop) */}
+          {/* Desktop User Area */}
           <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <div className="relative group">
@@ -126,16 +132,22 @@ function Navbar() {
                   <ChevronDown size={14} className="text-gray-400 group-hover:rotate-180 transition-transform duration-300" />
                 </button>
 
+                {/* Dropdown Menu */}
                 <div className="absolute left-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-50 overflow-hidden">
-                  <div className="p-2 space-y-1">
-                    <div className="px-4 py-3 border-b border-gray-50 mb-1 text-right">
+                  <div className="p-2 space-y-1 text-right">
+                    <div className="px-4 py-3 border-b border-gray-50 mb-1">
                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">الحساب الشخصي</p>
                       <p className="text-xs text-gray-600 truncate">{user.email || "أهلاً بك"}</p>
                     </div>
 
-                    {user.role?.toLowerCase() === "admin" && (
-                      <button onClick={() => navigate("/admin")} className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-[#001e3c] hover:bg-blue-50 rounded-xl transition-colors">
-                        <LayoutDashboard size={18} className="text-blue-600" /> لوحة التحكم
+                    {/* لوحة التحكم بناءً على الـ Role */}
+                    {dashboardRoutes[role] && (
+                      <button
+                        onClick={() => navigate(dashboardRoutes[role])}
+                        className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-blue-50 rounded-xl transition-colors"
+                      >
+                        <LayoutDashboard size={18} className="text-blue-600" />
+                        لوحة التحكم
                       </button>
                     )}
 
@@ -157,23 +169,30 @@ function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Toggle Button */}
+          {/* Mobile Toggle */}
           <button onClick={() => setOpen(!open)} className="lg:hidden p-2 bg-gray-50 text-[#001e3c] rounded-xl">
             {open ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Drawer Navigation */}
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="lg:hidden bg-white border-t border-gray-50 overflow-hidden">
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="lg:hidden bg-white border-t border-gray-50 overflow-hidden shadow-2xl">
             <div className="px-6 py-8 space-y-6 text-right">
               {navLinks.map((link) => (
                 <button key={link.name} onClick={() => handleNavClick(link.path)} className={`block w-full text-right text-lg font-bold ${isLinkActive(link.path) ? "text-yellow-600" : "text-gray-800"}`}>
                   {link.name}
                 </button>
               ))}
+
+              {user && dashboardRoutes[role] && (
+                <button onClick={() => navigate(dashboardRoutes[role])} className="flex items-center gap-3 text-blue-600 font-bold text-lg">
+                  <LayoutDashboard size={20} /> لوحة التحكم
+                </button>
+              )}
+
               <div className="pt-6 border-t border-gray-100">
                 {user ? (
                   <button onClick={handleLogout} className="flex items-center gap-3 text-red-500 font-bold text-lg">
