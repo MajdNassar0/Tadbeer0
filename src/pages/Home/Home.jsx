@@ -3,6 +3,8 @@ import AboutSection from "../../components/AboutSection/AboutSection";
 import ServicesSection from "../../components/ServicesSection/ServicesSection";
 import How from "../../components/How/How"
 import Contact from "../../components/Contact/Contact"
+import Footer from "../../components/Footer/Footer";
+
 
 
 const Home = () => {
@@ -13,6 +15,7 @@ const Home = () => {
       <ServicesSection />
       <How />
       <Contact />
+      <Footer />
     </>
   );
 };

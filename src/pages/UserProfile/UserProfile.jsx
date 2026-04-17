@@ -1,114 +1,514 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from "../../context/AuthContext";
-import { User, MapPin, ShieldCheck, Trash2, Loader2, Mail, Phone, Edit2 } from 'lucide-react';
+/**
+ * UserProfile.jsx — Tadbeer
+ * ✅ وضع التست: بيستخدم Mock Data مباشرة بدون API
+ * لما تجهز، غيّر USE_MOCK إلى false وعدّل AuthContext
+ */
 
-const UserProfile = () => {
-  const { user } = useAuth();
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  User, Mail, Phone, MapPin, Shield, Calendar,
+  Edit3, Camera, ClipboardList, Lock, AlertTriangle,
+  Trash2, UserX, CheckCircle, XCircle, ChevronRight,
+  Loader2, Star, BadgeCheck,
+} from "lucide-react";
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user?.id) return; // لن ينفذ إلا إذا كان الـ id موجوداً
+// ══════════════════════════════════════════════════════════════
+// 🔧 CONFIG — غيّر هنا فقط
+// ══════════════════════════════════════════════════════════════
+const USE_MOCK = true; // ← true = تست بدون API | false = API حقيقي
 
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token");
-        const response = await axios.get(`https://tadbeer0.runasp.net/api/Admin/Users/${user.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setUserData(response.data);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+const MOCK_USER = {
+  firstName:    "ماجد",
+  lastName:     "نصار",
+  email:        "majd.nassar@tadbeer.com",
+  phoneNumber:  "+970 599 123 456",
+  city:         "نابلس",
+  profileImage: "", // اتركها فارغة لتوليد avatar تلقائي
+  role:         "User",   // SuperAdmin | Admin | Worker | User
+  status:       "Active", // Active | Inactive | Pending
+  createdAt:    "2024-03-15T10:30:00Z",
+};
 
-    fetchProfile();
-  }, [user?.id]);
+const API_BASE = "https://tadbeer0.runasp.net/api/Admin/Users";
+const MOCK_USER_ID = "1";
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Loader2 className="w-12 h-12 text-orange-500 animate-spin" />
+// ══════════════════════════════════════════════════════════════
+// MAPS
+// ══════════════════════════════════════════════════════════════
+const ROLE_MAP = {
+  SuperAdmin: { label: "مشرف عام",  color: "#7c3aed", bg: "#ede9fe" },
+  Admin:      { label: "مشرف",      color: "#001e3c", bg: "#e0f0ff" },
+  Worker:     { label: "عامل",      color: "#ff9800", bg: "#fff3e0" },
+  User:       { label: "مستخدم",    color: "#16a34a", bg: "#dcfce7" },
+};
+
+const STATUS_MAP = {
+  Active:   { label: "نشط",          icon: CheckCircle, color: "#16a34a", bg: "#dcfce7" },
+  Inactive: { label: "غير نشط",      icon: XCircle,     color: "#dc2626", bg: "#fee2e2" },
+  Pending:  { label: "قيد المراجعة", icon: Loader2,     color: "#d97706", bg: "#fef3c7" },
+};
+
+const TABS = [
+  { id: "personal",  label: "المعلومات الشخصية", icon: User },
+  { id: "security",  label: "الأمان",             icon: Lock },
+  { id: "requests",  label: "طلباتي",             icon: ClipboardList },
+];
+
+// ══════════════════════════════════════════════════════════════
+// SKELETON
+// ══════════════════════════════════════════════════════════════
+const Skeleton = ({ className = "" }) => (
+  <div className={`rounded-lg ${className}`}
+    style={{
+      background: "linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%)",
+      backgroundSize: "200% 100%",
+      animation: "skshimmer 1.4s infinite",
+    }}
+  />
+);
+
+// ══════════════════════════════════════════════════════════════
+// PROFILE FIELD
+// ══════════════════════════════════════════════════════════════
+const ProfileField = ({ icon: Icon, label, value, loading }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="flex flex-col gap-1.5 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm
+               transition-all duration-300 hover:border-orange-200 hover:shadow-md"
+  >
+    <div className="flex items-center gap-2 text-gray-400">
+      <Icon size={14} className="text-orange-400" />
+      <span className="text-xs font-medium">{label}</span>
+    </div>
+    {loading
+      ? <Skeleton className="h-5 w-3/4" />
+      : <p className="text-sm font-semibold text-gray-800">
+          {value || <span className="font-normal italic text-gray-400">غير محدد</span>}
+        </p>
+    }
+  </motion.div>
+);
+
+// ══════════════════════════════════════════════════════════════
+// TABS CONTENT
+// ══════════════════════════════════════════════════════════════
+const PersonalInfoTab = ({ user, loading }) => {
+  const fields = [
+    { icon: User,     label: "الاسم الأول",        value: user?.firstName },
+    { icon: User,     label: "الاسم الأخير",       value: user?.lastName },
+    { icon: Mail,     label: "البريد الإلكتروني",  value: user?.email },
+    { icon: Phone,    label: "رقم الهاتف",         value: user?.phoneNumber },
+    { icon: MapPin,   label: "المدينة",             value: user?.city },
+    { icon: Calendar, label: "تاريخ التسجيل",      value: user?.createdAt
+        ? new Date(user.createdAt).toLocaleDateString("ar-SA", { year:"numeric", month:"long", day:"numeric" })
+        : null },
+  ];
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {fields.map((f, i) => (
+        <motion.div key={f.label}
+          initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.06 }}>
+          <ProfileField {...f} loading={loading} />
+        </motion.div>
+      ))}
     </div>
   );
+};
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans" dir="rtl">
-      <div className="max-w-6xl mx-auto space-y-6">
-        
-        {/* Header Section */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-6 relative">
-          <div className="relative">
-            <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-200">
-              <img 
-                src={userData?.profileImage || `https://ui-avatars.com/api/?name=${userData?.firstName}+${userData?.lastName}&background=001e3c&color=fff`} 
-                alt="Profile" className="w-full h-full object-cover"
-              />
-            </div>
-            <button className="absolute bottom-1 right-1 bg-orange-500 p-2 rounded-full text-white"><Edit2 size={16} /></button>
+const SecurityTab = () => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+    {[
+      { title: "تغيير كلمة المرور",  desc: "قم بتحديث كلمة المرور بشكل دوري لحماية حسابك",           btn: "تغيير" },
+      { title: "التحقق بخطوتين",     desc: "أضف طبقة حماية إضافية لحسابك عبر رمز التحقق",            btn: "تفعيل" },
+      { title: "الجلسات النشطة",     desc: "راجع الأجهزة المتصلة بحسابك وأنهِ الجلسات غير المعروفة", btn: "إدارة" },
+    ].map((item, i) => (
+      <motion.div key={item.title}
+        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: i * 0.1 }}
+        className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+            <Shield size={18} className="text-[#001e3c]" />
           </div>
-
-          <div className="flex-1 text-center md:text-right">
-            <h1 className="text-2xl font-bold text-gray-800">{userData?.firstName} {userData?.lastName}</h1>
-            <div className="flex items-center justify-center md:justify-start gap-2 text-gray-500 mt-2">
-              <MapPin size={18} className="text-blue-500" />
-              <span>{userData?.city || "الموقع غير محدد"}</span>
-            </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-800">{item.title}</p>
+            <p className="text-xs text-gray-400">{item.desc}</p>
           </div>
         </div>
+        <button className="rounded-xl border border-orange-200 px-4 py-1.5 text-xs font-semibold text-orange-500 transition hover:bg-orange-50">
+          {item.btn}
+        </button>
+      </motion.div>
+    ))}
+  </motion.div>
+);
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
-              <nav className="space-y-1">
-                <button className="w-full flex items-center gap-3 p-3 rounded-2xl bg-orange-50 text-orange-600 font-bold">
-                  <User size={20} /> المعلومات الشخصية
-                </button>
-                <button className="w-full flex items-center gap-3 p-3 rounded-2xl text-gray-500 hover:bg-gray-50">
-                  <ShieldCheck size={20} /> الأمان والحماية
-                </button>
-              </nav>
+const RequestsTab = () => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+    className="flex flex-col items-center gap-4 py-12 text-center">
+    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-50">
+      <ClipboardList size={36} className="text-orange-400" />
+    </div>
+    <p className="text-lg font-bold text-gray-700">لا توجد طلبات بعد</p>
+    <p className="max-w-xs text-sm text-gray-400">عند طلبك لأي خدمة ستظهر هنا. ابدأ بتصفح خدماتنا الآن!</p>
+    <button className="mt-2 rounded-xl bg-gradient-to-l from-orange-400 to-orange-500 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-orange-100 transition hover:shadow-orange-200">
+      استعرض الخدمات
+    </button>
+  </motion.div>
+);
+
+// ══════════════════════════════════════════════════════════════
+// DANGER ZONE
+// ══════════════════════════════════════════════════════════════
+const DangerZone = () => {
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmDelete,     setConfirmDelete]     = useState(false);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="mt-8 overflow-hidden rounded-3xl border border-red-100 bg-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-red-50 bg-red-50/60 px-6 py-4">
+        <AlertTriangle size={18} className="text-red-500" />
+        <h3 className="text-sm font-bold text-red-600">منطقة الخطر</h3>
+      </div>
+      <div className="space-y-4 p-6">
+        {/* Deactivate */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-red-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50">
+              <UserX size={18} className="text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">تعطيل الحساب</p>
+              <p className="text-xs text-gray-400">سيتم إيقاف حسابك مؤقتاً ويمكنك إعادة تفعيله لاحقاً</p>
             </div>
           </div>
-
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-800 mb-6">تفاصيل الحساب</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-400 font-bold">الاسم الأول</p>
-                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">{userData?.firstName}</div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-400 font-bold">البريد الإلكتروني</p>
-                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">{userData?.email}</div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-400 font-bold">رقم الهاتف</p>
-                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100" dir="ltr">{userData?.phoneNumber || "لا يوجد رقم"}</div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-400 font-bold">رتبة الحساب</p>
-                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">{userData?.role}</div>
-                </div>
+          {!confirmDeactivate
+            ? <button onClick={() => setConfirmDeactivate(true)}
+                className="w-full rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50 sm:w-auto">
+                تعطيل
+              </button>
+            : <div className="flex gap-2">
+                <button className="rounded-xl bg-red-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-600">تأكيد</button>
+                <button onClick={() => setConfirmDeactivate(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 transition hover:bg-gray-50">إلغاء</button>
               </div>
+          }
+        </div>
+        {/* Delete */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+              <Trash2 size={18} className="text-red-500" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-700">حذف الحساب نهائياً</p>
+              <p className="text-xs text-red-400">هذا الإجراء لا يمكن التراجع عنه وسيتم فقدان جميع بياناتك</p>
+            </div>
+          </div>
+          {!confirmDelete
+            ? <button onClick={() => setConfirmDelete(true)}
+                className="w-full rounded-xl bg-red-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-600 sm:w-auto">
+                حذف الحساب
+              </button>
+            : <div className="flex gap-2">
+                <button className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-700">نعم، احذف</button>
+                <button onClick={() => setConfirmDelete(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 transition hover:bg-gray-50">إلغاء</button>
+              </div>
+          }
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// CUSTOM HOOK — يدعم Mock و API
+// ══════════════════════════════════════════════════════════════
+const useUserProfile = (userId) => {
+  const [user,    setUser]    = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
+
+  const fetchUser = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    // ── وضع التست: Mock Data بعد delay وهمي ─────────────────
+    if (USE_MOCK) {
+      await new Promise(r => setTimeout(r, 1200));
+      setUser(MOCK_USER);
+      setLoading(false);
+      return;
+    }
+
+    // ── وضع الـ API الحقيقي ──────────────────────────────────
+    if (!userId) { setLoading(false); return; }
+    try {
+      const res = await fetch(`${API_BASE}/${userId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setUser(data);
+    } catch (err) {
+      setError(err?.message || "فشل في تحميل بيانات المستخدم.");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => { fetchUser(); }, [fetchUser]);
+  return { user, loading, error, refetch: fetchUser };
+};
+
+// ══════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════════════════════════
+const UserProfile = () => {
+  // ─────────────────────────────────────────────────────────────
+  // للـ Production: استبدل السطر أدناه بـ:
+  //   const { user: authUser } = useContext(AuthContext);
+  // ─────────────────────────────────────────────────────────────
+  const authUser = { id: MOCK_USER_ID };
+
+  const { user, loading, error, refetch } = useUserProfile(authUser?.id);
+  const [activeTab,  setActiveTab]  = useState("personal");
+  const [imageHover, setImageHover] = useState(false);
+
+  const roleBadge   = ROLE_MAP[user?.role]     || ROLE_MAP.User;
+  const statusBadge = STATUS_MAP[user?.status]  || STATUS_MAP.Active;
+  const StatusIcon  = statusBadge.icon;
+  const fullName    = user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : "";
+  const avatarUrl   = (name) =>
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "U")}&background=ff9800&color=fff&size=200&bold=true`;
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+        *, *::before, *::after { font-family: 'Tajawal', sans-serif !important; box-sizing: border-box; }
+        @keyframes skshimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+      `}</style>
+
+      <div dir="rtl"
+        className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/20 p-4 sm:p-6 lg:p-10">
+        <div className="mx-auto max-w-5xl">
+
+          {/* Mock Mode Banner */}
+          {USE_MOCK && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+              className="mb-4 flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-xs font-semibold text-orange-600">
+              <span className="flex h-2 w-2 rounded-full bg-orange-400" />
+              وضع التست — بيانات وهمية. لما تجهز غيّر <code className="mx-1 rounded bg-orange-100 px-1">USE_MOCK = false</code>
+            </motion.div>
+          )}
+
+          {/* Error Banner */}
+          <AnimatePresence>
+            {error && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="mb-4 flex items-center justify-between rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm text-red-600">
+                <span>{error}</span>
+                <button onClick={refetch} className="font-bold underline">إعادة المحاولة</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ════ HERO ════ */}
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-l from-[#001e3c] to-[#003a6e] p-6 shadow-2xl shadow-blue-900/25 sm:p-8">
+
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-orange-500/15 blur-3xl" />
+              <div className="absolute -bottom-16 right-10 h-48 w-48 rounded-full bg-blue-400/10 blur-3xl" />
             </div>
 
-            <div className="bg-red-50 rounded-3xl p-8 border border-red-100">
-              <h3 className="text-red-600 font-bold mb-4 flex items-center gap-2"><Trash2 size={20}/> منطقة الخطر</h3>
-              <div className="flex gap-4">
-                <button className="flex-1 bg-white border border-red-200 text-red-600 py-3 rounded-2xl font-bold hover:bg-red-50 transition">تعطيل الحساب</button>
-                <button className="flex-1 bg-red-600 text-white py-3 rounded-2xl font-bold hover:bg-red-700 transition">حذف الحساب</button>
+            <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-end">
+
+              {/* Avatar */}
+              <div className="relative shrink-0 cursor-pointer"
+                onMouseEnter={() => setImageHover(true)}
+                onMouseLeave={() => setImageHover(false)}>
+                <div className="h-24 w-24 overflow-hidden rounded-2xl ring-4 ring-orange-400/50 sm:h-28 sm:w-28">
+                  {loading
+                    ? <Skeleton className="h-full w-full" />
+                    : <img src={user?.profileImage || avatarUrl(fullName)} alt={fullName}
+                        className="h-full w-full object-cover transition-transform duration-300"
+                        style={{ transform: imageHover ? "scale(1.08)" : "scale(1)" }} />
+                  }
+                </div>
+                <AnimatePresence>
+                  {imageHover && !loading && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 backdrop-blur-sm">
+                      <Camera size={24} className="text-white" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {!loading && (
+                  <span className="absolute -bottom-1 -left-1 flex h-5 w-5 rounded-full border-2 border-[#001e3c]"
+                    style={{ background: statusBadge.color }} />
+                )}
               </div>
+
+              {/* Name */}
+              <div className="flex flex-1 flex-col items-center gap-2.5 sm:items-start">
+                {loading ? (
+                  <>
+                    <Skeleton className="h-8 w-52" />
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-6 w-28" />
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h1 className="text-2xl font-black text-white sm:text-3xl">{fullName || "—"}</h1>
+                      <BadgeCheck size={22} className="text-orange-400" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-blue-200">
+                      {user?.city && <span className="flex items-center gap-1"><MapPin size={13} />{user.city}</span>}
+                      {user?.city && <span className="text-blue-300/30">•</span>}
+                      <span className="flex items-center gap-1"><Mail size={13} />{user?.email || "—"}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      <span className="rounded-full px-3 py-0.5 text-xs font-bold"
+                        style={{ background: roleBadge.bg, color: roleBadge.color }}>
+                        {roleBadge.label}
+                      </span>
+                      <span className="flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold"
+                        style={{ background: statusBadge.bg, color: statusBadge.color }}>
+                        <StatusIcon size={11} />{statusBadge.label}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {!loading && (
+                <button className="flex shrink-0 items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20">
+                  <Edit3 size={15} />تعديل الملف
+                </button>
+              )}
             </div>
+          </motion.div>
+
+          {/* ════ GRID ════ */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+
+            {/* Sidebar */}
+            <motion.aside initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }} className="lg:col-span-1">
+              <div className="sticky top-6 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+                <div className="border-b border-gray-50 p-5 text-center">
+                  {loading ? (
+                    <>
+                      <Skeleton className="mx-auto mb-3 h-14 w-14 rounded-full" />
+                      <Skeleton className="mx-auto mb-1.5 h-4 w-28" />
+                      <Skeleton className="mx-auto h-3 w-36" />
+                    </>
+                  ) : (
+                    <>
+                      <img src={user?.profileImage || avatarUrl(fullName)} alt=""
+                        className="mx-auto mb-2 h-14 w-14 rounded-full object-cover ring-2 ring-orange-200" />
+                      <p className="text-sm font-bold text-gray-800">{fullName}</p>
+                      <p className="truncate text-xs text-gray-400">{user?.email}</p>
+                    </>
+                  )}
+                </div>
+
+                <nav className="p-3">
+                  {TABS.map((tab, i) => {
+                    const Icon     = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <motion.button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.07 + 0.2 }}
+                        className={`mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                          isActive ? "bg-[#001e3c] text-white shadow-md" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                        }`}>
+                        <Icon size={16} className={isActive ? "text-orange-400" : ""} />
+                        <span className="flex-1 text-right">{tab.label}</span>
+                        <ChevronRight size={14}
+                          className={`transition-transform ${isActive ? "rotate-180 text-orange-400" : ""}`} />
+                      </motion.button>
+                    );
+                  })}
+                </nav>
+
+                {!loading && (
+                  <div className="border-t border-gray-50 p-4">
+                    <div className="flex items-center justify-around text-center">
+                      {[
+                        { val: "0",   sub: "طلب",    star: false },
+                        { val: "4.9", sub: "تقييم",  star: true  },
+                        { val: "0",   sub: "خدمة",   star: false },
+                      ].map((s, i) => (
+                        <div key={i} className="flex flex-col items-center">
+                          <p className={`flex items-center gap-0.5 text-lg font-black ${s.star ? "text-orange-500" : "text-[#001e3c]"}`}>
+                            {s.val} {s.star && <Star size={12} fill="#ff9800" />}
+                          </p>
+                          <p className="text-xs text-gray-400">{s.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.aside>
+
+            {/* Main */}
+            <motion.main initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }} className="lg:col-span-3">
+              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div className="mb-5 flex items-center justify-between border-b border-gray-50 pb-4">
+                  <div>
+                    <h2 className="text-base font-black text-gray-800">
+                      {TABS.find(t => t.id === activeTab)?.label}
+                    </h2>
+                    <p className="text-xs text-gray-400">
+                      {activeTab === "personal" && "بياناتك الشخصية المسجلة في المنصة"}
+                      {activeTab === "security" && "إعدادات الأمان وحماية الحساب"}
+                      {activeTab === "requests" && "متابعة طلبات الخدمة الخاصة بك"}
+                    </p>
+                  </div>
+                  {activeTab === "personal" && !loading && (
+                    <button className="flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-500 transition hover:bg-orange-100">
+                      <Edit3 size={12} /> تعديل
+                    </button>
+                  )}
+                </div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div key={activeTab}
+                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+                    {activeTab === "personal" && <PersonalInfoTab user={user} loading={loading} />}
+                    {activeTab === "security" && <SecurityTab />}
+                    {activeTab === "requests" && <RequestsTab />}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              <DangerZone />
+            </motion.main>
+
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
