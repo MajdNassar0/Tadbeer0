@@ -124,25 +124,51 @@ const useUserProfile = () => {
       setLoading(false);
     }
   }, []);
-
   const updateUser = useCallback(async (payload) => {
-    setSaving(true);
-    try {
-      const res = await fetch(API_BASE, {
-        method: "PUT",
-        headers: authHeader(),
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const updated = await res.json();
-      setUser(updated);
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: err?.message };
-    } finally {
-      setSaving(false);
+  setSaving(true);
+  try {
+    // 1. إنشاء كائن FormData (لحل مشكلة 415)
+    const formData = new FormData();
+
+    // 2. إضافة البيانات للحقول (تأكدي أن الأسماء تطابق الـ Swagger تماماً)
+    formData.append("firstName", payload.firstName || "");
+    formData.append("lastName", payload.lastName || "");
+    formData.append("email", payload.email || "");
+    formData.append("phoneNumber", payload.phoneNumber || "");
+    formData.append("city", payload.city || "");
+    
+    // إذا أضفتِ ميزة رفع الصور لاحقاً، الـ FormData جاهز هنا
+    if (payload.profileImage instanceof File) {
+      formData.append("profileImage", payload.profileImage);
     }
-  }, []);
+
+    // 3. إرسال الطلب
+    const res = await fetch(API_BASE, {
+      method: "PUT",
+      headers: {
+        // هام جداً: لا تضعي Content-Type هنا، المتصفح سيضيفه تلقائياً كـ multipart/form-data
+        "Authorization": `Bearer ${getToken()}`,
+      },
+      body: formData, 
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || `HTTP ${res.status}`);
+    }
+
+    const updated = await res.json();
+    setUser(updated); // تحديث الواجهة بالبيانات الجديدة
+    return { ok: true };
+  } catch (err) {
+    console.error("Update Error:", err);
+    return { ok: false, error: err?.message };
+  } finally {
+    setSaving(false);
+  }
+}, []);
+
+
 
   const toggleStatus = useCallback(async () => {
     setToggling(true);
@@ -301,7 +327,7 @@ const PersonalInfoTab = ({ user, loading, saving, onSave }) => {
     { icon: Mail,     label: "البريد الإلكتروني",  value: user?.email },
     { icon: Phone,    label: "رقم الهاتف",         value: user?.phoneNumber },
     { icon: MapPin,   label: "المدينة",             value: user?.city },
-    { icon: Calendar, label: "تاريخ التسجيل",      value: user?.createdAt
+    { icon: Calendar, label: "تاريخ الميلاد",      value: user?.createdAt
       ? new Date(user.createdAt).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" })
       : null },
   ];
