@@ -680,6 +680,7 @@ const UserProfile = () => {
 
               <DangerZone toggling={toggling} onToggleStatus={toggleStatus} />
             </motion.main>
+            
 
           </div>
         </div>
