@@ -99,7 +99,7 @@ const WorkerLayout = () => {
                      transition-colors border-b border-white/[0.07]"
         >
           <div className="flex items-center gap-3">
-            <img src="/src/assets/img/tadbeerLogo/logo.5.png" alt="تدبير"
+            <img src="../../../public/logo.png" alt="تدبير"
                  className="w-9 h-9 object-contain" />
             <div>
               <h1 className="text-lg font-medium">تدبير</h1>

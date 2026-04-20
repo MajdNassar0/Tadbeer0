@@ -151,7 +151,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[500px]">
+              <table className="w-full min-w-125">
                 <thead>
                   <tr className="text-[10px] text-gray-400 border-b border-gray-50">
                     <th className="py-3 px-6 text-right font-medium">العميل</th>

@@ -89,7 +89,7 @@ const AdminLayout = () => {
           onClick={() => navigate("/")}
           className="flex items-center gap-3 px-6 py-6 hover:opacity-80 transition-opacity border-b border-white/[0.07]"
         >
-          <img src="/src/assets/img/tadbeerLogo/logo.5.png" alt="تدبير"
+          <img src="../../../public/logo.png" alt="تدبير"
                className="w-9 h-9 object-contain" />
           <span className="text-lg font-medium tracking-tight">تدبير</span>
         </button>
