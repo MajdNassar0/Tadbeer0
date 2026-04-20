@@ -1,5 +1,4 @@
-
-
+import { useUserProfile } from "../../Hooks/useUserProfile";
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,12 +8,8 @@ import {
   Loader2, Star, BadgeCheck, Save, X as IconX,
 } from "lucide-react";
 
-// ══════════════════════════════════════════════════════════════
-// CONFIG & CONSTANTS
-// ══════════════════════════════════════════════════════════════
-const API_BASE   = "https://tadbeer0.runasp.net/api/User/Profile/me";
-const getToken   = () => localStorage.getItem("token") || "";
-const authHeader = () => ({ "Authorization": `Bearer ${getToken()}`, "Content-Type": "application/json" });
+
+
 
 const ROLE_MAP = {
   SuperAdmin: { label: "مشرف عام", color: "#7c3aed", bg: "#ede9fe" },
@@ -100,98 +95,6 @@ const Skeleton = ({ className = "" }) => (
     }} />
 );
 
-// ══════════════════════════════════════════════════════════════
-// CUSTOM HOOK — useUserProfile
-// ══════════════════════════════════════════════════════════════
-const useUserProfile = () => {
-  const [user,      setUser]      = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [saving,    setSaving]    = useState(false);
-  const [toggling,  setToggling]  = useState(false);
-  const [error,     setError]     = useState(null);
-
-  const fetchUser = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res  = await fetch(API_BASE, { headers: authHeader() });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setUser(data);
-    } catch (err) {
-      setError(err?.message || "فشل في تحميل بيانات المستخدم.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  const updateUser = useCallback(async (payload) => {
-  setSaving(true);
-  try {
-    // 1. إنشاء كائن FormData (لحل مشكلة 415)
-    const formData = new FormData();
-
-    // 2. إضافة البيانات للحقول (تأكدي أن الأسماء تطابق الـ Swagger تماماً)
-    formData.append("firstName", payload.firstName || "");
-    formData.append("lastName", payload.lastName || "");
-    formData.append("email", payload.email || "");
-    formData.append("phoneNumber", payload.phoneNumber || "");
-    formData.append("city", payload.city || "");
-    
-    // إذا أضفتِ ميزة رفع الصور لاحقاً، الـ FormData جاهز هنا
-    if (payload.profileImage instanceof File) {
-      formData.append("profileImage", payload.profileImage);
-    }
-
-    // 3. إرسال الطلب
-    const res = await fetch(API_BASE, {
-      method: "PUT",
-      headers: {
-        // هام جداً: لا تضعي Content-Type هنا، المتصفح سيضيفه تلقائياً كـ multipart/form-data
-        "Authorization": `Bearer ${getToken()}`,
-      },
-      body: formData, 
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(errorText || `HTTP ${res.status}`);
-    }
-
-    const updated = await res.json();
-    setUser(updated); // تحديث الواجهة بالبيانات الجديدة
-    return { ok: true };
-  } catch (err) {
-    console.error("Update Error:", err);
-    return { ok: false, error: err?.message };
-  } finally {
-    setSaving(false);
-  }
-}, []);
-
-
-
-  const toggleStatus = useCallback(async () => {
-    setToggling(true);
-    try {
-      const res = await fetch(`${API_BASE}/status-toggle`, {
-        method: "PATCH",
-        headers: authHeader(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const updated = await res.json();
-      setUser(updated);
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: err?.message };
-    } finally {
-      setToggling(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchUser(); }, [fetchUser]);
-
-  return { user, loading, saving, toggling, error, fetchUser, updateUser, toggleStatus };
-};
 
 // ══════════════════════════════════════════════════════════════
 // PROFILE FIELD (static display)
@@ -692,12 +595,17 @@ const UserProfile = () => {
   const [activeTab, setActiveTab] = useState("personal");
   const toast = useToast();
 
+
   const handleSave = async (payload) => {
-    const res = await updateUser(payload);
-    if (res.ok) toast("تم حفظ التغييرات بنجاح ✓");
-    else        toast(res.error || "فشل الحفظ، حاول مجدداً", "error");
-    return res;
-  };
+  const res = await updateUser(payload); // updateUser هنا تأتي من الهوك الجديد
+  if (res.ok) {
+    toast("تم حفظ التغييرات بنجاح ✓");
+  } else {
+    // عرض رسالة الخطأ القادمة من السيرفر
+    toast(res.error || "فشل الحفظ، حاول مجدداً", "error");
+  }
+  return res;
+};
 
   return (
     <>
