@@ -14,7 +14,7 @@ import WorkerProfile from "./pages/WorkerProfile/WorkerProfile";
 import UserProfile from "./pages/UserProfile/UserProfile";
 
 // Admin
-import AdminLayout   from "./pages/Admin/Adminlayout";
+import AdminLayout   from "./pages/Admin/AdminLayout";
 import Dashboard     from "./pages/Admin/Dashboard";
 import Users         from "./pages/Admin/Users";
 import Technicians   from "./pages/Admin/Technicians";
