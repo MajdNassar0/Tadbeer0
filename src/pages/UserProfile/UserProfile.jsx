@@ -1,5 +1,7 @@
 import { useUserProfile } from "../../Hooks/useUserProfile";
+import ActivityHeatmap from "../../components/Profile/ActivityHeatmap";
 import { getFullImageUrl } from "../../Utils/imageHelper";
+import ActivityChart from "../../components/ActivityChart/ActivityChart";
 import React, { useState, useCallback, createContext, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -176,19 +178,62 @@ const PersonalInfoTab = ({ user, loading, saving, onSave }) => {
   );
 };
 
-const SecurityTab = () => (
-  <div className="space-y-4">
-    {[{ title: "تغيير كلمة المرور", desc: "تحديث كلمة المرور لحماية حسابك", btn: "تغيير" }, { title: "التحقق بخطوتين", desc: "أضف طبقة حماية إضافية", btn: "تفعيل" }].map((item) => (
-      <div key={item.title} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50"><Shield size={18} className="text-[#001e3c]" /></div>
-          <div><p className="text-sm font-semibold text-gray-800">{item.title}</p><p className="text-xs text-gray-400">{item.desc}</p></div>
+const SecurityTab = () => {
+  const securityItems = [
+    { 
+      title: "تغيير كلمة المرور", 
+      desc: "تحديث كلمة المرور لحماية حسابك", 
+      btn: "تغيير", 
+      variant: "orange" 
+    },
+    { 
+      title: "التحقق بخطوتين", 
+      desc: "أضف طبقة حماية إضافية", 
+      btn: "تفعيل", 
+      variant: "orange" 
+    },
+    { 
+      title: "تعطيل الحساب مؤقتاً", 
+      desc: "يمكنك استعادة حسابك في أي وقت لاحق", 
+      btn: "تعطيل", 
+      variant: "danger" 
+    },
+    { 
+      title: "حذف الحساب نهائياً", 
+      desc: "سيتم مسح كافة بياناتك ولا يمكن التراجع", 
+      btn: "حذف", 
+      variant: "danger" 
+    }
+  ];
+
+  return (
+    <div className="space-y-4">
+      {securityItems.map((item) => (
+        <div key={item.title} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.variant === 'danger' ? 'bg-red-50' : 'bg-blue-50'}`}>
+              <Shield size={18} className={item.variant === 'danger' ? 'text-red-500' : 'text-[#001e3c]'} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{item.title}</p>
+              <p className="text-xs text-gray-400">{item.desc}</p>
+            </div>
+          </div>
+          
+          <button 
+            className={`rounded-xl border px-4 py-1.5 text-xs font-semibold transition-all ${
+              item.variant === 'danger' 
+                ? 'border-red-100 text-red-500 hover:bg-red-50' 
+                : 'border-orange-200 text-orange-500 hover:bg-orange-50'
+            }`}
+          >
+            {item.btn}
+          </button>
         </div>
-        <button className="rounded-xl border border-orange-200 px-4 py-1.5 text-xs font-semibold text-orange-500 transition hover:bg-orange-50">{item.btn}</button>
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};
 
 const RequestsTab = () => (
   <div className="flex flex-col items-center gap-4 py-12 text-center">
@@ -270,7 +315,7 @@ const ProfileHeader = ({ user, loading, saving, onUploadImage }) => {
           {loading ? <Skeleton className="h-8 w-52" /> : (
             <>
               <div className="flex items-center gap-2"><h1 className="text-2xl font-black sm:text-3xl">{fullName || "—"}</h1><BadgeCheck size={22} className="text-orange-400" /></div>
-              <div className="flex gap-3 text-sm text-blue-200">{user?.city && <span className="flex items-center gap-1"><MapPin size={13} />{user.city}</span>}<span><Mail size={13} />{user?.email}</span></div>
+              <div className="flex gap-3 text-sm text-blue-200">{user?.city && <span className="flex items-center gap-1"><MapPin size={13} />{user.city}</span>}<span className="flex items-center gap-1"><Mail size={13} />{user?.email}</span></div>
               <div className="flex gap-2 pt-1">
                 <span className="rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: roleBadge.bg, color: roleBadge.color }}>{roleBadge.label}</span>
                 <span className="flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: statusBadge.bg, color: statusBadge.color }}><StatusIcon size={11} />{statusBadge.label}</span>
@@ -283,40 +328,14 @@ const ProfileHeader = ({ user, loading, saving, onUploadImage }) => {
   );
 };
 
-// ══════════════════════════════════════════════════════════════
-// DANGER ZONE
-// ══════════════════════════════════════════════════════════════
-const DangerZone = ({ toggling, onToggleStatus }) => {
-  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
-  const toast = useToast();
-  const handleDeactivate = async () => {
-    const res = await onToggleStatus();
-    if (res?.ok) { toast("تم تغيير حالة الحساب بنجاح"); setConfirmDeactivate(false); }
-    else { toast(res?.error || "حدث خطأ", "error"); }
-  };
-  return (
-    <div className="mt-8 overflow-hidden rounded-3xl border border-red-100 bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-red-50 bg-red-50/60 px-6 py-4"><AlertTriangle size={18} className="text-red-500" /><h3 className="text-sm font-bold text-red-600">منطقة الخطر</h3></div>
-      <div className="p-6">
-        <div className="flex flex-col gap-3 rounded-2xl border border-red-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50"><UserX size={18} className="text-red-400" /></div><div><p className="text-sm font-semibold text-gray-800">تعطيل/تفعيل الحساب</p></div></div>
-          {!confirmDeactivate ? <button onClick={() => setConfirmDeactivate(true)} className="rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 hover:bg-red-50">تغيير الحالة</button> : (
-            <div className="flex gap-2">
-              <button onClick={handleDeactivate} disabled={toggling} className="rounded-xl bg-red-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{toggling ? <Loader2 size={12} className="animate-spin" /> : "تأكيد"}</button>
-              <button onClick={() => setConfirmDeactivate(false)} className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500">إلغاء</button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+
 
 // ══════════════════════════════════════════════════════════════
 // MAIN EXPORT
 // ══════════════════════════════════════════════════════════════
 const UserProfile = () => {
   const { user, loading, saving, toggling, error, fetchUser, updateUser, toggleStatus } = useUserProfile();
+  const [userActivity, setUserActivity] = useState([]);
   const [activeTab, setActiveTab] = useState("personal");
   const toast = useToast();
 
@@ -359,8 +378,11 @@ const UserProfile = () => {
                   </motion.div>
                 </AnimatePresence>
               </div>
-              <DangerZone toggling={toggling} onToggleStatus={toggleStatus} />
+                              <ActivityChart data={userActivity} />
+                              <ActivityHeatmap />
+
             </main>
+            
           </div>
         </div>
       </div>

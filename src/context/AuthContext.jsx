@@ -37,9 +37,17 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     setUser(null);
   };
+  const updateUser = (updatedData) => {
+    setUser((prevUser) => {
+      const newUser = { ...prevUser, ...updatedData };
+      // تحديث localStorage لضمان بقاء الصورة عند عمل Refresh
+      localStorage.setItem("user", JSON.stringify(newUser));
+      return newUser;
+    });
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading ,updateUser}}>
       {/* بدلاً من {!loading && children} 
           يفضل عرض المكونات دائماً أو إظهار Loader محدد يختفي فوراً
       */}
