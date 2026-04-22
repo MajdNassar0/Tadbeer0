@@ -123,16 +123,29 @@ function Navbar() {
 
           {/* Desktop User Area */}
           <div className="hidden lg:flex items-center gap-4">
-            {user ? (
-              <div className="relative group">
-                <button className="flex items-center gap-3 p-1.5 pr-4 bg-gray-50 hover:bg-white hover:shadow-md rounded-full border border-gray-100 transition-all duration-300">
-                  <span className="text-sm font-bold text-gray-700">{user.name}</span>
-                  <div className="w-8 h-8 rounded-full bg-[#001e3c] flex items-center justify-center text-white text-xs font-bold shadow-inner">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                  <ChevronDown size={14} className="text-gray-400 group-hover:rotate-180 transition-transform duration-300" />
-                </button>
-
+           
+                    {user ? (
+  <div className="relative group">
+    <button className="flex items-center gap-3 p-1.5 pr-4 bg-gray-50 hover:bg-white hover:shadow-md rounded-full border border-gray-100 transition-all duration-300">
+      {/* عرض الاسم - سيتحدث تلقائياً لأننا نستخدم user من useAuth */}
+      <span className="text-sm font-bold text-gray-700">{user.name}</span>
+      
+      {/* عرض الصورة أو الحرف الأول */}
+      <div className="w-8 h-8 rounded-full bg-[#001e3c] flex items-center justify-center text-white text-xs font-bold shadow-inner overflow-hidden">
+        {user.image || user.profilePic ? (
+          <img 
+            src={getFullImageUrl(user.image || user.profilePic)} 
+            alt={user.name} 
+            className="w-full h-full object-cover"
+            // نستخدم onError عشان لو الرابط خربان يرجع يظهر الحرف
+            onError={(e) => { e.target.onerror = null; e.target.src = ""; }} 
+          />
+        ) : (
+          user.name.charAt(0).toUpperCase()
+        )}
+      </div>
+      <ChevronDown size={14} className="text-gray-400 group-hover:rotate-180 transition-transform duration-300" />
+    </button>
                 {/* Dropdown Menu */}
                 <div className="absolute left-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-50 overflow-hidden">
                   <div className="p-2 space-y-1 text-right">

@@ -44,8 +44,9 @@ export const useUserProfile = () => {
       setSaving(false);
     }
   }, []);
+
   
-  const toggleStatus = useCallback(async () => {
+  const toggleAccountStatus= useCallback(async () => {
     setToggling(true);
     try {
       const res = await apiClient.patch('/User/Profile/me/status-toggle');
@@ -60,5 +61,5 @@ export const useUserProfile = () => {
 
   useEffect(() => { fetchUser(); }, [fetchUser]);
 
-  return { user, loading, saving, toggling, fetchUser, updateUser, toggleStatus };
+  return { user, loading, saving, toggling, fetchUser, updateUser,toggleAccountStatus };
 };

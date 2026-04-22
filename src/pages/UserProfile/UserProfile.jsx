@@ -1,6 +1,8 @@
 import { useUserProfile } from "../../Hooks/useUserProfile";
 import { getFullImageUrl } from "../../Utils/imageHelper";
 import ActivityChart from "../../components/ActivityChart/ActivityChart";
+import { useAuth } from "../../context/AuthContext"; 
+import SecurityTab from "../../components/Profile/Security/SecurityTab";
 import React, { useState, useCallback, createContext, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -21,9 +23,18 @@ const ROLE_MAP = {
 };
 
 const STATUS_MAP = {
-  Active:   { label: "نشط",          icon: CheckCircle, color: "#16a34a", bg: "#dcfce7" },
-  Inactive: { label: "غير نشط",       icon: XCircle,     color: "#dc2626", bg: "#fee2e2" },
-  Pending:  { label: "قيد المراجعة", icon: Loader2,      color: "#d97706", bg: "#fef3c7" },
+  Active: { 
+    label: "نشط", 
+    icon: BadgeCheck, // أو أي أيقونة تفضلها
+    color: "#16a34a", 
+    bg: "#dcfce7" 
+  },
+  Inactive: { 
+    label: "معطل", 
+    icon: XCircle, // أيقونة تدل على التعطيل
+    color: "#dc2626", 
+    bg: "#fee2e2" 
+  }
 };
 
 const TABS = [
@@ -73,8 +84,7 @@ const ToastProvider = ({ children }) => {
     </ToastContext.Provider>
   );
 };
-const useToast = () => useContext(ToastContext);
-
+export const useToast = () => useContext(ToastContext);
 // ══════════════════════════════════════════════════════════════
 // UI COMPONENTS (Skeleton, ProfileField, InputField, EditForm)
 // ══════════════════════════════════════════════════════════════
@@ -177,62 +187,7 @@ const PersonalInfoTab = ({ user, loading, saving, onSave }) => {
   );
 };
 
-const SecurityTab = () => {
-  const securityItems = [
-    { 
-      title: "تغيير كلمة المرور", 
-      desc: "تحديث كلمة المرور لحماية حسابك", 
-      btn: "تغيير", 
-      variant: "orange" 
-    },
-    { 
-      title: "التحقق بخطوتين", 
-      desc: "أضف طبقة حماية إضافية", 
-      btn: "تفعيل", 
-      variant: "orange" 
-    },
-    { 
-      title: "تعطيل الحساب مؤقتاً", 
-      desc: "يمكنك استعادة حسابك في أي وقت لاحق", 
-      btn: "تعطيل", 
-      variant: "danger" 
-    },
-    { 
-      title: "حذف الحساب نهائياً", 
-      desc: "سيتم مسح كافة بياناتك ولا يمكن التراجع", 
-      btn: "حذف", 
-      variant: "danger" 
-    }
-  ];
 
-  return (
-    <div className="space-y-4">
-      {securityItems.map((item) => (
-        <div key={item.title} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
-          <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.variant === 'danger' ? 'bg-red-50' : 'bg-blue-50'}`}>
-              <Shield size={18} className={item.variant === 'danger' ? 'text-red-500' : 'text-[#001e3c]'} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">{item.title}</p>
-              <p className="text-xs text-gray-400">{item.desc}</p>
-            </div>
-          </div>
-          
-          <button 
-            className={`rounded-xl border px-4 py-1.5 text-xs font-semibold transition-all ${
-              item.variant === 'danger' 
-                ? 'border-red-100 text-red-500 hover:bg-red-50' 
-                : 'border-orange-200 text-orange-500 hover:bg-orange-50'
-            }`}
-          >
-            {item.btn}
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 const RequestsTab = () => (
   <div className="flex flex-col items-center gap-4 py-12 text-center">
@@ -332,20 +287,37 @@ const ProfileHeader = ({ user, loading, saving, onUploadImage }) => {
 // ══════════════════════════════════════════════════════════════
 // MAIN EXPORT
 // ══════════════════════════════════════════════════════════════
-const UserProfile = () => {
-  const { user, loading, saving, toggling, error, fetchUser, updateUser, toggleStatus } = useUserProfile();
+// ... كل الـ imports والـ UI Components (ProfileHeader, EditForm, إلخ) بتضل زي ما هي فوق ...
+
+// ══════════════════════════════════════════════════════════════
+// المكون الداخلي: هون كل المنطق (Logic)
+// ══════════════════════════════════════════════════════════════
+const UserProfileContent = () => {
+  const { updateUser: updateAuthUser } = useAuth();
+  const { user, loading, saving, updateUser } = useUserProfile();
   const [userActivity, setUserActivity] = useState([]);
   const [activeTab, setActiveTab] = useState("personal");
-  const toast = useToast();
+  const toast = useToast(); // هسا رح يشتغل صح!
 
   const handleSave = async (payload) => {
     const res = await updateUser(payload);
-    if (res.ok) toast("تم حفظ التغييرات بنجاح ✓");
-    else toast(res.error || "فشل الحفظ", "error");
+    if (res.ok) {
+      toast("تم حفظ التغييرات بنجاح ✓");
+      
+      // تحديث الناف بار
+      const newName = `${payload.firstName} ${payload.lastName}`;
+      updateAuthUser({ 
+        name: newName,
+        city: payload.city,
+        phoneNumber: payload.phoneNumber 
+      }); 
+    } else {
+      toast(res.error || "فشل الحفظ", "error");
+    }
     return res;
   };
 
-  const handleUploadImage = async (file) => {
+ const handleUploadImage = async (file) => {
     const formData = new FormData();
     formData.append("FirstName", user.firstName);
     formData.append("LastName", user.lastName);
@@ -354,39 +326,71 @@ const UserProfile = () => {
     formData.append("ProfileImage", file);
 
     const res = await updateUser(formData);
-    if (res.ok) toast("تم تحديث الصورة الشخصية بنجاح ✓");
-    else toast(res.error || "فشل الرفع", "error");
-  };
+    
+    // تفحص هذا السطر في المتصفح (F12 -> Console)
+    console.log("البيانات الراجعة من السيرفر بعد رفع الصورة:", res);
 
+    if (res.ok) {
+      toast("تم تحديث الصورة الشخصية بنجاح ✓");
+      
+      // نتحقق من وجود بيانات المستخدم في الرد
+      const userData = res.user || res.data;
+      if (userData) {
+        // تأكد أن أحد هذه الحقول هو الذي يحتوي على رابط الصورة الجديد
+        const serverImageUrl = userData.profileImage || userData.ProfileImage || userData.profileImageUrl;
+        
+        if (serverImageUrl) {
+          updateAuthUser({ 
+            image: serverImageUrl // نرسلها للناف بار
+          });
+          console.log("تم تحديث رابط الصورة في AuthContext:", serverImageUrl);
+        }
+      }
+    } else {
+      toast(res.error || "فشل الرفع", "error");
+    }
+  }; // تأكد من وجود هذا القوس لإغلاق الدالة
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-[#f8f6f3] p-4 sm:p-6 lg:p-10">
+      <div className="mx-auto max-w-5xl">
+        <ProfileHeader user={user} loading={loading} saving={saving} onUploadImage={handleUploadImage} />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+          <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} user={user} loading={loading} />
+          <main className="lg:col-span-3">
+            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mb-5 border-b border-gray-50 pb-4">
+                <h2 className="text-base font-black text-gray-800">
+                  {TABS.find(t => t.id === activeTab)?.label}
+                </h2>
+              </div>
+              <AnimatePresence mode="wait">
+                <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  {activeTab === "personal" && <PersonalInfoTab user={user} loading={loading} saving={saving} onSave={handleSave} />}
+                  {activeTab === "security" && <SecurityTab />}
+                  {activeTab === "requests" && <RequestsTab />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            <ActivityChart data={userActivity} />
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// المكون الرئيسي: لتوفير الـ Context فقط
+// ══════════════════════════════════════════════════════════════
+const UserProfile = () => {
   return (
     <ToastProvider>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap'); *, *::before, *::after { font-family: 'Tajawal', sans-serif !important; } @keyframes skshimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
-      <div dir="rtl" className="min-h-screen bg-[#f8f6f3] p-4 sm:p-6 lg:p-10">
-        <div className="mx-auto max-w-5xl">
-          <ProfileHeader user={user} loading={loading} saving={saving} onUploadImage={handleUploadImage} />
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-            <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} user={user} loading={loading} />
-            <main className="lg:col-span-3">
-              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div className="mb-5 border-b border-gray-50 pb-4"><h2 className="text-base font-black text-gray-800">{TABS.find(t => t.id === activeTab)?.label}</h2></div>
-                <AnimatePresence mode="wait">
-                  <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                    {activeTab === "personal" && <PersonalInfoTab user={user} loading={loading} saving={saving} onSave={handleSave} />}
-                    {activeTab === "security" && <SecurityTab />}
-                    {activeTab === "requests" && <RequestsTab />}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-                              <ActivityChart data={userActivity} />
-                              <ActivityHeatmap />
-
-            </main>
-            
-          </div>
-        </div>
-      </div>
+      <UserProfileContent />
     </ToastProvider>
   );
 };
+
 
 export default UserProfile;
