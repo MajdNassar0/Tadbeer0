@@ -1,5 +1,4 @@
 import { useUserProfile } from "../../Hooks/useUserProfile";
-import ActivityHeatmap from "../../components/Profile/ActivityHeatmap";
 import { getFullImageUrl } from "../../Utils/imageHelper";
 import ActivityChart from "../../components/ActivityChart/ActivityChart";
 import React, { useState, useCallback, createContext, useContext } from "react";
