@@ -33,11 +33,15 @@ export const useUserProfile = () => {
         dataToSend.append("LastName", payload.lastName);
         dataToSend.append("City", payload.city || "");
         dataToSend.append("PhoneNumber", payload.phoneNumber || "");
+         if (payload.DateOfBirth) {
+        dataToSend.append("DateOfBirth", payload.DateOfBirth);
+      }
       }
 
       const res = await apiClient.put('/User/Profile/me', dataToSend);
       setUser(res.data);
-      return { ok: true };
+      return { ok: true, user: res.data }; 
+     
     } catch (err) {
       return { ok: false, error: err.response?.data?.message || "فشل التحديث" };
     } finally {

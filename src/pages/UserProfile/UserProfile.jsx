@@ -70,7 +70,7 @@ const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div className="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2" style={{ minWidth: 260 }}>
+      <div className="fixed bottom-6 left-1/2 z-100 flex -translate-x-1/2 flex-col gap-2" style={{ minWidth: 260 }}>
         <AnimatePresence>
           {toasts.map(t => (
             <motion.div key={t.id} initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -102,16 +102,38 @@ const ProfileField = ({ icon: Icon, label, value, loading }) => (
   </motion.div>
 );
 
-const InputField = ({ icon: Icon, label, name, value, onChange, error, placeholder = "" }) => (
+// التعديل في أول سطر: إضافة type و placeholder = ""
+const InputField = ({ icon: Icon, label, name, value, onChange, error, placeholder = "", type = "text" }) => (
   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-1.5">
-    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500"><Icon size={13} className="text-orange-400" />{label}</label>
-    <input name={name} value={value} onChange={onChange} placeholder={placeholder} className={`w-full rounded-xl border px-4 py-2.5 text-sm font-medium text-gray-800 outline-none transition-all duration-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-white hover:border-gray-300"}`} dir="rtl" />
-    <AnimatePresence>{error && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-xs text-red-500">{error}</motion.p>}</AnimatePresence>
+    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+      <Icon size={13} className="text-orange-400" />
+      {label}
+    </label>
+    
+    <input 
+      type={type} // هيك صار المتغير type معروف للمكون
+      name={name} 
+      value={value} 
+      onChange={onChange} 
+      placeholder={placeholder} 
+      className={`w-full rounded-xl border px-4 py-2.5 text-sm font-medium text-gray-800 outline-none transition-all duration-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-white hover:border-gray-300"}`} 
+      dir="rtl" 
+    />
+
+    <AnimatePresence>
+      {error && (
+        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-xs text-red-500">
+          {error}
+        </motion.p>
+      )}
+    </AnimatePresence>
   </motion.div>
 );
 
 const EditForm = ({ user, saving, onSave, onCancel }) => {
-  const [form, setForm] = useState({ firstName: user?.firstName || "", lastName: user?.lastName || "", email: user?.email || "", phoneNumber: user?.phoneNumber || "", city: user?.city || "" });
+  const [form, setForm] = useState({ firstName: user?.firstName || "", lastName: user?.lastName || "", email: user?.email || "", phoneNumber: user?.phoneNumber || "", city: user?.city || "" ,dateOfBirth: user?.dateOfBirth
+    ? user.dateOfBirth.split('T')[0]
+    : "", });
   const [errors, setErrors] = useState({});
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -129,6 +151,8 @@ const EditForm = ({ user, saving, onSave, onCancel }) => {
     { icon: Mail, label: "البريد الإلكتروني", name: "email", placeholder: "example@email.com" },
     { icon: Phone, label: "رقم الهاتف", name: "phoneNumber", placeholder: "+970 5XX XXX XXX" },
     { icon: MapPin, label: "المدينة", name: "city", placeholder: "أدخل مدينتك" },
+    
+    { icon: Calendar, label: "تاريخ الميلاد", name: "dateOfBirth", type: "date" },
   ];
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -152,11 +176,22 @@ const EditForm = ({ user, saving, onSave, onCancel }) => {
 // ══════════════════════════════════════════════════════════════
 // TABS COMPONENTS
 // ══════════════════════════════════════════════════════════════
+
 const PersonalInfoTab = ({ user, loading, saving, onSave }) => {
   const [editMode, setEditMode] = useState(false);
   const handleSave = async (payload) => {
-    const res = await onSave(payload);
-    if (res?.ok) setEditMode(false);
+    
+    const formattedPayload = {
+      ...payload,
+      DateOfBirth: payload.dateOfBirth, // السيرفر يحتاج هذا الاسم
+    };
+
+    // 2. إرسال البيانات المنسقة
+    const res = await onSave(formattedPayload);
+
+    if (res?.ok) {
+      setEditMode(false);
+    }
   };
   const fields = [
     { icon: User, label: "الاسم الأول", value: user?.firstName },
@@ -164,7 +199,11 @@ const PersonalInfoTab = ({ user, loading, saving, onSave }) => {
     { icon: Mail, label: "البريد الإلكتروني", value: user?.email },
     { icon: Phone, label: "رقم الهاتف", value: user?.phoneNumber },
     { icon: MapPin, label: "المدينة", value: user?.city },
-    { icon: Calendar, label: "تاريخ الإنضمام", value: user?.createdAt ? new Date(user.createdAt).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" }) : null },
+    { 
+      icon: Calendar, 
+      label: "تاريخ الميلاد", 
+      value: user?.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString("ar-SA") : null 
+    },
   ];
   return (
     <div>
