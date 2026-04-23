@@ -93,24 +93,34 @@ const WorkerLayout = () => {
         transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0
         ${isSidebarOpen ? "translate-x-0" : "translate-x-full"}
       `}>
-        <button
-          onClick={() => navigate("/")}
-          className="p-6 flex items-center justify-between hover:bg-white/5
-                     transition-colors border-b border-white/[0.07]"
-        >
-          <div className="flex items-center gap-3">
-            <img src="../../../public/logo.png" alt="تدبير"
-                 className="w-9 h-9 object-contain" />
-            <div>
-              <h1 className="text-lg font-medium">تدبير</h1>
-              <p className="text-[9px] text-gray-400">العودة للموقع</p>
-            </div>
-          </div>
-          <button className="lg:hidden"
-                  onClick={e => { e.stopPropagation(); setIsSidebarOpen(false); }}>
-            <X size={20} />
-          </button>
-        </button>
+       <div
+  onClick={() => navigate("/")}
+  className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/[0.07] cursor-pointer"
+>
+  <div className="flex items-center gap-3">
+    <img
+      src="../../../public/logo.png"
+      alt="تدبير"
+      className="w-9 h-9 object-contain"
+    />
+
+    <div>
+      <h1 className="text-lg font-medium">تدبير</h1>
+      <p className="text-[9px] text-gray-400">العودة للموقع</p>
+    </div>
+  </div>
+
+  {/* close button only */}
+  <button
+    className="lg:hidden"
+    onClick={(e) => {
+      e.stopPropagation();
+      setIsSidebarOpen(false);
+    }}
+  >
+    <X size={20} />
+  </button>
+</div>
 
         {/* Profile mini card */}
         <div className="mx-3 mt-4 mb-2 bg-white/5 rounded-xl p-3 flex items-center gap-3">

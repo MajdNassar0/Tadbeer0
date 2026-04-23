@@ -1,23 +1,49 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 const ProtectedRoute = ({ children, role }) => {
-  const user = JSON.parse(localStorage.getItem("user"));
+  const location = useLocation();
 
-  // Not logged in
-  if (!user) return <Navigate to="/auth/login" />;
+  // Get data safely
+  const token = localStorage.getItem("token");
 
-  const userRole = user.role?.trim().toLowerCase();
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("user"));
+  } catch {
+    user = null;
+  }
 
-  if (role) {
-    if (Array.isArray(role)) {
-      if (!role.map(r => r.toLowerCase()).includes(userRole)) {
-        return <Navigate to="/" />; // Not allowed
-      }
-    } else {
-      if (userRole !== role.toLowerCase()) return <Navigate to="/" />;
+  // 🔴 Not logged in
+  if (!token) {
+    return <Navigate to="/auth/login" state={{ from: location }} replace />;
+  }
+
+  // 🟡 If no role required → allow access
+  if (!role) {
+    return children;
+  }
+
+  // 🟠 If role required but user missing
+  const userRole = user?.role?.toLowerCase();
+
+  if (!userRole) {
+    return <Navigate to="/" replace />;
+  }
+
+  // 🔵 Role check (supports string or array)
+  if (Array.isArray(role)) {
+    const allowedRoles = role.map(r => r.toLowerCase());
+
+    if (!allowedRoles.includes(userRole)) {
+      return <Navigate to="/" replace />;
+    }
+  } else {
+    if (userRole !== role.toLowerCase()) {
+      return <Navigate to="/" replace />;
     }
   }
 
+  // 🟢 Authorized
   return children;
 };
 

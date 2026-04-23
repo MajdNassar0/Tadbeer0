@@ -44,6 +44,14 @@ const router = createBrowserRouter([
         path: "user-profile",
         element: <ProtectedRoute><UserProfile /></ProtectedRoute>,
       },
+      {
+      path: "booking/:workerId",
+      element: (
+        <ProtectedRoute>
+          <Booking />
+        </ProtectedRoute>
+      ),
+    },
     ],
   },
   {
@@ -56,11 +64,8 @@ const router = createBrowserRouter([
       { path: "ResetPassword",  element: <ResetPassword />  },
     ],
   },
-  {
-    path: "Booking",
-    element: <ProtectedRoute><Booking /></ProtectedRoute>,
-  },
-  {
+{ path: "booking/:workerId", element: <ProtectedRoute><Booking /></ProtectedRoute> }  ,
+{
     path: "admin",
     element: (
       <ProtectedRoute role={["admin", "superadmin"]}>
