@@ -24,17 +24,6 @@ function StatusBadge({ status = "" }) {
   return <span className={`px-3 py-1 rounded-full text-[10px] font-medium ${info.cls}`}>{info.label}</span>;
 }
 
-function EmptyBookings() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-3">
-      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-        <Calendar size={20} className="text-gray-300" />
-      </div>
-      <p className="text-sm text-gray-400 font-medium">لا توجد حجوزات حالياً</p>
-      <p className="text-xs text-gray-300">ستظهر الحجوزات هنا فور إضافتها</p>
-    </div>
-  );
-}
 
 const Dashboard = () => {
   const navigate  = useNavigate();
@@ -135,42 +124,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent bookings */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-50">
-          <h3 className="text-sm font-medium text-gray-700">أحدث الحجوزات</h3>
-        </div>
-        {bookings === undefined ? (
-          <div className="flex justify-center py-12">
-            <div className="w-7 h-7 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : bookings.length === 0 ? (
-          <EmptyBookings />
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="text-[10px] text-gray-400 border-b border-gray-50">
-                <th className="py-3 px-6 text-right font-medium">اسم العميل</th>
-                <th className="py-3 px-4 text-right font-medium">الفني</th>
-                <th className="py-3 px-4 text-right font-medium">التاريخ</th>
-                <th className="py-3 px-6 text-center font-medium">الحالة</th>
-              </tr>
-            </thead>
-            <tbody className="text-xs divide-y divide-gray-50">
-              {bookings.slice(0, 7).map((b, i) => (
-                <tr key={i} className="hover:bg-gray-50/60 transition-colors">
-                  <td className="py-4 px-6 font-medium text-gray-800">{b.userName || b.customerName || "—"}</td>
-                  <td className="py-4 px-4 text-gray-500">{b.workerName || "لم يحدد"}</td>
-                  <td className="py-4 px-4 text-gray-400">
-                    {b.bookingDate ? new Date(b.bookingDate).toLocaleDateString("ar-EG") : "—"}
-                  </td>
-                  <td className="py-4 px-6 text-center"><StatusBadge status={b.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      
     </div>
   );
 };

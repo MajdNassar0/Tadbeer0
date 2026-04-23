@@ -32,8 +32,6 @@ const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "لوحة القيادة",     to: "/admin"             },
   { icon: Users,           label: "إدارة المستخدمين", to: "/admin/users"       },
   { icon: UserCog,         label: "إدارة الفنيين",    to: "/admin/technicians" },
-  { icon: Calendar,        label: "الحجوزات",         to: "/admin/bookings"    },
-  { icon: Star,            label: "التقييمات",        to: "/admin/reviews"     },
   { icon: BarChart3,       label: "التقارير",         to: "/admin/reports"     },
   { icon: Settings,        label: "الإعدادات",        to: "/admin/settings"    },
 ];

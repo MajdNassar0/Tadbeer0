@@ -1,72 +1,185 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { ClipboardList, CheckCircle2, Clock, Star } from "lucide-react";
+import {
+  ClipboardList, CheckCircle2, Clock, Star,
+  X, Check, Loader2, MessageSquare, User
+} from "lucide-react";
+import { toast, Toaster } from "sonner";
+
+const API_BASE = "https://tadbeer0.runasp.net/api";
 
 const STATUS_MAP = {
-  completed : { label: "مكتمل",       cls: "bg-green-100  text-green-600"  },
-  pending   : { label: "معلق",         cls: "bg-red-100    text-red-600"    },
-  inprogress: { label: "قيد التنفيذ", cls: "bg-orange-100 text-orange-600" },
-  cancelled : { label: "ملغى",         cls: "bg-gray-100   text-gray-500"   },
-  confirmed : { label: "مؤكد",         cls: "bg-blue-100   text-blue-600"   },
+  completed:  { label: "مكتمل",        cls: "bg-green-100  text-green-600"  },
+  pending:    { label: "قيد الانتظار", cls: "bg-yellow-100 text-yellow-700" },
+  inprogress: { label: "قيد التنفيذ",  cls: "bg-orange-100 text-orange-600" },
+  cancelled:  { label: "ملغى",          cls: "bg-red-100    text-red-600"    },
+  confirmed:  { label: "مقبول",         cls: "bg-blue-100   text-blue-600"   },
 };
 
-function statusInfo(status = "") {
-  const key = status?.toLowerCase().replace(/\s/g, "") ?? "";
+const ACTION_TO_STATUS = {
+  accept:   "Confirmed",
+  cancel:   "Cancelled",
+  complete: "Completed",
+};
+
+const ACTION_LABELS = { accept: "قبول", cancel: "رفض", complete: "إتمام" };
+
+const DAYS_AR = {
+  saturday: "السبت",    sunday:    "الأحد",
+  monday:   "الاثنين",  tuesday:   "الثلاثاء",
+  wednesday:"الأربعاء", thursday:  "الخميس",
+  friday:   "الجمعة",
+};
+
+const getKey = (s) => s?.toString().toLowerCase().trim().replace(/\s/g, "") ?? "";
+
+function statusInfo(status) {
+  const key = getKey(status);
   return STATUS_MAP[key] ?? { label: status || "—", cls: "bg-gray-100 text-gray-500" };
 }
 
 function Spinner() {
   return (
-    <div className="flex justify-center py-10">
-      <div className="w-7 h-7 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+    <div className="flex justify-center py-8">
+      <div className="w-6 h-6 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
 
-const STATIC_DEADLINES = [
-  { label: "صيانة المكيفات",       time: "المتبقي: ساعتين", color: "bg-red-50",    tColor: "text-red-500",    val: "٢٥", month: "أكتوبر" },
-  { label: "التمديدات الكهربائية", time: "المتبقي: ٣ أيام", color: "bg-yellow-50", tColor: "text-yellow-600", val: "٢٨", month: "أكتوبر" },
-];
+// ── Mini review card (same style as Reviews page) ────────────────────────────
+function MiniReviewCard({ review }) {
+  return (
+    <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-yellow-50 rounded-full flex items-center justify-center
+                          text-yellow-600 font-medium text-xs flex-shrink-0">
+            {review.userName?.charAt(0)?.toUpperCase() ?? "م"}
+          </div>
+          <p className="text-xs font-medium text-gray-800">{review.userName || "عميل"}</p>
+        </div>
+        <div className="flex gap-0.5">
+          {[1,2,3,4,5].map(i => (
+            <Star key={i} size={11}
+              className={i <= (review.rate ?? 0)
+                ? "fill-amber-400 text-amber-400"
+                : "fill-gray-200 text-gray-200"
+              }
+            />
+          ))}
+        </div>
+      </div>
+      {review.comment && (
+        <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2 pr-1
+                      border-r-2 border-yellow-300 italic">
+          "{review.comment}"
+        </p>
+      )}
+      <p className="text-[10px] text-gray-300">
+        {review.createdAt
+          ? new Date(review.createdAt).toLocaleDateString("ar-EG", {
+              day: "numeric", month: "long"
+            })
+          : ""}
+      </p>
+    </div>
+  );
+}
 
+// ── Main ──────────────────────────────────────────────────────────────────────
 const Dashboard = () => {
-  const navigate       = useNavigate();
-  const { user }       = useOutletContext();
-  const [bookings, setBookings] = useState(undefined);
-  const [reviews,  setReviews ] = useState([]);
+  const navigate = useNavigate();
+  const { user } = useOutletContext();
+
+  const [bookings,  setBookings ] = useState(undefined);
+  const [reviews,   setReviews  ] = useState(null);
+  const [actioning, setActioning] = useState({});
+
+  // Get worker ID from saved user
+  const workerUser = (() => {
+    try { return JSON.parse(localStorage.getItem("user") ?? "null"); }
+    catch { return null; }
+  })();
+  const workerId = workerUser?.id || workerUser?.userId;
+
+  const load = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) { navigate("/auth/login"); return; }
+    const h = { headers: { Authorization: `Bearer ${token}` } };
+
+    // Fetch bookings
+    try {
+      const bkRes = await axios.get(`${API_BASE}/Worker/Bookings`, h);
+      const bkRaw = bkRes.data.items ?? bkRes.data ?? [];
+      setBookings(Array.isArray(bkRaw) ? bkRaw : []);
+    } catch (err) {
+      setBookings([]);
+      if (err.response?.status === 401) { localStorage.clear(); navigate("/auth/login"); }
+    }
+
+    // Fetch reviews WITH auth and filter to this worker
+    try {
+      const revRes = await axios.get(`${API_BASE}/General/Reviews`, h);
+      const revRaw = revRes.data.items ?? revRes.data ?? [];
+      const myReviews = Array.isArray(revRaw)
+        ? revRaw.filter(r => !workerId || r.workerId === workerId)
+        : [];
+      setReviews(myReviews);
+    } catch {
+      setReviews([]);
+    }
+  }, [navigate, workerId]);
+
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const load = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) { navigate("/auth/login"); return; }
-      const h = { headers: { Authorization: `Bearer ${token}` } };
-      try {
-        const [bkRes, revRes] = await Promise.all([
-          axios.get("https://tadbeer0.runasp.net/api/Worker/Bookings",  h),
-          axios.get("https://tadbeer0.runasp.net/api/General/Reviews",  h),
-        ]);
-        const bkItems  = bkRes.data.items  ?? bkRes.data  ?? [];
-        const revItems = revRes.data.items ?? revRes.data ?? [];
-        setBookings(Array.isArray(bkItems)  ? bkItems  : []);
-        setReviews(Array.isArray(revItems)  ? revItems : []);
-      } catch (err) {
-        setBookings([]);
-        if (err.response?.status === 401) { localStorage.clear(); navigate("/auth/login"); }
-      }
-    };
-    load();
-  }, [navigate]);
+    const id = setInterval(load, 8000);
+    return () => clearInterval(id);
+  }, [load]);
 
-  const totalTasks      = bookings?.length ?? 0;
-  const completedTasks  = bookings?.filter(b => b.status?.toLowerCase() === "completed").length ?? 0;
-  const inProgressTasks = bookings?.filter(b => b.status?.toLowerCase().replace(/\s/g,"") === "inprogress").length ?? 0;
-  const totalHours      = Math.round((bookings?.reduce((s, b) => s + (b.durationMinutes ?? 0), 0) ?? 0) / 60);
-  const avgRating       = reviews.length
+  const updateStatus = async (bookingId, action) => {
+    setActioning(prev => ({ ...prev, [bookingId]: action }));
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.patch(
+        `${API_BASE}/Worker/Bookings/${bookingId}/${action}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const newStatus = res.data?.status ?? ACTION_TO_STATUS[action];
+      setBookings(prev => prev.map(b =>
+        b.id === bookingId ? { ...b, status: newStatus } : b
+      ));
+      toast.success(`تم ${ACTION_LABELS[action]} الحجز بنجاح`);
+    } catch (err) {
+      toast.error(`فشل ${ACTION_LABELS[action]} الحجز`);
+    } finally {
+      setActioning(prev => { const n = { ...prev }; delete n[bookingId]; return n; });
+    }
+  };
+
+  // Stats
+  const total     = bookings?.length ?? 0;
+  const completed = bookings?.filter(b => getKey(b.status) === "completed").length ?? 0;
+  const pending   = bookings?.filter(b => getKey(b.status) === "pending").length   ?? 0;
+  const hours     = Math.round(
+    (bookings?.reduce((s, b) => s + (b.durationMinutes ?? 0), 0) ?? 0) / 60
+  );
+  const avgRating = reviews?.length
     ? (reviews.reduce((s, r) => s + (r.rate ?? 0), 0) / reviews.length).toFixed(1)
     : null;
 
+  
+  // Upcoming bookings
+  const upcoming = (bookings ?? [])
+    .filter(b => ["pending","confirmed"].includes(getKey(b.status)))
+    .sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate))
+    .slice(0, 4);
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col lg:flex-row gap-6" dir="rtl">
+      <Toaster position="top-center" richColors />
 
       {/* ── Left: main content ── */}
       <div className="flex-1 space-y-6 min-w-0">
@@ -74,16 +187,16 @@ const Dashboard = () => {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: "إجمالي المهام",   value: totalTasks,      icon: <ClipboardList size={17}/>, bg: "bg-blue-50",   color: "text-blue-500"   },
-            { label: "المهام المكتملة", value: completedTasks,  icon: <CheckCircle2  size={17}/>, bg: "bg-green-50",  color: "text-green-500"  },
-            { label: "قيد التنفيذ",    value: inProgressTasks, icon: <Clock         size={17}/>, bg: "bg-orange-50", color: "text-orange-500" },
-            { label: "ساعات العمل",    value: totalHours,      icon: <Clock         size={17}/>, bg: "bg-yellow-50", color: "text-yellow-600" },
+            { label: "إجمالي الحجوزات", value: total,     icon: <ClipboardList size={17}/>, bg: "bg-blue-50",   color: "text-blue-500"   },
+            { label: "المكتملة",         value: completed, icon: <CheckCircle2  size={17}/>, bg: "bg-green-50",  color: "text-green-500"  },
+            { label: "قيد الانتظار",    value: pending,   icon: <Clock         size={17}/>, bg: "bg-yellow-50", color: "text-yellow-600" },
+            { label: "ساعات العمل",     value: hours,     icon: <Clock         size={17}/>, bg: "bg-orange-50", color: "text-orange-500" },
           ].map((s, i) => (
             <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100
                                     flex items-center justify-between hover:shadow-sm transition-shadow">
               <div>
                 <p className="text-[10px] text-gray-400 mb-0.5">{s.label}</p>
-                <h4 className={`text-xl font-medium text-gray-800
+                <h4 className={`text-2xl font-medium text-gray-800
                   ${bookings === undefined ? "animate-pulse text-gray-200" : ""}`}>
                   {bookings === undefined ? "···" : s.value}
                 </h4>
@@ -93,91 +206,107 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* Performance ratings */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-medium text-gray-800">تقييم الأداء التفصيلي</h3>
-            {avgRating && (
-              <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full">
-                <Star size={11} className="fill-yellow-400 text-yellow-400" />
-                <span className="text-xs text-yellow-700 font-medium">{avgRating} متوسط</span>
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-            {[
-              "الاحترافية بالتعامل",
-              "التواصل والمتابعة",
-              "جودة العمل المسلّم",
-              "الخبرة بمجال المشروع",
-              "التسليم في الموعد",
-              "التعامل معه مرة أخرى",
-            ].map((label, i) => {
-              const ratingVal = avgRating ? Math.round(parseFloat(avgRating)) : 0;
-              return (
-                <div key={i} className="flex items-center justify-between text-xs py-0.5">
-                  <span className="text-gray-500">{label}</span>
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, j) => (
-                      <Star key={j} size={13}
-                        className={j < ratingVal
-                          ? "fill-orange-400 text-orange-400"
-                          : "fill-gray-100 text-gray-200"
-                        }
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      
 
-        {/* Recent bookings table */}
+        {/* Bookings table with actions */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-gray-50">
             <h3 className="text-sm font-medium text-gray-800">
               آخر الحجوزات
               {bookings !== undefined && (
-                <span className="mr-2 text-xs font-normal text-gray-400">({totalTasks})</span>
+                <span className="mr-2 text-xs font-normal text-gray-400">({total})</span>
               )}
             </h3>
           </div>
-          {bookings === undefined ? <Spinner /> : bookings.length === 0 ? (
+
+          {bookings === undefined ? <Spinner /> :
+           bookings.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2">
               <ClipboardList size={20} className="text-gray-200" />
               <p className="text-sm text-gray-400">لا توجد حجوزات حالياً</p>
-              <p className="text-xs text-gray-300">ستظهر هنا فور إضافتها</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-125">
-                <thead>
-                  <tr className="text-[10px] text-gray-400 border-b border-gray-50">
+              <table className="w-full min-w-[560px]">
+                <thead className="bg-gray-50/50 border-b border-gray-50">
+                  <tr className="text-[10px] text-gray-400">
                     <th className="py-3 px-6 text-right font-medium">العميل</th>
                     <th className="py-3 px-4 text-right font-medium">التاريخ</th>
                     <th className="py-3 px-4 text-right font-medium">الوقت</th>
-                    <th className="py-3 px-4 text-right font-medium">المدة</th>
-                    <th className="py-3 px-6 text-center font-medium">الحالة</th>
+                    <th className="py-3 px-4 text-center font-medium">الحالة</th>
+                    <th className="py-3 px-6 text-center font-medium">إجراء</th>
                   </tr>
                 </thead>
                 <tbody className="text-xs divide-y divide-gray-50">
                   {bookings.slice(0, 5).map((b, i) => {
-                    const info = statusInfo(b.status);
+                    const info  = statusInfo(b.status);
+                    const sKey  = getKey(b.status);
+                    const isAct = actioning[b.id];
                     return (
-                      <tr key={i} className="hover:bg-gray-50/60 transition-colors">
+                      <tr key={b.id ?? i} className="hover:bg-gray-50/60 transition-colors">
                         <td className="py-4 px-6 font-medium text-gray-800">{b.userName || "—"}</td>
                         <td className="py-4 px-4 text-gray-400">
-                          {b.bookingDate ? new Date(b.bookingDate).toLocaleDateString("ar-EG") : "—"}
+                          {b.bookingDate
+                            ? new Date(b.bookingDate).toLocaleDateString("ar-EG")
+                            : "—"}
                         </td>
                         <td className="py-4 px-4 text-gray-400">{b.startTime?.slice(0,5) || "—"}</td>
-                        <td className="py-4 px-4 text-gray-400">
-                          {b.durationMinutes ? `${b.durationMinutes} د` : "—"}
-                        </td>
-                        <td className="py-4 px-6 text-center">
+                        <td className="py-4 px-4 text-center">
                           <span className={`px-3 py-1 rounded-full text-[10px] font-medium ${info.cls}`}>
                             {info.label}
                           </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {sKey === "pending" && (
+                              <>
+                                <button
+                                  onClick={() => updateStatus(b.id, "accept")}
+                                  disabled={!!isAct}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg
+                                             bg-green-50 text-green-600 hover:bg-green-100
+                                             text-[10px] font-medium disabled:opacity-50"
+                                >
+                                  {isAct === "accept"
+                                    ? <Loader2 size={10} className="animate-spin" />
+                                    : <Check size={10} />}
+                                  قبول
+                                </button>
+                                <button
+                                  onClick={() => updateStatus(b.id, "cancel")}
+                                  disabled={!!isAct}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg
+                                             bg-red-50 text-red-500 hover:bg-red-100
+                                             text-[10px] font-medium disabled:opacity-50"
+                                >
+                                  {isAct === "cancel"
+                                    ? <Loader2 size={10} className="animate-spin" />
+                                    : <X size={10} />}
+                                  رفض
+                                </button>
+                              </>
+                            )}
+                            {(sKey === "confirmed" || sKey === "inprogress") && (
+                              <button
+                                onClick={() => updateStatus(b.id, "complete")}
+                                disabled={!!isAct}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg
+                                           bg-[#001F3F] text-white hover:bg-[#002a52]
+                                           text-[10px] font-medium disabled:opacity-50"
+                              >
+                                {isAct === "complete"
+                                  ? <Loader2 size={10} className="animate-spin" />
+                                  : <Check size={10} />}
+                                إتمام
+                              </button>
+                            )}
+                            {sKey === "completed" && (
+                              <span className="text-[10px] text-green-500 font-medium">✓ مكتمل</span>
+                            )}
+                            {sKey === "cancelled" && (
+                              <span className="text-[10px] text-gray-300">—</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -192,64 +321,39 @@ const Dashboard = () => {
       {/* ── Right sidebar ── */}
       <div className="w-full lg:w-72 space-y-5 flex-shrink-0">
 
-        {/* Deadlines — static */}
+        {/* Upcoming bookings */}
         <div className="bg-white p-5 rounded-2xl border border-gray-100">
-          <h4 className="text-sm font-medium text-gray-800 mb-4">المواعيد النهائية القريبة</h4>
-          <div className="space-y-3">
-            {STATIC_DEADLINES.map((d, i) => (
-              <div key={i} className={`flex items-center justify-between p-4 rounded-2xl
-                                       ${d.color} border border-white/80`}>
-                <div>
-                  <p className="text-xs font-medium text-gray-800">{d.label}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{d.time}</p>
-                </div>
-                <div className={`flex flex-col items-center leading-none ${d.tColor}`}>
-                  <span className="text-[8px] font-medium mb-0.5">{d.month}</span>
-                  <span className="text-lg font-medium">{d.val}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent reviews */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100">
-          <h4 className="text-sm font-medium text-gray-800 mb-4">
-            آخر التقييمات
-            {reviews.length > 0 && (
-              <span className="mr-2 text-xs font-normal text-gray-400">({reviews.length})</span>
-            )}
-          </h4>
-          {reviews.length === 0 ? (
+          <h4 className="text-sm font-medium text-gray-800 mb-4">الحجوزات القادمة</h4>
+          {bookings === undefined ? <Spinner /> :
+           upcoming.length === 0 ? (
             <div className="flex flex-col items-center py-6 gap-2">
-              <Star size={18} className="text-gray-200" />
-              <p className="text-xs text-gray-300">لا توجد تقييمات بعد</p>
+              <Clock size={18} className="text-gray-200" />
+              <p className="text-xs text-gray-300">لا توجد حجوزات قادمة</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {reviews.slice(0, 3).map((r, i) => (
-                <div key={i} className="border-b border-gray-50 last:border-0 pb-3 last:pb-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-700">{r.userName || "مستخدم"}</span>
-                    <div className="flex gap-0.5">
-                      {[...Array(5)].map((_, j) => (
-                        <Star key={j} size={10}
-                          className={j < Math.round(r.rate ?? 0)
-                            ? "fill-orange-400 text-orange-400"
-                            : "fill-gray-100 text-gray-200"
-                          }
-                        />
-                      ))}
+            <div className="space-y-3">
+              {upcoming.map((b, i) => {
+                const info = statusInfo(b.status);
+                return (
+                  <div key={i} className="p-3 bg-gray-50 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-gray-800">{b.userName || "عميل"}</p>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${info.cls}`}>
+                        {info.label}
+                      </span>
                     </div>
+                    <p className="text-[10px] text-gray-400">
+                      {DAYS_AR[b.workingDay?.toLowerCase()] ?? b.workingDay}
+                      {b.bookingDate
+                        ? ` · ${new Date(b.bookingDate).toLocaleDateString("ar-EG")}`
+                        : ""}
+                    </p>
+                    <p className="text-[10px] text-gray-400">
+                      {b.startTime?.slice(0,5)} – {b.endTime?.slice(0,5)}
+                    </p>
                   </div>
-                  {r.comment && (
-                    <p className="text-[11px] text-gray-400 truncate">{r.comment}</p>
-                  )}
-                  <p className="text-[10px] text-gray-300 mt-1">
-                    {r.createdAt ? new Date(r.createdAt).toLocaleDateString("ar-EG") : ""}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -261,21 +365,25 @@ const Dashboard = () => {
                           before:bottom-2 before:w-[1px] before:bg-gray-100">
             {bookings === undefined ? <Spinner /> :
              bookings.length === 0 ? (
-              <p className="text-xs text-gray-300 text-center py-4">لا يوجد نشاط حالياً</p>
-            ) : bookings.slice(0, 3).map((b, i) => {
+              <p className="text-xs text-gray-300 text-center py-4">لا يوجد نشاط</p>
+            ) : bookings.slice(0, 4).map((b, i) => {
               const info = statusInfo(b.status);
               return (
                 <div key={i} className="relative pr-9">
-                  <div className="absolute right-2 top-0 bg-white p-0.5 z-10">
-                    <CheckCircle2 size={15} className="text-orange-400" />
+                  <div className="absolute right-2 top-0.5 bg-white p-0.5 z-10">
+                    <CheckCircle2 size={14} className="text-orange-400" />
                   </div>
                   <p className="text-[11px] font-medium text-gray-800 leading-tight">
                     حجز من {b.userName || "عميل"}
                   </p>
                   <p className="text-[10px] text-gray-400 mt-0.5">
-                    {b.bookingDate ? new Date(b.bookingDate).toLocaleDateString("ar-EG") : "—"}
+                    {b.bookingDate
+                      ? new Date(b.bookingDate).toLocaleDateString("ar-EG")
+                      : "—"}
                     {" · "}
-                    <span className={info.cls.split(" ")[1]}>{info.label}</span>
+                    <span className={`font-medium ${info.cls.split(" ")[1] ?? ""}`}>
+                      {info.label}
+                    </span>
                   </p>
                 </div>
               );

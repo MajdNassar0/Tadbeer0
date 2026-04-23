@@ -52,25 +52,44 @@ const Login = () => {
         );
 
         if (response.data.token) {
-          const token = response.data.token;
-          const decoded = jwtDecode(token);
-          
-          const user = {
-            name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
-            email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
-            role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User"
-          };
+  const token = response.data.token;
+  const decoded = jwtDecode(token);
 
-          login(user, token);
-          toast.success("تم تسجيل الدخول بنجاح!");
+  const user = {
+    name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
+    email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
+    role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User"
+  };
 
-          setTimeout(() => {
-            const role = user.role?.trim().toLowerCase();
-            if (role === "admin" || role === "superadmin") navigate("/admin");
-            else if (role === "worker") navigate("/technical");
-            else navigate("/");
-          }, 1000);
-        }
+  login(user, token);
+  toast.success("تم تسجيل الدخول بنجاح!");
+
+  localStorage.setItem("token", token);
+
+  // ✅ FETCH WORKER ID FIRST
+  if (user.role?.toLowerCase() === "worker") {
+    try {
+      const profileRes = await axios.get(
+        "https://tadbeer0.runasp.net/api/Worker/Profile/me",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const workerId = profileRes.data?.id;
+      if (workerId) {
+        localStorage.setItem("workerId", workerId);
+      }
+    } catch (err) {
+      console.error("Failed to load worker profile", err);
+    }
+  }
+
+  // ✅ THEN NAVIGATE (NO setTimeout)
+  const role = user.role?.trim().toLowerCase();
+
+  if (role === "admin" || role === "superadmin") navigate("/admin");
+  else if (role === "worker") navigate("/technical");
+  else navigate("/");
+}
       } catch (error) {
         const status = error.response?.status;
         const backendMessage = error.response?.data?.message || "";

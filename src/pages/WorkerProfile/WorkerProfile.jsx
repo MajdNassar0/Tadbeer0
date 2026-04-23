@@ -4,9 +4,11 @@ import axios from 'axios';
 import { 
   MapPin, Star, Briefcase, Clock, Calendar, 
   Share2, ShieldCheck, Wrench, Settings, Zap,
-  Circle , Award, MessageCircle, Phone
+  Circle , Award, MessageCircle, Phone,User
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNavigate } from "react-router-dom"; 
+
 
 const NAVY = "#001F3F";
 const ORANGE = "#F7A823";
@@ -17,7 +19,35 @@ const WorkerProfile = () => {
   const { id } = useParams();
   const [worker, setWorker] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate(); 
+  const [reviews, setReviews] = useState([]);
+const [page, setPage] = useState(1);
+const reviewsPerPage = 4;
 
+const indexOfLast = page * reviewsPerPage;
+const indexOfFirst = indexOfLast - reviewsPerPage;
+
+const paginated = reviews.slice(indexOfFirst, indexOfLast);
+
+const totalPages = Math.ceil(reviews.length / reviewsPerPage);
+  
+useEffect(() => {
+  const fetchReviews = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/General/Reviews`, {
+        params: { workerId: id }
+      });
+
+      const data = res.data?.items ?? res.data ?? [];
+      setReviews(data);
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+      setReviews([]);
+    }
+  };
+
+  fetchReviews();
+}, [id]);
   useEffect(() => {
     const fetchWorkerData = async () => {
       try {
@@ -113,9 +143,14 @@ const WorkerProfile = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
-                    <button className="flex-1 md:flex-none bg-[#F7A823] hover:bg-[#e59a1d] text-white px-12 py-4 rounded-2xl font-black shadow-lg shadow-orange-200 transition-all active:scale-95">
-                      احجز الموعد الآن
-                    </button>
+                    <button
+onClick={() => {
+  console.log("CLICKED", worker.id);
+  navigate(`/booking/${worker.id}`);
+}}  className="flex-1 md:flex-none bg-[#F7A823] hover:bg-[#e59a1d] text-white px-12 py-4 rounded-2xl font-black shadow-lg shadow-orange-200 transition-all active:scale-95"
+>
+  احجز الموعد الآن
+</button>
                     <button className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-100 transition-colors">
                       <Share2 size={20} />
                     </button>
@@ -154,6 +189,89 @@ const WorkerProfile = () => {
                 </div>
               ))}
             </div>
+            {/* Ratings & Comments Section */}
+<motion.section 
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm mt-8"
+>
+  <div className="flex items-center justify-between mb-8">
+    <h2 className="text-xl font-black text-[#001F3F] flex items-center gap-2">
+      <div className="w-2 h-8 bg-[#F7A823] rounded-full"></div>
+      تقييمات العملاء
+    </h2>
+    <div className="flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-2 rounded-xl border border-amber-100">
+      <Star className="w-5 h-5 fill-amber-500" />
+      <span className="text-lg font-black">{worker.avgRating?.toFixed(1) || "5.0"}</span>
+    </div>
+  </div>
+
+  <div className="space-y-6">
+    {/* Example Comment Item - This can be mapped from worker.comments if available */}
+   <div className="grid gap-4">
+          {paginated.map((r) => (
+            <div 
+              key={r.id} 
+              className="group bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-200"
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center text-amber-600">
+                    <User size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 leading-tight">{r.userName}</p>
+                    <div className="flex mt-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          size={12}
+                          className={i <= r.rate ? "text-amber-400 fill-amber-400" : "text-gray-200"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
+                  {r.rate}.0
+                </span>
+              </div>
+
+              <div className="mt-4 relative">
+                <p className="text-sm text-gray-600 leading-relaxed italic pr-4 border-r-2 border-amber-100">
+                  "{r.comment || "هذا العميل لم يترك تعليقاً نصياً، قام بالتقييم فقط."}"
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+  </div>
+
+  {reviews.length > reviewsPerPage && (
+  <div className="flex justify-center gap-2 mt-6">
+    <button
+      onClick={() => setPage((p) => Math.max(p - 1, 1))}
+      className="px-3 py-1 bg-gray-100 rounded-lg text-sm"
+    >
+      السابق
+    </button>
+
+    <span className="px-3 py-1 text-sm">
+      {page} / {totalPages}
+    </span>
+
+    <button
+      onClick={() =>
+        setPage((p) => Math.min(p + 1, totalPages))
+      }
+      className="px-3 py-1 bg-gray-100 rounded-lg text-sm"
+    >
+      التالي
+    </button>
+  </div>
+)}
+</motion.section>
           </div>
 
           {/* Left Column: Sidebar Details */}

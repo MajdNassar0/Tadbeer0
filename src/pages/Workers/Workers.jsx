@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate,useParams } from "react-router-dom";
 import axios from "axios";
+
 import {
   Star,
   BadgeCheck,
@@ -22,6 +23,7 @@ const ORANGE = "#F7A823";
 const INFO_BG = "#F0F7FF"; 
 const API_BASE = "https://tadbeer0.runasp.net/api";
 const IMAGE_BASE = "https://tadbeer0.runasp.net/";
+
 
 function StarRatingRow({ value }) {
   const rounded = Math.min(5, Math.max(0, Math.round(value * 2) / 2));
@@ -44,7 +46,7 @@ function StarRatingRow({ value }) {
 function Workers() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -259,8 +261,13 @@ function Workers() {
 
                       <div className="flex flex-col sm:flex-row gap-3 mt-6">
                         <motion.button onClick={() => navigate(`/worker-profile/${w.id}`)} className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-600 font-bold text-xs">عرض الملف</motion.button>
-                        <motion.button className="flex-[1.4] py-3 rounded-xl text-white font-bold text-xs shadow-lg" style={{ backgroundColor: ORANGE }}>احجز موعد الآن</motion.button>
-                      </div>
+<motion.button
+  onClick={() => navigate(`/Booking/${w.id}`)}
+  className="flex-[1.4] py-3 rounded-xl text-white font-bold text-xs shadow-lg"
+  style={{ backgroundColor: ORANGE }}
+>
+  احجز موعد الآن
+</motion.button>                      </div>
                     </motion.article>
                   ))}
                 </AnimatePresence>
