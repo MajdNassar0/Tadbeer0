@@ -19,7 +19,6 @@ import Dashboard     from "./pages/Admin/Dashboard";
 import Users         from "./pages/Admin/Users";
 import Technicians   from "./pages/Admin/Technicians";
 import AdminBookings from "./pages/Admin/Bookings";
-import AdminReviews  from "./pages/Admin/Reviews";
 import Reports       from "./pages/Admin/Reports";
 import Settings      from "./pages/Admin/Settings";
 
@@ -77,7 +76,6 @@ const router = createBrowserRouter([
       { path: "users",         element: <Users />         },
       { path: "technicians",   element: <Technicians />   },
       { path: "bookings",      element: <AdminBookings /> },
-      { path: "reviews",       element: <AdminReviews />  },
       { path: "reports",       element: <Reports />       },
       { path: "settings",      element: <Settings />      },
     ],
