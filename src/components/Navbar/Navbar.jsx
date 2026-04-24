@@ -19,6 +19,8 @@ function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const userRole = user?.role;
+  const profilePath = userRole === 'worker' ? '/technical/profile' : '/user-profile';
 
   // ✅ منطق الأدوار والروابط (تم دمجه من التحديث الجديد)
   const role = user?.role?.toLowerCase();
@@ -165,9 +167,13 @@ function Navbar() {
                       </button>
                     )}
 
-                    <button onClick={() => navigate("/user-profile")} className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
-                      <User size={18} className="text-gray-400" /> الملف الشخصي
-                    </button>
+                    <button 
+  onClick={() => navigate(profilePath)} 
+  className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+>
+  <User size={18} className="text-gray-400" />
+  الملف الشخصي
+</button>
 
                     <button onClick={handleLogout} className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors">
                       <LogOut size={18} /> تسجيل الخروج

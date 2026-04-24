@@ -10,7 +10,6 @@ import Services from "./pages/Services/Services";
 import Workers from "./pages/Workers/Workers";
 import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
-import WorkerProfile from "./pages/WorkerProfile/WorkerProfile";
 import UserProfile from "./pages/UserProfile/UserProfile";
 
 // Admin
@@ -29,6 +28,8 @@ import WorkerBookings  from "./pages/TechnicanDashboard/Bookings";
 import WorkerReviews   from "./pages/TechnicanDashboard/Reviews";
 import WorkerReports   from "./pages/TechnicanDashboard/Reports";
 import WorkerSettings  from "./pages/TechnicanDashboard/Settings";
+import WorkerProfile from './pages/WorkerProfile/WorkerProfile';
+
 
 const router = createBrowserRouter([
   {
@@ -80,6 +81,7 @@ const router = createBrowserRouter([
       { path: "settings",      element: <Settings />      },
     ],
   },
+ 
   {
     path: "technical",
     element: (
@@ -89,6 +91,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true,        element: <WorkerDashboard /> },
+      { path: "profile",    element: <WorkerProfile /> }, // إضافة المسار هنا
       { path: "bookings",   element: <WorkerBookings />  },
       { path: "reviews",    element: <WorkerReviews />   },
       { path: "reports",    element: <WorkerReports />   },
