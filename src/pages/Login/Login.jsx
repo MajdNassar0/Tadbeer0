@@ -13,7 +13,6 @@ const Login = () => {
   const { login } = useAuth();
 
   const [authError, setAuthError] = useState("");
-  // ✅ الحالة الجديدة لإظهار/إخفاء كلمة المرور
   const [showPassword, setShowPassword] = useState(false);
 
   const containerVariants = {
@@ -43,7 +42,7 @@ const Login = () => {
     },
 
     onSubmit: async (values, { setSubmitting }) => {
-      setAuthError(""); 
+      setAuthError("");
 
       try {
         const response = await axios.post(
@@ -52,44 +51,51 @@ const Login = () => {
         );
 
         if (response.data.token) {
-  const token = response.data.token;
-  const decoded = jwtDecode(token);
+          const token = response.data.token;
+          const decoded = jwtDecode(token);
 
-  const user = {
-    name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
-    email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
-    role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User"
-  };
+          // 1. إنشاء كائن المستخدم الأولي من التوكن
+          let user = {
+            name: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || "User",
+            email: decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || values.email,
+            role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User",
+            image: null
+          };
 
-  login(user, token);
-  toast.success("تم تسجيل الدخول بنجاح!");
+          // 2. محاولة جلب الصورة والبيانات الإضافية قبل إتمام الدخول
+          try {
+            const isWorker = user.role?.toLowerCase() === "worker";
+            const profileUrl = isWorker
+              ? "https://tadbeer0.runasp.net/api/Worker/Profile/me"
+              : "https://tadbeer0.runasp.net/api/User/Profile/me";
 
-  localStorage.setItem("token", token);
+            const profileRes = await axios.get(profileUrl, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
 
-  // ✅ FETCH WORKER ID FIRST
-  if (user.role?.toLowerCase() === "worker") {
-    try {
-      const profileRes = await axios.get(
-        "https://tadbeer0.runasp.net/api/Worker/Profile/me",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+            if (profileRes.data) {
+              // تخزين رابط الصورة (نختبر أكثر من مسمى محتمل من السيرفر)
+              user.image = profileRes.data.profileImage || profileRes.data.ProfileImage || profileRes.data.imagePath;
 
-      const workerId = profileRes.data?.id;
-      if (workerId) {
-        localStorage.setItem("workerId", workerId);
-      }
-    } catch (err) {
-      console.error("Failed to load worker profile", err);
-    }
-  }
+              if (isWorker && profileRes.data.id) {
+                localStorage.setItem("workerId", profileRes.data.id);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch profile details on login", err);
+          }
 
-  // ✅ THEN NAVIGATE (NO setTimeout)
-  const role = user.role?.trim().toLowerCase();
+          // 3. استدعاء دالة الدخول وتخزين التوكن
+          login(user, token);
+          localStorage.setItem("token", token);
+          toast.success("تم تسجيل الدخول بنجاح!");
 
-  if (role === "admin" || role === "superadmin") navigate("/admin");
-  else if (role === "worker") navigate("/technical");
-  else navigate("/");
-}
+          // 4. التوجيه بناءً على الدور
+          const role = user.role?.trim().toLowerCase();
+          if (role === "admin" || role === "superadmin") navigate("/admin");
+          else if (role === "worker") navigate("/technical");
+          else navigate("/");
+        }
       } catch (error) {
         const status = error.response?.status;
         const backendMessage = error.response?.data?.message || "";
@@ -115,8 +121,8 @@ const Login = () => {
       <Toaster position="top-center" richColors expand={true} />
 
       <div className="absolute top-8 right-8">
-        <Link 
-          to="/" 
+        <Link
+          to="/"
           className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:opacity-70 transition-opacity"
         >
           <ArrowRight size={20} className="text-yellow-600" />
@@ -143,14 +149,12 @@ const Login = () => {
 
           <div className="p-8 lg:p-10">
             <form onSubmit={formik.handleSubmit} className="space-y-6">
-
               {authError && (
                 <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-bold p-3 rounded-lg text-right">
                   {authError}
                 </div>
               )}
 
-              {/* EMAIL */}
               <motion.div variants={itemVariants}>
                 <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">
                   البريد الإلكتروني
@@ -161,17 +165,14 @@ const Login = () => {
                     {...formik.getFieldProps("email")}
                     onChange={(e) => {
                       formik.handleChange(e);
-                      setAuthError(""); 
+                      setAuthError("");
                     }}
                     placeholder="البريد الإلكتروني"
                     className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-4 text-right transition-colors
                     ${formik.touched.email && formik.errors.email ? "border-red-500" : "border-transparent"}
                     focus:outline-none focus:border-blue-900`}
                   />
-                  <Mail
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                    size={20}
-                  />
+                  <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 </div>
                 {formik.touched.email && formik.errors.email && (
                   <p className="text-red-500 text-[11px] mt-1.5 mr-1 text-right font-bold">
@@ -180,7 +181,6 @@ const Login = () => {
                 )}
               </motion.div>
 
-              {/* PASSWORD */}
               <motion.div variants={itemVariants}>
                 <label className="block text-sm font-bold text-gray-700 mb-2 mr-1 text-right">
                   كلمة المرور
@@ -191,23 +191,18 @@ const Login = () => {
                     {...formik.getFieldProps("password")}
                     onChange={(e) => {
                       formik.handleChange(e);
-                      setAuthError(""); 
+                      setAuthError("");
                     }}
                     placeholder="كلمة المرور"
                     className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-12 text-right transition-colors
                     ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
-                    focus:outline-none focus:border-blue-900 
-                    [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden`}
+                    focus:outline-none focus:border-blue-900`}
                   />
-                  <Lock
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                    size={20}
-                  />
-                  {/* زر إظهار كلمة المرور */}
+                  <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#001e3c] transition-colors"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#001e3c]"
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
@@ -221,17 +216,10 @@ const Login = () => {
 
               <div className="flex items-center justify-between text-xs px-1">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="remember"
-                    className="w-4 h-4 accent-[#001e3c]"
-                  />
+                  <input type="checkbox" name="remember" className="w-4 h-4 accent-[#001e3c]" />
                   <span className="text-gray-600">تذكرني</span>
                 </div>
-                <Link
-                  to="/auth/ForgotPassword"
-                  className="text-yellow-600 font-bold hover:underline"
-                >
+                <Link to="/auth/ForgotPassword" className="text-yellow-600 font-bold hover:underline">
                   نسيت كلمة المرور؟
                 </Link>
               </div>
@@ -246,17 +234,9 @@ const Login = () => {
                 {formik.isSubmitting ? "جاري التحقق..." : "تسجيل الدخول"}
               </motion.button>
 
-              <motion.div
-                variants={itemVariants}
-                className="text-center pt-6 border-t border-gray-100"
-              >
-                <p className="text-gray-400 text-sm font-medium">
-                  ليس لديك حساب؟
-                </p>
-                <Link
-                  to="/auth/signup"
-                  className="flex items-center justify-center gap-2 mt-3 text-[#001e3c] font-black"
-                >
+              <motion.div variants={itemVariants} className="text-center pt-6 border-t border-gray-100">
+                <p className="text-gray-400 text-sm font-medium">ليس لديك حساب؟</p>
+                <Link to="/auth/signup" className="flex items-center justify-center gap-2 mt-3 text-[#001e3c] font-black">
                   <UserPlus size={18} className="text-yellow-600" />
                   <span>إنشاء حساب جديد</span>
                 </Link>
