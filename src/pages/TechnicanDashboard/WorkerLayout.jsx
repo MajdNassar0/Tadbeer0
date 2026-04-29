@@ -37,6 +37,26 @@ const NAV_ITEMS = [
 const WorkerLayout = () => {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const res = await axios.get(
+          "https://tadbeer0.runasp.net/api/Worker/Bookings",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const items = res.data?.items ?? res.data ?? [];
+        const count = items.filter(b => b.status?.toLowerCase() === "pending").length;
+        setPendingCount(count);
+      } catch { /* silent */ }
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") ?? "null"); }
@@ -185,9 +205,13 @@ const WorkerLayout = () => {
           </h2>
 
           <div className="flex items-center gap-4">
-            <button className="text-gray-400 hover:text-gray-600 relative">
+            <button className="text-gray-400 hover:text-gray-600 relative p-1">
               <Bell size={18} />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-yellow-500 rounded-full" />
+              {pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-yellow-500 text-[#0a1d37] text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow">
+                  {pendingCount}
+                </span>
+              )}
             </button>
             <div className="flex items-center gap-3">
               <div className="leading-tight text-left hidden lg:block">

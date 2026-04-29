@@ -62,9 +62,11 @@ const Login = () => {
             image: null
           };
 
-          // 2. محاولة جلب الصورة والبيانات الإضافية قبل إتمام الدخول
+          const role = user.role?.trim().toLowerCase();
+
+          // 2. جلب تفاصيل البروفايل (الصورة والـ ID)
           try {
-            const isWorker = user.role?.toLowerCase() === "worker";
+            const isWorker = role === "worker";
             const profileUrl = isWorker
               ? "https://tadbeer0.runasp.net/api/Worker/Profile/me"
               : "https://tadbeer0.runasp.net/api/User/Profile/me";
@@ -74,24 +76,25 @@ const Login = () => {
             });
 
             if (profileRes.data) {
-              // تخزين رابط الصورة (نختبر أكثر من مسمى محتمل من السيرفر)
               user.image = profileRes.data.profileImage || profileRes.data.ProfileImage || profileRes.data.imagePath;
-
+              
               if (isWorker && profileRes.data.id) {
                 localStorage.setItem("workerId", profileRes.data.id);
               }
             }
           } catch (err) {
-            console.error("Failed to fetch profile details on login", err);
+            console.error("Failed to fetch profile details", err);
           }
 
-          // 3. استدعاء دالة الدخول وتخزين التوكن
-          login(user, token);
+          // 3. تخزين التوكن وإتمام الدخول
           localStorage.setItem("token", token);
+          login(user, token);
           toast.success("تم تسجيل الدخول بنجاح!");
 
-          // 4. التوجيه بناءً على الدور
-          const role = user.role?.trim().toLowerCase();
+          // 4. تأخير بسيط ليظهر الـ Toast قبل الانتقال
+          await new Promise((res) => setTimeout(res, 800));
+
+          // 5. التوجيه بناءً على الدور
           if (role === "admin" || role === "superadmin") navigate("/admin");
           else if (role === "worker") navigate("/technical");
           else navigate("/");
@@ -135,7 +138,7 @@ const Login = () => {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="w-full max-w-[450px] bg-white rounded-[24px] shadow-2xl overflow-hidden border border-gray-100"
+          className="w-full max-w-112.5 bg-white rounded-[24px] shadow-2xl overflow-hidden border border-gray-100"
         >
           <div className="bg-[#001e3c] py-10 px-6 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full bg-blue-500/10 blur-3xl rounded-full translate-y-[-50%]"></div>

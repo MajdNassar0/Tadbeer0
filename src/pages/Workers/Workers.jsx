@@ -61,8 +61,13 @@ function Workers() {
     const fetchWorkers = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE}/General/Workers`);
-        const rawData = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        const params = {};
+        if (specialtyIdFromUrl) params.specialtyId = specialtyIdFromUrl;
+
+        const res = await axios.get(`${API_BASE}/General/Workers`, { params });
+        const rawData = Array.isArray(res.data)
+          ? res.data
+          : res.data?.workers ?? res.data?.items ?? res.data?.data ?? [];
         setWorkers(rawData);
       } catch (err) {
         console.error("Error fetching workers:", err);
@@ -71,7 +76,7 @@ function Workers() {
       }
     };
     fetchWorkers();
-  }, []);
+  }, [specialtyIdFromUrl]); // re-fetch when specialty changes
 
   const selectedSpecialtyName = useMemo(() => {
     if (!specialtyIdFromUrl || workers.length === 0) return null;
@@ -226,9 +231,16 @@ function Workers() {
                       <div className="flex items-start gap-4">
                         <div className="relative">
                           <img
-                            src={w.profileImage ? `${IMAGE_BASE}${w.profileImage}` : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
+                            src={
+                              w.profileImage && w.profileImage !== "string"
+                                ? (w.profileImage.startsWith("http") ? w.profileImage : `${IMAGE_BASE}${w.profileImage}`)
+                                : `https://ui-avatars.com/api/?name=${encodeURIComponent((w.firstName || "") + " " + (w.lastName || ""))}&background=001F3F&color=F7A823&size=200&bold=true`
+                            }
+                            onError={(e) => {
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((w.firstName || "") + " " + (w.lastName || ""))}&background=001F3F&color=F7A823&size=200&bold=true`;
+                            }}
                             className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md"
-                            alt=""
+                            alt={`${w.firstName} ${w.lastName}`}
                           />
                           {/* Online status indicator for "Motah Now" */}
                           {(w.isAvailable || w.status === "Available") && (

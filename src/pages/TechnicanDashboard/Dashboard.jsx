@@ -111,7 +111,7 @@ const Dashboard = () => {
     // Fetch bookings
     try {
       const bkRes = await axios.get(`${API_BASE}/Worker/Bookings`, h);
-      const bkRaw = bkRes.data.items ?? bkRes.data ?? [];
+      const bkRaw = bkRes.data.items ?? bkRes.data.bookings ?? bkRes.data ?? [];
       setBookings(Array.isArray(bkRaw) ? bkRaw : []);
     } catch (err) {
       setBookings([]);
@@ -151,6 +151,26 @@ const Dashboard = () => {
       setBookings(prev => prev.map(b =>
         b.id === bookingId ? { ...b, status: newStatus } : b
       ));
+
+      // 🔔 save notification for user when worker accepts
+      if (action === "accept") {
+        const booking = bookings.find(b => b.id === bookingId);
+        if (booking?.userId) {
+          const existing = JSON.parse(localStorage.getItem("userNotifications") || "[]");
+          if (!existing.some(n => n.bookingId === bookingId)) {
+            existing.push({
+              bookingId,
+              userId: booking.userId,
+              message: `تم قبول حجزك مع ${booking.workerName || "العامل"}`,
+              date: booking.bookingDate,
+              read: false,
+              createdAt: new Date().toISOString(),
+            });
+            localStorage.setItem("userNotifications", JSON.stringify(existing));
+          }
+        }
+      }
+
       toast.success(`تم ${ACTION_LABELS[action]} الحجز بنجاح`);
     } catch (err) {
       toast.error(`فشل ${ACTION_LABELS[action]} الحجز`);
