@@ -61,30 +61,30 @@ const Login = () => {
     role: decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "User"
   };
 
+  localStorage.setItem("token", token);
   login(user, token);
   toast.success("تم تسجيل الدخول بنجاح!");
+console.log(JSON.parse(localStorage.getItem("user")))
+  const role = user.role?.trim().toLowerCase();
 
-  localStorage.setItem("token", token);
-
-  // ✅ FETCH WORKER ID FIRST
-  if (user.role?.toLowerCase() === "worker") {
+  // Fetch worker ID if needed
+  if (role === "worker") {
     try {
       const profileRes = await axios.get(
         "https://tadbeer0.runasp.net/api/Worker/Profile/me",
         { headers: { Authorization: `Bearer ${token}` } }
+        
       );
-
+      
       const workerId = profileRes.data?.id;
-      if (workerId) {
-        localStorage.setItem("workerId", workerId);
-      }
+      if (workerId) localStorage.setItem("workerId", workerId);
     } catch (err) {
       console.error("Failed to load worker profile", err);
     }
   }
 
-  // ✅ THEN NAVIGATE (NO setTimeout)
-  const role = user.role?.trim().toLowerCase();
+  // ✅ Small delay so toast is visible before the component unmounts
+  await new Promise((res) => setTimeout(res, 800));
 
   if (role === "admin" || role === "superadmin") navigate("/admin");
   else if (role === "worker") navigate("/technical");

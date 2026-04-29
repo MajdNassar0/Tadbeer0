@@ -50,6 +50,15 @@ const AdminLayout = () => {
     const load = async () => {
       const token = localStorage.getItem("token");
       if (!token) { navigate("/auth/login"); return; }
+
+      // ✅ Role guard: don't hit admin endpoint for non-admin users
+      const storedUser = JSON.parse(localStorage.getItem("user") ?? "null");
+      const role = storedUser?.role?.trim().toLowerCase();
+      if (role && role !== "admin" && role !== "superadmin") {
+        navigate("/auth/login");
+        return;
+      }
+
       try {
         const res = await axios.get(
           "https://tadbeer0.runasp.net/api/Admin/Profile/me",
@@ -64,9 +73,22 @@ const AdminLayout = () => {
         setAdmin(updated);
         localStorage.setItem("user", JSON.stringify(updated));
       } catch (err) {
-        if (err.response?.status === 401) {
+        const status = err.response?.status;
+        // 401 = token invalid/expired → force logout
+        // 403 = token valid but wrong role → only redirect if user is definitely not admin
+        if (status === 401) {
           localStorage.clear();
           navigate("/auth/login");
+        } else if (status === 403) {
+          // Don't clear storage — could be a StrictMode double-invoke race.
+          // Re-read role from storage; only redirect if genuinely not admin.
+          const u = JSON.parse(localStorage.getItem("user") ?? "null");
+          const r = u?.role?.trim().toLowerCase();
+          if (!r || (r !== "admin" && r !== "superadmin")) {
+            localStorage.clear();
+            navigate("/auth/login");
+          }
+          // Otherwise silently ignore — the layout still renders from cached user data
         }
       }
     };

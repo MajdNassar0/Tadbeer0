@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Star, MapPin, Briefcase, Clock, Calendar,
   ChevronRight, ChevronLeft, Check, ArrowRight,
@@ -39,13 +39,20 @@ const STEPS = [
   { key: "Cancelled", label: "ملغى"          },
 ];
 
+// Normalize status: backend may send "Accepted" instead of "Confirmed"
+function normalizeStatus(s) {
+  if (!s) return "Pending";
+  if (s.toLowerCase() === "accepted") return "Confirmed";
+  return s;
+}
+
 // ONLY THIS PART CHANGED
 const STATUS_STYLE = {
-  Pending   : { cls: "bg-yellow-50 text-yellow-700", label: "قيد الانتظار" },
-  Confirmed : { cls: "bg-blue-50   text-blue-700",   label: "تم القبول" },
-  Accepted:  { label: "مقبول",        cls: "bg-blue-50 text-blue-600 border-blue-100" }, 
-  Completed : { cls: "bg-green-50  text-green-700",  label: "مكتمل" },
-  Cancelled : { cls: "bg-red-50    text-red-700",    label: "ملغى" },
+  Pending   : { cls: "bg-yellow-400 text-[#001F3F] font-bold",   label: "قيد الانتظار" },
+  Confirmed : { cls: "bg-blue-600   text-white font-bold",        label: "تم القبول" },
+  Accepted  : { cls: "bg-blue-600   text-white font-bold",        label: "مقبول" },
+  Completed : { cls: "bg-green-600  text-white font-bold",        label: "مكتمل" },
+  Cancelled : { cls: "bg-red-600    text-white font-bold",        label: "ملغى" },
 };
 
 function buildCalendar(year, month) {
@@ -60,8 +67,9 @@ function buildCalendar(year, month) {
 
 // ── Status bar ────────────────────────────────────────────────────────────────
 function StatusBar({ status }) {
-  const cancelled   = status === "Cancelled";
-  const activeIndex = STEPS.findIndex(s => s.key === status);
+  const norm        = normalizeStatus(status);
+  const cancelled   = norm === "Cancelled";
+  const activeIndex = STEPS.findIndex(s => s.key === norm);
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 p-5">
@@ -78,7 +86,7 @@ function StatusBar({ status }) {
                 ${current && isCan  ? "bg-red-500    border-red-500    text-white"
                 : current           ? "bg-[#001F3F]  border-[#001F3F]  text-white shadow-lg"
                 : done              ? "bg-yellow-400 border-yellow-400 text-white"
-                :                    "bg-white       border-gray-200   text-gray-300"}`}>
+                :                    "bg-white       border-gray-200   text-gray-700"}`}>
                 {done          ? <Check size={16} />
                 : current&&isCan? <XCircle size={16} />
                 : current       ? <div className="w-2.5 h-2.5 rounded-full bg-white" />
@@ -278,8 +286,9 @@ function ReviewModal({ booking, onClose, onDone }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Booking = () => {
-  const { workerId } = useParams();
+  const { id: workerId } = useParams();
   const navigate     = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [worker,     setWorker    ] = useState(null);
   const [loading,    setLoading   ] = useState(true);
@@ -318,6 +327,34 @@ const Booking = () => {
     load();
   }, [workerId]);
 
+  // Restore booking view from ?bookingId= in URL
+  useEffect(() => {
+    const bid = searchParams.get("bookingId");
+    if (!bid || booked) return;
+    const restore = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const res = await axios.get(`${API}/User/Bookings/${bid}`,
+          { headers: { Authorization: `Bearer ${token}` } });
+        const b = res.data;
+        setBookingRes(b);
+        setLiveStatus(b.status ?? "Pending");
+        // Restore selDate and selSlot so booking details render
+        if (b.bookingDate) {
+          const d = new Date(b.bookingDate);
+          setSelDate({ year: d.getFullYear(), month: d.getMonth(), day: d.getDate() });
+        }
+        if (b.startTime && b.endTime) {
+          setSelSlot({ startTime: b.startTime, endTime: b.endTime, dayOfWeek: b.workingDay });
+        }
+        setBooked(true);
+      } catch {}
+    };
+    restore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Fetch existing bookings to mark taken slots
   useEffect(() => {
     const load = async () => {
@@ -342,7 +379,7 @@ const Booking = () => {
       const token = localStorage.getItem("token");
       const res = await axios.get(`${API}/User/Bookings/${bookingRes.id}`,
         { headers: { Authorization: `Bearer ${token}` } });
-      setLiveStatus(res.data.status ?? "Pending");
+      setLiveStatus(normalizeStatus(res.data.status ?? "Pending"));
     } catch {}
   }, [bookingRes]);
 
@@ -431,7 +468,7 @@ const Booking = () => {
         endTime:   selSlot.endTime,
       }, { headers: { Authorization: `Bearer ${token}` } });
       setBookingRes(res.data);
-      setLiveStatus(res.data.status ?? "Pending");
+      setLiveStatus(normalizeStatus(res.data.status ?? "Pending"));
       setBooked(true);
       setRefreshKey(k => k + 1);
       toast.success("تم الحجز بنجاح!");
@@ -487,9 +524,9 @@ const Booking = () => {
       )}
 
       <div className="max-w-2xl mx-auto px-4 pt-6 space-y-5">
-        <button onClick={() => navigate(-1)}
+        <button onClick={() => navigate(`/booking/${workerId}`)}
                 className="flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm">
-          <ArrowRight size={16} /> العودة
+          <ArrowRight size={16} /> العودة 
         </button>
 
         <WorkerHeroCard worker={worker} />
@@ -554,14 +591,15 @@ const Booking = () => {
           workerId={workerId}
           refreshKey={refreshKey}
           onRate={b => setRateBook(b)}
+          navigate={navigate}
         />
 
         <button
-          onClick={() => navigate("/")}
+         onClick={() => navigate(`/booking/${workerId}`)}
           className="w-full bg-[#001F3F] text-white py-4 rounded-2xl text-sm
                      font-medium hover:bg-[#002a52] transition-colors"
         >
-          العودة للرئيسية
+          العودة 
         </button>
       </div>
     </div>
@@ -573,9 +611,9 @@ const Booking = () => {
       <Toaster position="top-center" richColors />
 
       <div className="max-w-5xl mx-auto px-4 pt-6">
-        <button onClick={() => navigate(-1)}
+        <button onClick={() => navigate("/workers")}
                 className="flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm mb-4">
-          <ArrowRight size={16} /> العودة
+          <ArrowRight size={16} /> العودة للفنيين
         </button>
       </div>
 
@@ -597,14 +635,14 @@ const Booking = () => {
           )}
 
           {/* Calendar */}
-          <div className="bg-white rounded-3xl border border-gray-100 p-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-5 flex items-center gap-2">
+          <div className="bg-white rounded-3xl border-2 border-yellow-100 p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-[#001F3F] mb-5 flex items-center gap-2">
               <Calendar size={16} className="text-yellow-500" />
               اختر الموعد المناسب
             </h3>
 
             {workingHours.length === 0 && (
-              <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-4 mb-4
+              <div className="bg-yellow-50 border border-yellow-500 rounded-2xl p-4 mb-4
                               flex items-center gap-3">
                 <AlertCircle size={16} className="text-yellow-500 flex-shrink-0" />
                 <p className="text-xs text-yellow-700">هذا الفني لم يحدد أوقات عمله بعد</p>
@@ -629,7 +667,7 @@ const Booking = () => {
             {/* Day headers — Sat first */}
             <div className="grid grid-cols-7 mb-2">
               {DAY_NAMES_AR.map(d => (
-                <div key={d} className="text-center text-[10px] text-gray-400 py-1 font-medium">
+                <div key={d} className="text-center text-[11px] text-[#001F3F] py-1.5 font-bold bg-yellow-50 rounded-lg">
                   {d}
                 </div>
               ))}
@@ -649,20 +687,20 @@ const Booking = () => {
                     key={i}
                     disabled={past || !slots}
                     onClick={() => { setSelDate({ year: calYear, month: calMonth, day }); setSelSlot(null); }}
-                    className={`relative h-10 w-full rounded-xl text-sm transition-all font-medium
+                    className={`relative h-11 w-full rounded-xl text-sm transition-all font-semibold
                       ${isSelected
-                        ? "bg-[#001F3F] text-white shadow-md"
+                        ? "bg-[#001F3F] text-white shadow-lg ring-2 ring-[#001F3F]/30"
                         : past
-                          ? "text-gray-200 cursor-not-allowed"
+                          ? "text-gray-300 cursor-not-allowed"
                           : !slots
                             ? "text-gray-300 cursor-not-allowed"
-                            : "hover:bg-yellow-50 text-gray-700"
+                            : "hover:bg-yellow-400 hover:text-[#001F3F] text-gray-800 border border-yellow-200 bg-yellow-50/40"
                       }`}
                   >
                     {day}
                     {slots && !past && !isSelected && (
                       <span className="absolute bottom-1 left-1/2 -translate-x-1/2
-                                       w-1 h-1 rounded-full bg-yellow-400" />
+                                       w-1.5 h-1.5 rounded-full bg-yellow-500 shadow-sm" />
                     )}
                   </button>
                 );
@@ -686,8 +724,8 @@ const Booking = () => {
 
           {/* Time slots */}
           {selDate && (
-            <div className="bg-white rounded-3xl border border-gray-100 p-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+            <div className="bg-white rounded-3xl border-2 border-yellow-100 p-6 shadow-sm">
+              <h3 className="text-sm font-bold text-[#001F3F] mb-1 flex items-center gap-2">
                 <Clock size={16} className="text-yellow-500" />
                 الأوقات المتاحة
               </h3>
@@ -736,8 +774,8 @@ const Booking = () => {
           )}
 
           {/* Notes */}
-          <div className="bg-white rounded-3xl border border-gray-100 p-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <div className="bg-white rounded-3xl border-2 border-yellow-100 p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-[#001F3F] mb-3 flex items-center gap-2">
               <span className="w-5 h-5 bg-yellow-400 rounded-lg flex items-center justify-center text-[10px]">📋</span>
               تفاصيل الخدمة المطلوبة
             </h3>
@@ -756,8 +794,8 @@ const Booking = () => {
 
         {/* ── Right: sticky summary ── */}
         <div>
-          <div className="bg-white rounded-3xl border border-gray-100 p-6 sticky top-6 space-y-4">
-            <h3 className="text-sm font-medium text-gray-700">ملخص الحجز</h3>
+          <div className="bg-white rounded-3xl border-2 border-yellow-100 p-6 sticky top-6 space-y-4 shadow-sm">
+            <h3 className="text-sm font-bold text-[#001F3F]">ملخص الحجز</h3>
 
             {[
               { icon: <Calendar size={14} className="text-yellow-500" />, label: "التاريخ",
@@ -841,13 +879,14 @@ const Booking = () => {
             workerId={workerId}
             refreshKey={refreshKey}
             onRate={b => setRateBook(b)}
+            navigate={navigate}
           />
     </div>
     
   );
 };
 
-function MyBookingsList({ workerId, refreshKey, onRate }) {
+function MyBookingsList({ workerId, refreshKey, onRate, navigate }) {
   const [bookings, setBookings] = useState(null);
   const [reviews, setReviews] = useState([]);
 
@@ -932,16 +971,21 @@ function MyBookingsList({ workerId, refreshKey, onRate }) {
         <div className="space-y-3">
           {paginated.map(b => {
             const isRated = reviews.some(r => r.bookingId === b.id);
-            const s = STATUS_STYLE[b.status] ?? { cls: "bg-gray-100 text-gray-400", label: b.status };
+            const normSt = normalizeStatus(b.status);
+            const s = STATUS_STYLE[normSt] ?? STATUS_STYLE[b.status] ?? { cls: "bg-gray-500 text-white font-bold", label: b.status };
             const date = b.bookingDate
               ? new Date(b.bookingDate).toLocaleDateString("ar-EG", { day: 'numeric', month: 'long' }) 
               : "—";
               
             return (
               <div key={b.id}
+                   onClick={() => navigate(`/booking/${workerId}?bookingId=${b.id}`)}
+                   role="button"
+                   tabIndex={0}
+                   onKeyDown={e => e.key === "Enter" && navigate(`/booking/${workerId}?bookingId=${b.id}`)}
                    className="group relative flex items-center justify-between p-4 bg-[#F8FAFC] 
-                              hover:bg-white border border-transparent hover:border-yellow-100 
-                              rounded-2xl transition-all duration-300">
+                              hover:bg-white border border-transparent hover:border-yellow-400 
+                              rounded-2xl transition-all duration-300 cursor-pointer">
                 
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="hidden sm:flex w-10 h-10 rounded-xl bg-white border border-gray-100 
