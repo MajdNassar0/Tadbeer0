@@ -151,15 +151,17 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans" dir="rtl">
-      <Toaster position="top-center" richColors />
-
-      <div className="absolute top-8 right-8">
-        <Link to="/" className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:opacity-70 transition-opacity">
-          <ArrowRight size={20} className="text-yellow-600" />
-          <span>العودة للرئيسية</span>
-        </Link>
-      </div>
+   <div className="min-h-screen flex flex-col items-center bg-slate-50 pt-8 pb-8 px-4 font-sans" dir="rtl">
+  <Toaster position="top-center" richColors />
+<div className="w-full flex justify-start mb-4 px-8">
+  <Link
+    to="/"
+    className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:opacity-70 transition-opacity"
+  >
+    <ArrowRight size={20} className="text-yellow-600" />
+    <span>العودة للرئيسية</span>
+  </Link>
+</div>
 
       <motion.div 
         initial="hidden" 

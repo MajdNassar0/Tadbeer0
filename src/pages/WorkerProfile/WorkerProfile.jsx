@@ -1,33 +1,55 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from "../../context/AuthContext";
+import { getFullImageUrl } from "../../Utils/imageHelper";
 import axios from 'axios';
-import { 
-  MapPin, Star, Briefcase, Clock, Calendar, 
+import {
+  MapPin, Star, Briefcase, Clock, Calendar,
   Share2, ShieldCheck, Wrench,
-  Circle, Award, MessageCircle, Phone, User
+  Circle, Award, MessageCircle, Phone
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useNavigate } from "react-router-dom"; 
 
 const API_BASE   = "https://tadbeer0.runasp.net/api";
 const IMAGE_BASE = "https://tadbeer0.runasp.net/";
 
-// Returns a coloured avatar URL from a name string
 const avatarUrl = (name) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "W")}&background=001F3F&color=F7A823&size=200&bold=true`;
 
-const reviewerAvatar = (name) =>
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "U")}&background=F7A823&color=fff&size=80&bold=true`;
-
-// Prepend IMAGE_BASE if the url is relative, otherwise return as-is
 const fullImg = (url, fallback) => {
   if (!url) return fallback;
   return url.startsWith("http") ? url : `${IMAGE_BASE}${url}`;
 };
 
+// NEW ReviewerAvatar
+function ReviewerAvatar({ userImage, userName }) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (userName || "U").charAt(0).toUpperCase();
+  const src = userImage
+    ? (userImage.startsWith("http") ? userImage : getFullImageUrl(userImage))
+    : null;
+
+  return (
+    <div className="w-10 h-10 rounded-full bg-[#001e3c] flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0 border-2 border-amber-100">
+      {src && !imgError ? (
+        <img
+          src={src}
+          alt={userName}
+          className="w-full h-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        initial
+      )}
+    </div>
+  );
+}
+
 const WorkerProfile = () => {
   const { id }      = useParams();
   const navigate    = useNavigate();
+  const { user } = useAuth();
+
   const [worker,  setWorker ] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
@@ -37,14 +59,14 @@ const WorkerProfile = () => {
   const paginated  = reviews.slice((page - 1) * reviewsPerPage, page * reviewsPerPage);
   const totalPages = Math.ceil(reviews.length / reviewsPerPage);
 
-  // ── Fetch reviews ──────────────────────────────────────────
+  // ── Fetch reviews ──────────────────────────────────────────────────────────
   useEffect(() => {
     axios.get(`${API_BASE}/General/Reviews`, { params: { workerId: id } })
       .then(res => setReviews(res.data?.items ?? res.data ?? []))
       .catch(() => setReviews([]));
   }, [id]);
 
-  // ── Fetch worker (both endpoints in parallel) ──────────────
+  // ── Fetch worker (both endpoints in parallel) ──────────────────────────────
   useEffect(() => {
     const fetchWorker = async () => {
       try {
@@ -56,12 +78,10 @@ const WorkerProfile = () => {
         const main    = mainRes.status    === "fulfilled" ? (mainRes.value.data?.data    ?? mainRes.value.data)    : {};
         const profile = profileRes.status === "fulfilled" ? (profileRes.value.data?.data ?? profileRes.value.data) : {};
 
-        // Merge: main wins for identity/phone/status, profile wins for workingHours/workImages
         setWorker({
           ...main,
           workingHours : profile.workingHours ?? main.workingHours ?? [],
           workImages   : profile.workImages   ?? main.workImages   ?? [],
-          // phoneNumbers is array of {id, number, userId}
           phoneNumbers : main.phoneNumbers    ?? profile.phoneNumbers ?? [],
         });
       } catch (err) {
@@ -88,15 +108,14 @@ const WorkerProfile = () => {
     <div className="text-center py-20 font-bold text-red-500">العامل غير موجود</div>
   );
 
-  const fullName   = `${worker.firstName ?? ""} ${worker.lastName ?? ""}`.trim();
+  const fullName    = `${worker.firstName ?? ""} ${worker.lastName ?? ""}`.trim();
   const workerPhoto = fullImg(worker.profileImage, avatarUrl(fullName));
-  // phoneNumbers is [{id, number, userId}], phoneNumber is a plain string
-  const phone = worker.phoneNumber || worker.phoneNumbers?.[0]?.number || null;
+  const phone       = worker.phoneNumber || worker.phoneNumbers?.[0]?.number || null;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 font-sans" dir="rtl">
 
-      {/* Hero */}
+      {/* Hero Banner */}
       <div className="relative bg-[#001F3F] h-48 md:h-64 overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
       </div>
@@ -108,8 +127,11 @@ const WorkerProfile = () => {
           <div className="lg:col-span-2 space-y-8">
 
             {/* Profile card */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-gray-50">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-gray-50"
+            >
               <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
 
                 {/* Photo */}
@@ -175,8 +197,10 @@ const WorkerProfile = () => {
 
             {/* About */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <motion.section whileHover={{ y: -5 }}
-                className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm md:col-span-2">
+              <motion.section
+                whileHover={{ y: -5 }}
+                className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm md:col-span-2"
+              >
                 <h2 className="text-xl font-black mb-4 text-[#001F3F] flex items-center gap-2">
                   <div className="w-2 h-8 bg-[#F7A823] rounded-full" />
                   نبذة تعريفية
@@ -188,8 +212,8 @@ const WorkerProfile = () => {
               </motion.section>
 
               {[
-                { title: "أدوات حديثة",  icon: <Wrench />,     color: "bg-blue-500",  text: "نستخدم أحدث التقنيات لضمان دقة التنفيذ" },
-                { title: "ضمان العمل",   icon: <ShieldCheck />, color: "bg-green-500", text: "نقدم ضمان حقيقي على كافة الخدمات" },
+                { title: "أدوات حديثة", icon: <Wrench />,     color: "bg-blue-500",  text: "نستخدم أحدث التقنيات لضمان دقة التنفيذ" },
+                { title: "ضمان العمل",  icon: <ShieldCheck />, color: "bg-green-500", text: "نقدم ضمان حقيقي على كافة الخدمات" },
               ].map((item, i) => (
                 <div key={i} className="bg-white p-6 rounded-3xl border border-gray-50 shadow-sm flex items-start gap-4">
                   <div className={`${item.color} p-3 rounded-2xl text-white shadow-lg`}>{item.icon}</div>
@@ -203,8 +227,11 @@ const WorkerProfile = () => {
 
             {/* Work images */}
             {worker.workImages?.length > 0 && (
-              <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm"
+              >
                 <h2 className="text-xl font-black mb-6 text-[#001F3F] flex items-center gap-2">
                   <div className="w-2 h-8 bg-[#F7A823] rounded-full" />
                   أعمال سابقة
@@ -224,8 +251,11 @@ const WorkerProfile = () => {
             )}
 
             {/* ── Reviews ── */}
-            <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm mt-8">
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm mt-8"
+            >
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-black text-[#001F3F] flex items-center gap-2">
                   <div className="w-2 h-8 bg-[#F7A823] rounded-full" />
@@ -241,59 +271,67 @@ const WorkerProfile = () => {
                 <p className="text-center text-slate-400 py-8">لا توجد تقييمات بعد</p>
               ) : (
                 <div className="grid gap-4">
-                  {paginated.map((r) => {
-                    // Use userImage if API ever returns it, else fallback to avatar
-                    const photo = r.userImage
-                      ? fullImg(r.userImage, reviewerAvatar(r.userName))
-                      : reviewerAvatar(r.userName);
-
-                    return (
-                      <div key={r.id}
-                        className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  {paginated.map((r) => (
+                    <div
+                      key={r.id}
+                      className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex justify-between items-start">
                         <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-3">
-                            {/* ✅ User avatar in comment */}
-                            <img
-                              src={photo}
-                              alt={r.userName}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-amber-100 shrink-0"
-                              onError={(e) => { e.target.src = reviewerAvatar(r.userName); }}
-                            />
-                            <div>
-                              <p className="font-bold text-gray-900 leading-tight">{r.userName}</p>
-                              <div className="flex mt-1">
-                                {[1,2,3,4,5].map((i) => (
-                                  <Star key={i} size={12}
-                                    className={i <= r.rate ? "text-amber-400 fill-amber-400" : "text-gray-200"} />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-                            {r.rate}.0
-                          </span>
-                        </div>
-                        <div className="mt-4">
-                          <p className="text-sm text-gray-600 leading-relaxed italic pr-4 border-r-2 border-amber-100">
-                            "{r.comment || "هذا العميل لم يترك تعليقاً نصياً، قام بالتقييم فقط."}"
-                          </p>
-                        </div>
+  <div className="flex items-center gap-3">
+<ReviewerAvatar
+  userImage={r.userImage || (r.userName === user?.name ? (user?.image || user?.profilePic) : null)}
+  userName={r.userName}
+/>    <div>
+      <p className="font-bold text-gray-900 text-sm">{r.userName || "مستخدم"}</p>
+      <div className="flex mt-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Star
+            key={i}
+            size={12}
+            className={i <= r.rate ? "text-amber-400 fill-amber-400" : "text-gray-200"}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
+    {r.rate}.0
+  </span>
+</div>
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
+                          {r.rate}.0
+                        </span>
                       </div>
-                    );
-                  })}
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-600 leading-relaxed italic pr-4 border-r-2 border-amber-100">
+                          "{r.comment || "هذا العميل لم يترك تعليقاً نصياً، قام بالتقييم فقط."}"
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
               {reviews.length > reviewsPerPage && (
                 <div className="flex justify-center gap-2 mt-6">
-                  <button onClick={() => setPage(p => Math.max(p - 1, 1))}
-                    className="px-3 py-1 bg-gray-100 rounded-lg text-sm">السابق</button>
+                  <button
+                    onClick={() => setPage(p => Math.max(p - 1, 1))}
+                    className="px-3 py-1 bg-gray-100 rounded-lg text-sm"
+                  >
+                    السابق
+                  </button>
                   <span className="px-3 py-1 text-sm">{page} / {totalPages}</span>
-                  <button onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                    className="px-3 py-1 bg-gray-100 rounded-lg text-sm">التالي</button>
+                  <button
+                    onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+                    className="px-3 py-1 bg-gray-100 rounded-lg text-sm"
+                  >
+                    التالي
+                  </button>
                 </div>
               )}
             </motion.section>
+
           </div>
 
           {/* ── Sidebar ── */}
@@ -306,14 +344,19 @@ const WorkerProfile = () => {
               <div className="space-y-4 relative z-10">
                 {phone ? (
                   <>
-                    <a href={`tel:${phone}`}
-                      className="w-full hover:bg-amber-50 border border-amber-200 py-4 rounded-2xl flex items-center justify-center gap-3 transition-colors">
+                    <a
+                      href={`tel:${phone}`}
+                      className="w-full hover:bg-amber-50 border border-amber-200 py-4 rounded-2xl flex items-center justify-center gap-3 transition-colors"
+                    >
                       <Phone size={20} className="text-[#F7A823]" />
                       <span className="font-bold">{phone}</span>
                     </a>
-                    <a href={`https://wa.me/${phone.replace(/[^0-9]/g, "")}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white py-4 rounded-2xl flex items-center justify-center gap-3 transition-colors shadow-lg">
+                    <a
+                      href={`https://wa.me/${phone.replace(/[^0-9]/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white py-4 rounded-2xl flex items-center justify-center gap-3 transition-colors shadow-lg"
+                    >
                       <MessageCircle size={20} />
                       <span className="font-bold">واتساب</span>
                     </a>
@@ -339,8 +382,8 @@ const WorkerProfile = () => {
                       const dayNames = {
                         0: "الأحد", 1: "الاثنين", 2: "الثلاثاء", 3: "الأربعاء",
                         4: "الخميس", 5: "الجمعة", 6: "السبت",
-                        Sunday:"الأحد", Monday:"الاثنين", Tuesday:"الثلاثاء",
-                        Wednesday:"الأربعاء", Thursday:"الخميس", Friday:"الجمعة", Saturday:"السبت",
+                        Sunday: "الأحد", Monday: "الاثنين", Tuesday: "الثلاثاء",
+                        Wednesday: "الأربعاء", Thursday: "الخميس", Friday: "الجمعة", Saturday: "السبت",
                       };
                       const dayLabel = wh.dayOfWeek != null ? (dayNames[wh.dayOfWeek] ?? wh.dayOfWeek) : "—";
                       const fmt = (t) => t?.slice(0, 5) || "—";
@@ -368,8 +411,8 @@ const WorkerProfile = () => {
               <p className="font-black text-lg">منطقة الخدمة</p>
               <p className="text-slate-400 text-sm mt-1">يغطي كافة مناطق مدينة {worker.city || "نابلس"}</p>
             </div>
-          </div>
 
+          </div>
         </div>
       </div>
     </div>

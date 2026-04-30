@@ -123,15 +123,15 @@ const Login = () => {
     <div className="min-h-screen bg-[#f0f2f5] p-4 font-sans" dir="rtl">
       <Toaster position="top-center" richColors expand={true} />
 
-      <div className="absolute top-8 right-8">
-        <Link
-          to="/"
-          className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:opacity-70 transition-opacity"
-        >
-          <ArrowRight size={20} className="text-yellow-600" />
-          <span>العودة للرئيسية</span>
-        </Link>
-      </div>
+<div className="w-full max-w-112.5 flex justify-start mb-4 px-1">
+  <Link
+    to="/"
+    className="flex items-center gap-2 text-[#001e3c] font-bold text-sm hover:opacity-70 transition-opacity"
+  >
+    <ArrowRight size={20} className="text-yellow-600" />
+    <span>العودة للرئيسية</span>
+  </Link>
+</div>
 
       <div className="flex items-center justify-center">
         <motion.div

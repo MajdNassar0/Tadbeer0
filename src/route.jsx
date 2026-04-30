@@ -32,6 +32,7 @@ import WorkerSettings  from "./pages/TechnicanDashboard/Settings";
 
 const router = createBrowserRouter([
   {
+    
     path: "/",
     element: <MainLayout />,
     children: [
@@ -63,7 +64,6 @@ const router = createBrowserRouter([
       { path: "ResetPassword",  element: <ResetPassword />  },
     ],
   },
-{ path: "booking/:workerId", element: <ProtectedRoute><Booking /></ProtectedRoute> }  ,
 {
     path: "admin",
     element: (

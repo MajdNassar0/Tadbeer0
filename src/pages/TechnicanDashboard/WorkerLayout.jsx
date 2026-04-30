@@ -39,24 +39,50 @@ const WorkerLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
-  useEffect(() => {
-    const fetchPending = async () => {
+ useEffect(() => {
+  let isMounted = true;
+
+  const fetchPending = async () => {
+    try {
       const token = localStorage.getItem("token");
       if (!token) return;
-      try {
-        const res = await axios.get(
-          "https://tadbeer0.runasp.net/api/Worker/Bookings",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const items = res.data?.items ?? res.data ?? [];
-        const count = items.filter(b => b.status?.toLowerCase() === "pending").length;
-        setPendingCount(count);
-      } catch { /* silent */ }
-    };
-    fetchPending();
-    const interval = setInterval(fetchPending, 10000);
-    return () => clearInterval(interval);
-  }, []);
+
+      const res = await axios.get(
+        "https://tadbeer0.runasp.net/api/Worker/Bookings",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      let items = [];
+      if (Array.isArray(res.data)) items = res.data;
+      else if (Array.isArray(res.data?.items)) items = res.data.items;
+      else if (Array.isArray(res.data?.data?.items)) items = res.data.data.items;
+
+      const count = items.filter(
+        b => b.status?.toLowerCase() === "pending"
+      ).length;
+
+      if (isMounted) {
+        setPendingCount(prev => (prev !== count ? count : prev));
+      }
+
+    } catch (err) {
+      console.log("error fetching pending");
+    }
+  };
+
+  // run immediately
+  fetchPending();
+
+  // run every 3 sec (NOT 10)
+  const interval = setInterval(fetchPending, 3000);
+
+  return () => {
+    isMounted = false;
+    clearInterval(interval);
+  };
+}, []);
 
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") ?? "null"); }

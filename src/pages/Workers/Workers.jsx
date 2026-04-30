@@ -274,7 +274,7 @@ function Workers() {
                       <div className="flex flex-col sm:flex-row gap-3 mt-6">
                         <motion.button onClick={() => navigate(`/worker-profile/${w.id}`)} className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-600 font-bold text-xs">عرض الملف</motion.button>
 <motion.button
-  onClick={() => navigate(`/Booking/${w.id}`)}
+  onClick={() => navigate(`/booking/${w.id}`)}
   className="flex-[1.4] py-3 rounded-xl text-white font-bold text-xs shadow-lg"
   style={{ backgroundColor: ORANGE }}
 >
