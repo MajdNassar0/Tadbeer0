@@ -152,15 +152,18 @@ const Users = () => {
                     <tr key={u.id ?? i} className="hover:bg-gray-50/60 transition-colors">
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          {u.profileImage && u.profileImage !== "string" ? (
-                            <img src={u.profileImage} alt={name}
-                                 className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-yellow-500 flex items-center justify-center
-                                            text-[10px] font-medium text-[#0a1d37] flex-shrink-0">
-                              {u.firstName?.[0] ?? "م"}
-                            </div>
-                          )}
+                          <img
+                            src={
+                              u.profileImage && u.profileImage !== "string"
+                                ? (u.profileImage.startsWith("http") ? u.profileImage : `https://tadbeer0.runasp.net/${u.profileImage}`)
+                                : `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "م")}&background=001F3F&color=F7A823&size=200&bold=true`
+                            }
+                            alt={name}
+                            className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                            onError={(e) => {
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "م")}&background=001F3F&color=F7A823&size=200&bold=true`;
+                            }}
+                          />
                           <span className="font-medium text-gray-800">{name}</span>
                         </div>
                       </td>

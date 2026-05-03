@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   ClipboardList, CheckCircle2, Clock, Star,
-  X, Check, Loader2, MessageSquare, User, Bell
+  X, Check, Loader2, MessageSquare, User, Bell, ChevronDown, ChevronUp
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -87,11 +87,113 @@ function MiniReviewCard({ review }) {
   );
 }
 
+
+// ── Collapsible worker row ────────────────────────────────────────────────────
+function WorkerRow({ worker, wAvatar, wCompleted, wPending, statusInfo, getKey, actioning, updateStatus }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div>
+      {/* Summary row — click to expand */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50/60 transition-colors text-right"
+      >
+        <div className="flex items-center gap-3">
+          <img
+            src={worker.image
+              ? (worker.image.startsWith("http") ? worker.image : `https://tadbeer0.runasp.net/${worker.image}`)
+              : wAvatar}
+            onError={(e) => { e.target.src = wAvatar; }}
+            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+            alt={worker.name}
+          />
+          <div className="text-right">
+            <p className="text-xs font-medium text-gray-800">{worker.name}</p>
+            <p className="text-[10px] text-gray-400">{worker.bookings.length} حجز</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] bg-green-50 text-green-600 px-2 py-1 rounded-full font-medium">
+            {wCompleted} مكتمل
+          </span>
+          <span className="text-[10px] bg-yellow-50 text-yellow-600 px-2 py-1 rounded-full font-medium">
+            {wPending} انتظار
+          </span>
+          {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+        </div>
+      </button>
+
+      {/* Expanded bookings */}
+      {open && (
+        <div className="overflow-x-auto border-t border-gray-50 bg-gray-50/40">
+          <table className="w-full min-w-[560px]">
+            <thead>
+              <tr className="text-[10px] text-gray-400 border-b border-gray-100">
+                <th className="py-2 px-6 text-right font-medium">العميل</th>
+                <th className="py-2 px-4 text-right font-medium">التاريخ</th>
+                <th className="py-2 px-4 text-right font-medium">الوقت</th>
+                <th className="py-2 px-4 text-center font-medium">الحالة</th>
+                <th className="py-2 px-6 text-center font-medium">إجراء</th>
+              </tr>
+            </thead>
+            <tbody className="text-xs divide-y divide-gray-100">
+              {worker.bookings.map((b, i) => {
+                const info = statusInfo(b.status);
+                const sKey = getKey(b.status);
+                const isAct = actioning[b.id];
+                return (
+                  <tr key={b.id ?? i} className="hover:bg-white transition-colors">
+                    <td className="py-3 px-6 font-medium text-gray-800">{b.userName || "—"}</td>
+                    <td className="py-3 px-4 text-gray-400">
+                      {b.bookingDate ? new Date(b.bookingDate).toLocaleDateString("ar-EG") : "—"}
+                    </td>
+                    <td className="py-3 px-4 text-gray-400">{b.startTime?.slice(0,5) || "—"}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${info.cls}`}>
+                        {info.label}
+                      </span>
+                    </td>
+                    <td className="py-3 px-6">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {sKey === "pending" && (
+                          <>
+                            <button onClick={() => updateStatus(b.id, "accept")} disabled={!!isAct}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 text-[10px] font-medium disabled:opacity-50">
+                              {isAct === "accept" ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                              قبول
+                            </button>
+                            <button onClick={() => updateStatus(b.id, "cancel")} disabled={!!isAct}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-[10px] font-medium disabled:opacity-50">
+                              {isAct === "cancel" ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
+                              رفض
+                            </button>
+                          </>
+                        )}
+                        {(sKey === "confirmed" || sKey === "inprogress") && (
+                          <button onClick={() => updateStatus(b.id, "complete")} disabled={!!isAct}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#001F3F] text-white hover:bg-[#002a52] text-[10px] font-medium disabled:opacity-50">
+                            {isAct === "complete" ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                            إتمام
+                          </button>
+                        )}
+                        {sKey === "completed" && <span className="text-[10px] text-green-500 font-medium">✓ مكتمل</span>}
+                        {sKey === "cancelled"  && <span className="text-[10px] text-gray-300">—</span>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user } = useOutletContext();
-
   const [bookings,  setBookings ] = useState(undefined);
   const [reviews,   setReviews  ] = useState(null);
   const [actioning, setActioning] = useState({});
@@ -110,7 +212,7 @@ const Dashboard = () => {
 
     // Fetch bookings
     try {
-      const bkRes = await axios.get(`${API_BASE}/Worker/Bookings`, h);
+      const bkRes = await axios.get(`${API_BASE}/Admin/Bookings`, h);
       const bkRaw = bkRes.data.items ?? bkRes.data ?? [];
       setBookings(Array.isArray(bkRaw) ? bkRaw : []);
     } catch (err) {
@@ -143,7 +245,7 @@ const Dashboard = () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.patch(
-        `${API_BASE}/Worker/Bookings/${bookingId}/${action}`,
+        `${API_BASE}/Admin/Bookings/${bookingId}/${action}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -239,114 +341,56 @@ const Dashboard = () => {
 
       
 
-        {/* Bookings table with actions */}
+        
+
+        {/* ── Per-Worker Breakdown ── */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-50">
-            <h3 className="text-sm font-medium text-gray-800">
-              آخر الحجوزات
-              {bookings !== undefined && (
-                <span className="mr-2 text-xs font-normal text-gray-400">({total})</span>
-              )}
-            </h3>
+            <h3 className="text-sm font-medium text-gray-800">ملخص الفنيين</h3>
           </div>
-
-          {bookings === undefined ? <Spinner /> :
-           bookings.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-2">
-              <ClipboardList size={20} className="text-gray-200" />
-              <p className="text-sm text-gray-400">لا توجد حجوزات حالياً</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px]">
-                <thead className="bg-gray-50/50 border-b border-gray-50">
-                  <tr className="text-[10px] text-gray-400">
-                    <th className="py-3 px-6 text-right font-medium">العميل</th>
-                    <th className="py-3 px-4 text-right font-medium">التاريخ</th>
-                    <th className="py-3 px-4 text-right font-medium">الوقت</th>
-                    <th className="py-3 px-4 text-center font-medium">الحالة</th>
-                    <th className="py-3 px-6 text-center font-medium">إجراء</th>
-                  </tr>
-                </thead>
-                <tbody className="text-xs divide-y divide-gray-50">
-                  {bookings.slice(0, 5).map((b, i) => {
-                    const info  = statusInfo(b.status);
-                    const sKey  = getKey(b.status);
-                    const isAct = actioning[b.id];
-                    return (
-                      <tr key={b.id ?? i} className="hover:bg-gray-50/60 transition-colors">
-                        <td className="py-4 px-6 font-medium text-gray-800">{b.userName || "—"}</td>
-                        <td className="py-4 px-4 text-gray-400">
-                          {b.bookingDate
-                            ? new Date(b.bookingDate).toLocaleDateString("ar-EG")
-                            : "—"}
-                        </td>
-                        <td className="py-4 px-4 text-gray-400">{b.startTime?.slice(0,5) || "—"}</td>
-                        <td className="py-4 px-4 text-center">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-medium ${info.cls}`}>
-                            {info.label}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {sKey === "pending" && (
-                              <>
-                                <button
-                                  onClick={() => updateStatus(b.id, "accept")}
-                                  disabled={!!isAct}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg
-                                             bg-green-50 text-green-600 hover:bg-green-100
-                                             text-[10px] font-medium disabled:opacity-50"
-                                >
-                                  {isAct === "accept"
-                                    ? <Loader2 size={10} className="animate-spin" />
-                                    : <Check size={10} />}
-                                  قبول
-                                </button>
-                                <button
-                                  onClick={() => updateStatus(b.id, "cancel")}
-                                  disabled={!!isAct}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg
-                                             bg-red-50 text-red-500 hover:bg-red-100
-                                             text-[10px] font-medium disabled:opacity-50"
-                                >
-                                  {isAct === "cancel"
-                                    ? <Loader2 size={10} className="animate-spin" />
-                                    : <X size={10} />}
-                                  رفض
-                                </button>
-                              </>
-                            )}
-                            {(sKey === "confirmed" || sKey === "inprogress") && (
-                              <button
-                                onClick={() => updateStatus(b.id, "complete")}
-                                disabled={!!isAct}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg
-                                           bg-[#001F3F] text-white hover:bg-[#002a52]
-                                           text-[10px] font-medium disabled:opacity-50"
-                              >
-                                {isAct === "complete"
-                                  ? <Loader2 size={10} className="animate-spin" />
-                                  : <Check size={10} />}
-                                إتمام
-                              </button>
-                            )}
-                            {sKey === "completed" && (
-                              <span className="text-[10px] text-green-500 font-medium">✓ مكتمل</span>
-                            )}
-                            {sKey === "cancelled" && (
-                              <span className="text-[10px] text-gray-300">—</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {bookings === undefined ? <Spinner /> : (() => {
+            // Group bookings by worker
+            const workerMap = {};
+            (bookings ?? []).forEach(b => {
+              const wid  = b.workerId || b.worker?.id || "unknown";
+              const wname = b.workerName ||
+                (b.worker ? `${b.worker.firstName ?? ""} ${b.worker.lastName ?? ""}`.trim() : "") ||
+                "فني غير معروف";
+              const wimg = b.workerImage && b.workerImage !== "string" ? b.workerImage : null;
+              if (!workerMap[wid]) {
+                workerMap[wid] = { id: wid, name: wname, image: wimg, bookings: [] };
+              }
+              workerMap[wid].bookings.push(b);
+            });
+            const workers = Object.values(workerMap);
+            if (workers.length === 0) return (
+              <p className="text-xs text-gray-300 text-center py-8">لا توجد بيانات</p>
+            );
+            return (
+              <div className="divide-y divide-gray-50">
+                {workers.map(w => {
+                  const wCompleted = w.bookings.filter(b => getKey(b.status) === "completed").length;
+                  const wPending   = w.bookings.filter(b => getKey(b.status) === "pending").length;
+                  const wAvatar    = `https://ui-avatars.com/api/?name=${encodeURIComponent(w.name)}&background=001F3F&color=F7A823&size=64&bold=true`;
+                  return (
+                    <WorkerRow
+                      key={w.id}
+                      worker={w}
+                      wAvatar={wAvatar}
+                      wCompleted={wCompleted}
+                      wPending={wPending}
+                      statusInfo={statusInfo}
+                      getKey={getKey}
+                      actioning={actioning}
+                      updateStatus={updateStatus}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
+
       </div>
 
       {/* ── Right sidebar ── */}
