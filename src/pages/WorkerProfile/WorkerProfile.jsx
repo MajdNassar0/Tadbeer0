@@ -1,1010 +1,894 @@
-// src/pages/WorkerProfile/WorkerProfile.jsx
-import React, {
-  useState,
-  useRef,
-  useCallback,
-  createContext,
-  useContext,
-} from "react";
+import React, { useState, useCallback, createContext, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  User,
-  Shield,
-  Images,
-  Briefcase,
-  Star,
-  CheckCircle,
-  Camera,
-  Plus,
-  Trash2,
-  Edit3,
-  Save,
-  X,
-  Award,
-  Clock,
-  BadgeCheck,
-  Loader2,
-  ZoomIn,
-  ChevronLeft,
-  ChevronRight,
-  KeyRound,
-  Smartphone,
-  Ban,
-  AlertTriangle,
+  MapPin, Mail, Phone, Star, BadgeCheck, Briefcase,
+  Wrench, MessageCircle, CalendarCheck, ChevronRight,
+  X as IconX, ZoomIn, Shield, Clock, Award, ChevronLeft,
+  CheckCircle, XCircle, Tag, DollarSign, Info, BookOpen,
+  User, Edit3, Camera, Settings, Lock, LayoutDashboard,
+  Save, Loader2, Menu, Bell, BarChart2, ToggleLeft,
+  ToggleRight, AlertTriangle, Trash2, ImagePlus,
 } from "lucide-react";
-import apiClient from "../../API/axiosConfig";
-import { getFullImageUrl } from "../../Utils/imageHelper";
-import { useAuth } from "../../context/AuthContext";
 
-// ─────────────────────────────────────────────
-// Toast Context (mirrors UserProfile approach)
-// ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// MOCK DATA
+// ══════════════════════════════════════════════════════════════
+const MOCK_WORKER = {
+  id: "w-001",
+  firstName: "أحمد",
+  lastName: "الزعبي",
+  category: "كهربائي",
+  subcategory: "كهرباء منزلية ولوحات توزيع",
+  city: "نابلس",
+  email: "ahmed.zaubi@tadbeer.ps",
+  phone: "+970 599 123 456",
+  isVerified: true,
+  status: "متاح",
+  yearsOfExperience: 8,
+  rating: 4.8,
+  reviewsCount: 126,
+  completedJobs: 214,
+  bio: "كهربائي محترف بخبرة 8 سنوات في تركيب وصيانة الأنظمة الكهربائية المنزلية والتجارية. متخصص في لوحات التوزيع، تمديدات الإضاءة، وأنظمة الطاقة الشمسية. أعمل بدقة عالية وأضمن سلامة التنفيذ.",
+  profileImage: null,
+  portfolioImages: [
+    { id: 1, url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop", caption: "لوحة توزيع رئيسية" },
+    { id: 2, url: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400&h=300&fit=crop", caption: "تمديدات كهربائية" },
+    { id: 3, url: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=400&h=300&fit=crop", caption: "تركيب إضاءة" },
+    { id: 4, url: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop", caption: "مشروع تجاري" },
+    { id: 5, url: "https://images.unsplash.com/photo-1565793298595-6a879b1d9492?w=400&h=300&fit=crop", caption: "ألواح شمسية" },
+    { id: 6, url: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=300&fit=crop", caption: "صيانة مولدات" },
+  ],
+  services: [
+    { name: "تركيب لوحات كهربائية", price: "من 150₪" },
+    { name: "تمديد أسلاك ومنافذ", price: "من 80₪" },
+    { name: "تركيب إضاءة LED", price: "من 50₪" },
+    { name: "صيانة مولدات", price: "من 120₪" },
+    { name: "تركيب طاقة شمسية", price: "من 500₪" },
+    { name: "كشف أعطال كهربائية", price: "من 60₪" },
+  ],
+  reviews: [
+    { id: 1, name: "محمد العلي", rating: 5, comment: "عمل ممتاز وسريع، نظيف ودقيق جداً في عمله. أنصح به.", date: "2025-03-12" },
+    { id: 2, name: "سارة ناصر", rating: 5, comment: "خدمة احترافية ومميزة، أنهى العمل في الوقت المحدد.", date: "2025-02-28" },
+    { id: 3, name: "خالد حمدان", rating: 4, comment: "جيد جداً، سعر مناسب ونتيجة رائعة.", date: "2025-01-15" },
+  ],
+};
+
+// Simulate current logged-in user — toggle .id to test RBAC:
+// "w-001" → OWNER view  |  "u-999" → VISITOR view
+const MOCK_CURRENT_USER = { id: "w-001", name: "أحمد الزعبي" };
+
+// ══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════════
+const AVAILABILITY_MAP = {
+  "متاح":   { color: "#16a34a", bg: "#dcfce7", dot: "#22c55e" },
+  "مشغول":  { color: "#dc2626", bg: "#fee2e2", dot: "#ef4444" },
+  "إجازة":  { color: "#d97706", bg: "#fef3c7", dot: "#f59e0b" },
+};
+
+// Tabs visible only to owner
+const OWNER_TABS = [
+  { id: "overview",   label: "نظرة عامة",       icon: LayoutDashboard },
+  { id: "portfolio",  label: "معرض الأعمال",    icon: BookOpen },
+  { id: "services",   label: "الخدمات والأسعار", icon: Wrench },
+  { id: "reviews",    label: "التقييمات",        icon: Star },
+  { id: "settings",   label: "إعدادات الحساب",   icon: Settings },
+];
+
+// Tabs visible to visitor
+const VISITOR_TABS = [
+  { id: "overview",   label: "نظرة عامة",       icon: LayoutDashboard },
+  { id: "portfolio",  label: "معرض الأعمال",    icon: BookOpen },
+  { id: "services",   label: "الخدمات والأسعار", icon: Wrench },
+  { id: "reviews",    label: "التقييمات",        icon: Star },
+];
+
+// ══════════════════════════════════════════════════════════════
+// TOAST CONTEXT
+// ══════════════════════════════════════════════════════════════
 const ToastContext = createContext(null);
-export const useToast = () => useContext(ToastContext);
-
-// ─────────────────────────────────────────────
-// Toast Component
-// ─────────────────────────────────────────────
-const Toast = ({ message, type, visible }) => (
-  <AnimatePresence>
-    {visible && (
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 40 }}
-        className={`fixed bottom-6 left-1/2 z-[200] -translate-x-1/2 flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold shadow-xl ${
-          type === "error"
-            ? "bg-red-500 text-white"
-            : "bg-[#001e3c] text-white"
-        }`}
-      >
-        {type !== "error" && <CheckCircle size={16} />}
-        {message}
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
-
-// ─────────────────────────────────────────────
-// Tab Button
-// ─────────────────────────────────────────────
-const TabBtn = ({ id, label, icon: Icon, active, onClick }) => (
-  <button
-    onClick={() => onClick(id)}
-    className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
-      active
-        ? "bg-orange-500 text-white shadow-md shadow-orange-200"
-        : "text-gray-500 hover:bg-gray-100"
-    }`}
-  >
-    <Icon size={16} />
-    {label}
-  </button>
-);
-
-// ─────────────────────────────────────────────
-// Avatar Upload
-// ─────────────────────────────────────────────
-const AvatarUpload = ({ worker, onUpload, uploading }) => {
-  const fileRef = useRef();
-  const initials = `${worker?.firstName?.[0] ?? ""}${
-    worker?.lastName?.[0] ?? ""
-  }`.toUpperCase();
-
+const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
+  const push = useCallback((message, type = "success") => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
   return (
-    <div className="relative inline-block">
-      <div className="h-24 w-24 rounded-2xl overflow-hidden bg-gradient-to-br from-orange-400 to-[#001e3c] ring-4 ring-white shadow-lg">
-        {worker?.profilePictureUrl ? (
-          <img
-            src={getFullImageUrl(worker.profilePictureUrl)}
-            alt="avatar"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-2xl font-black text-white">
-            {initials || <User size={32} />}
-          </div>
-        )}
-      </div>
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={uploading}
-        className="absolute -bottom-1.5 -right-1.5 flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500 text-white shadow-md hover:bg-orange-600 transition-all"
-      >
-        {uploading ? (
-          <Loader2 size={14} className="animate-spin" />
-        ) : (
-          <Camera size={14} />
-        )}
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])}
-      />
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// Rating Stars
-// ─────────────────────────────────────────────
-const RatingStars = ({ rating = 0 }) => (
-  <div className="flex gap-0.5">
-    {[1, 2, 3, 4, 5].map((s) => (
-      <Star
-        key={s}
-        size={14}
-        className={s <= Math.round(rating) ? "text-amber-400 fill-amber-400" : "text-gray-200 fill-gray-200"}
-      />
-    ))}
-  </div>
-);
-
-// ─────────────────────────────────────────────
-// ── TAB: Professional Info ──
-// ─────────────────────────────────────────────
-const ProfessionalTab = ({ worker, onSave, saving }) => {
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({
-    jobDescription: worker?.jobDescription ?? "",
-    experienceYears: worker?.experienceYears ?? "",
-  });
-
-  const handleSave = async () => {
-    const result = await onSave(form);
-    if (result?.ok) setEditing(false);
-  };
-
-  return (
-    <div className="space-y-5">
-      {/* Bio Card */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-black text-gray-800">النبذة المهنية</h3>
-          {!editing ? (
-            <button
-              onClick={() => setEditing(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-orange-200 px-3 py-1.5 text-xs font-bold text-orange-500 hover:bg-orange-50 transition-all"
-            >
-              <Edit3 size={12} /> تعديل
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setEditing(false)}
-                className="flex items-center gap-1 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200 transition-all"
-              >
-                <X size={12} /> إلغاء
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1 rounded-xl bg-[#001e3c] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#002a54] transition-all"
-              >
-                {saving ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Save size={12} />
-                )}
-                حفظ
-              </button>
-            </div>
-          )}
-        </div>
-
-        {editing ? (
-          <textarea
-            dir="rtl"
-            rows={5}
-            value={form.jobDescription}
-            onChange={(e) => setForm({ ...form, jobDescription: e.target.value })}
-            placeholder="اكتب نبذة تعريفية عن خبرتك ومهاراتك..."
-            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-right outline-none focus:border-orange-400 focus:bg-white transition-all"
-          />
-        ) : (
-          <p
-            dir="rtl"
-            className={`text-sm leading-relaxed text-right ${
-              worker?.jobDescription ? "text-gray-700" : "italic text-gray-400"
-            }`}
-          >
-            {worker?.jobDescription || "لم تتم إضافة نبذة مهنية بعد."}
-          </p>
-        )}
-      </div>
-
-      {/* Trust & Verification */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <h3 className="mb-4 text-sm font-black text-gray-800 text-right">
-          التحقق والمصداقية
-        </h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {/* Experience */}
-          <div className="flex flex-col items-center gap-2 rounded-xl bg-blue-50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
-              <Clock size={18} className="text-[#001e3c]" />
-            </div>
-            {editing ? (
-              <input
-                type="number"
-                min="0"
-                max="50"
-                value={form.experienceYears}
-                onChange={(e) =>
-                  setForm({ ...form, experienceYears: e.target.value })
-                }
-                className="w-20 rounded-lg border border-blue-200 bg-white p-1 text-center text-sm font-bold outline-none focus:border-blue-400"
-              />
-            ) : (
-              <span className="text-2xl font-black text-[#001e3c]">
-                {worker?.experienceYears ?? "—"}
-              </span>
-            )}
-            <span className="text-xs font-semibold text-gray-500">
-              سنوات خبرة
-            </span>
-          </div>
-
-          {/* Rating */}
-          <div className="flex flex-col items-center gap-2 rounded-xl bg-amber-50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-              <Award size={18} className="text-amber-600" />
-            </div>
-            <span className="text-2xl font-black text-amber-700">
-              {worker?.avgRating?.toFixed(1) ?? "—"}
-            </span>
-            <RatingStars rating={worker?.avgRating ?? 0} />
-          </div>
-
-          {/* Verified Badge */}
-          <div className="flex flex-col items-center gap-2 rounded-xl bg-green-50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100">
-              <BadgeCheck size={18} className="text-green-600" />
-            </div>
-            <span className="text-sm font-black text-green-700">
-              {worker?.isVerified ? "موثّق" : "غير موثّق"}
-            </span>
-            <span className="text-xs font-semibold text-gray-500">
-              الهوية الرسمية
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Specialties */}
-      {worker?.specialtyNames?.length > 0 && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-sm font-black text-gray-800 text-right">
-            التخصصات
-          </h3>
-          <div className="flex flex-wrap gap-2 justify-end">
-            {worker.specialtyNames.map((sp, i) => (
-              <span
-                key={i}
-                className="rounded-xl bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-600 border border-orange-100"
-              >
-                {sp}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// ── TAB: Work Gallery ──
-// ─────────────────────────────────────────────
-const GalleryTab = ({ workImages = [], onAddMainImage, onAddSubImage, onDeleteMainImage, onDeleteSubImage, uploading }) => {
-  const [lightbox, setLightbox] = useState(null); // { images: [], index: 0 }
-  const mainRef = useRef();
-
-  const openLightbox = (images, index) => setLightbox({ images, index });
-  const closeLightbox = () => setLightbox(null);
-  const prev = () =>
-    setLightbox((l) => ({ ...l, index: (l.index - 1 + l.images.length) % l.images.length }));
-  const next = () =>
-    setLightbox((l) => ({ ...l, index: (l.index + 1) % l.images.length }));
-
-  return (
-    <div className="space-y-5">
-      {/* Upload New Main Image */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-400">أضف صور مشاريعك السابقة لعرضها للعملاء</p>
-        <button
-          onClick={() => mainRef.current?.click()}
-          disabled={uploading}
-          className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-md shadow-orange-200 hover:bg-orange-600 transition-all"
-        >
-          {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-          إضافة مشروع
-        </button>
-        <input
-          ref={mainRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => e.target.files?.[0] && onAddMainImage(e.target.files[0])}
-        />
-      </div>
-
-      {workImages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 py-16">
-          <Images size={36} className="text-gray-300" />
-          <p className="text-sm font-semibold text-gray-400">
-            لا توجد صور مشاريع بعد
-          </p>
-          <p className="text-xs text-gray-300">اضغط "إضافة مشروع" لبدء معرضك</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {workImages.map((project, pi) => (
+    <ToastContext.Provider value={push}>
+      {children}
+      <div className="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2" style={{ minWidth: 260 }}>
+        <AnimatePresence>
+          {toasts.map(t => (
             <motion.div
-              key={project.mainImageId}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+              key={t.id}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-xl ${t.type === "success" ? "bg-[#001e3c]" : "bg-red-600"}`}
             >
-              {/* Main Image */}
-              <div className="relative group">
-                <img
-                  src={getFullImageUrl(project.mainImageUrl)}
-                  alt={`project-${pi}`}
-                  className="h-52 w-full object-cover cursor-pointer"
-                  onClick={() => {
-                    const all = [project.mainImageUrl, ...(project.subImages?.map((s) => s.imageUrl) ?? [])];
-                    openLightbox(all, 0);
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
-                  <button
-                    onClick={() => {
-                      const all = [project.mainImageUrl, ...(project.subImages?.map((s) => s.imageUrl) ?? [])];
-                      openLightbox(all, 0);
-                    }}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/90 text-gray-700 hover:bg-white transition-all"
-                  >
-                    <ZoomIn size={16} />
-                  </button>
-                  <button
-                    onClick={() => onDeleteMainImage(project.mainImageId)}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-500/90 text-white hover:bg-red-600 transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                <div className="absolute bottom-2 right-2 rounded-lg bg-black/50 px-2 py-1 text-xs font-bold text-white backdrop-blur-sm">
-                  مشروع {pi + 1}
-                </div>
-              </div>
-
-              {/* Sub Images */}
-              <div className="p-3">
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {project.subImages?.map((sub, si) => (
-                    <div key={sub.subImageId} className="relative group/sub flex-shrink-0">
-                      <img
-                        src={getFullImageUrl(sub.imageUrl)}
-                        alt={`sub-${si}`}
-                        className="h-16 w-16 rounded-xl object-cover cursor-pointer ring-1 ring-gray-100"
-                        onClick={() => {
-                          const all = [project.mainImageUrl, ...(project.subImages?.map((s) => s.imageUrl) ?? [])];
-                          openLightbox(all, si + 1);
-                        }}
-                      />
-                      <button
-                        onClick={() => onDeleteSubImage(sub.subImageId)}
-                        className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover/sub:opacity-100 transition-all hover:bg-red-600"
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Add Sub Image */}
-                  <SubImageUploader
-                    mainImageId={project.mainImageId}
-                    onUpload={onAddSubImage}
-                    uploading={uploading}
-                  />
-                </div>
-              </div>
+              {t.type === "success" ? <CheckCircle size={16} className="text-orange-400" /> : <XCircle size={16} />}
+              {t.message}
             </motion.div>
           ))}
-        </div>
-      )}
-
-      {/* Lightbox */}
-      <AnimatePresence>
-        {lightbox && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative max-w-3xl w-full"
-            >
-              <button
-                onClick={closeLightbox}
-                className="absolute -top-10 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"
-              >
-                <X size={18} />
-              </button>
-              <img
-                src={getFullImageUrl(lightbox.images[lightbox.index])}
-                alt="preview"
-                className="w-full rounded-2xl object-contain max-h-[70vh]"
-              />
-              {lightbox.images.length > 1 && (
-                <>
-                  <button
-                    onClick={prev}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-white hover:bg-white/30 transition-all"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button
-                    onClick={next}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-white hover:bg-white/30 transition-all"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                  <div className="mt-3 flex justify-center gap-1.5">
-                    {lightbox.images.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setLightbox((l) => ({ ...l, index: i }))}
-                        className={`h-1.5 rounded-full transition-all ${
-                          i === lightbox.index
-                            ? "w-5 bg-orange-400"
-                            : "w-1.5 bg-white/40"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const SubImageUploader = ({ mainImageId, onUpload, uploading }) => {
-  const ref = useRef();
-  return (
-    <>
-      <button
-        onClick={() => ref.current?.click()}
-        disabled={uploading}
-        className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-gray-300 hover:border-orange-300 hover:text-orange-400 transition-all"
-      >
-        {uploading ? (
-          <Loader2 size={16} className="animate-spin text-orange-400" />
-        ) : (
-          <Plus size={16} />
-        )}
-      </button>
-      <input
-        ref={ref}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) =>
-          e.target.files?.[0] && onUpload(mainImageId, e.target.files[0])
-        }
-      />
-    </>
-  );
-};
-
-// ─────────────────────────────────────────────
-// ── TAB: Security ──
-// ─────────────────────────────────────────────
-const SecurityTab = ({ worker, onToggleStatus, toggling }) => {
-  const [activeModal, setActiveModal] = useState(null);
-  const toast = useToast();
-  const isInactive = worker?.status === "Inactive";
-
-  const securityItems = [
-    { id: "pwd", icon: KeyRound, title: "تغيير كلمة المرور", desc: "تحديث كلمة المرور لحماية حسابك", btn: "تغيير" },
-    { id: "2fa", icon: Smartphone, title: "التحقق بخطوتين", desc: "أضف طبقة حماية إضافية", btn: "تفعيل" },
-    {
-      id: "deactivate",
-      icon: Ban,
-      title: isInactive ? "تفعيل الحساب" : "تعطيل الحساب مؤقتاً",
-      desc: isInactive ? "إعادة تنشيط حسابك" : "يمكنك استعادة حسابك في أي وقت",
-      btn: isInactive ? "تفعيل" : "تعطيل",
-      variant: "danger",
-    },
-    {
-      id: "delete",
-      icon: Trash2,
-      title: "حذف الحساب نهائياً",
-      desc: "سيتم مسح كافة بياناتك نهائياً",
-      btn: "حذف",
-      variant: "danger",
-    },
-  ];
-
-  return (
-    <div className="space-y-4">
-      {securityItems.map((item) => (
-        <div
-          key={item.id}
-          className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm hover:shadow-md transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                item.variant === "danger" ? "bg-red-50" : "bg-blue-50"
-              }`}
-            >
-              <item.icon
-                size={18}
-                className={
-                  item.variant === "danger" ? "text-red-500" : "text-[#001e3c]"
-                }
-              />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">{item.title}</p>
-              <p className="text-xs text-gray-400">{item.desc}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActiveModal(item.id)}
-            className={`rounded-xl border px-4 py-1.5 text-xs font-semibold transition-all ${
-              item.variant === "danger"
-                ? "border-red-100 text-red-500 hover:bg-red-50"
-                : "border-orange-200 text-orange-500 hover:bg-orange-50"
-            }`}
-          >
-            {item.btn}
-          </button>
-        </div>
-      ))}
-
-      {/* Deactivate Modal */}
-      <AnimatePresence>
-        {activeModal === "deactivate" && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setActiveModal(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl text-center"
-            >
-              <div className="mb-4 flex flex-col items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 text-orange-500">
-                  <Ban size={28} />
-                </div>
-                <h3 className="text-lg font-black text-gray-800">
-                  {isInactive ? "تفعيل الحساب" : "تعطيل الحساب مؤقتاً"}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {isInactive
-                    ? "هل أنت متأكد من إعادة تفعيل حسابك؟"
-                    : "هل أنت متأكد؟ يمكنك إعادة تفعيله في أي وقت."}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-200 transition-all"
-                >
-                  تراجع
-                </button>
-                <button
-                  onClick={async () => {
-                    const res = await onToggleStatus();
-                    setActiveModal(null);
-                    if (!res.ok) toast(res.error, "error");
-                    else toast("تم تحديث حالة الحساب ✓");
-                  }}
-                  disabled={toggling}
-                  className="flex-1 rounded-xl bg-[#001e3c] py-2.5 text-sm font-bold text-white hover:bg-[#002a54] transition-all flex items-center justify-center gap-2"
-                >
-                  {toggling ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : isInactive ? (
-                    "تأكيد التفعيل"
-                  ) : (
-                    "تأكيد التعطيل"
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Modal */}
-      <AnimatePresence>
-        {activeModal === "delete" && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setActiveModal(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl text-center"
-            >
-              <div className="mb-4 flex flex-col items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500">
-                  <AlertTriangle size={28} />
-                </div>
-                <h3 className="text-lg font-black text-gray-800">
-                  حذف الحساب نهائياً
-                </h3>
-                <p className="text-sm text-gray-500">
-                  هل أنت متأكد؟ سيتم حذف كافة بياناتك ولا يمكن استعادتها.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-200 transition-all"
-                >
-                  إلغاء
-                </button>
-                <button className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition-all">
-                  تأكيد الحذف
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// ── Main Hook: useWorkerProfile ──
-// ─────────────────────────────────────────────
-const useWorkerProfile = () => {
-  const [worker, setWorker] = useState(null);
-  const [workImages, setWorkImages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [toggling, setToggling] = useState(false);
-  const [uploading, setUploading] = useState(false);
-
-  const fetch = useCallback(async () => {
-    try {
-      const [profileRes, imagesRes] = await Promise.all([
-        apiClient.get("/Worker/Profile/me"),
-        apiClient.get("/Worker/Profile/me/work-images"),
-      ]);
-      setWorker(profileRes.data);
-      setWorkImages(imagesRes.data ?? []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const updateProfile = useCallback(async (payload) => {
-    setSaving(true);
-    try {
-      const fd = new FormData();
-      fd.append("JobDescription", payload.jobDescription ?? "");
-      fd.append("ExperienceYears", payload.experienceYears ?? "");
-      const res = await apiClient.put("/Worker/Profile/me", fd);
-      setWorker(res.data);
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: e.response?.data?.message ?? "فشل التحديث" };
-    } finally {
-      setSaving(false);
-    }
-  }, []);
-
-  const uploadAvatar = useCallback(async (file) => {
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("ProfilePicture", file);
-      const res = await apiClient.put("/Worker/Profile/me", fd);
-      setWorker(res.data);
-      return { ok: true, user: res.data };
-    } catch (e) {
-      return { ok: false };
-    } finally {
-      setUploading(false);
-    }
-  }, []);
-
-  const addMainImage = useCallback(async (file) => {
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("MainImage", file);
-      const res = await apiClient.post("/Worker/Profile/me/work-images", fd);
-      setWorkImages((prev) => [...prev, res.data]);
-      return { ok: true };
-    } catch (e) {
-      return { ok: false };
-    } finally {
-      setUploading(false);
-    }
-  }, []);
-
-  const addSubImage = useCallback(async (mainImageId, file) => {
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("SubImage", file);
-      await apiClient.post(
-        `/Worker/Profile/me/work-images/${mainImageId}/sub-images`,
-        fd
-      );
-      // Re-fetch images to get updated sub-images
-      const res = await apiClient.get("/Worker/Profile/me/work-images");
-      setWorkImages(res.data ?? []);
-      return { ok: true };
-    } catch (e) {
-      return { ok: false };
-    } finally {
-      setUploading(false);
-    }
-  }, []);
-
-  const deleteMainImage = useCallback(async (mainImageId) => {
-    try {
-      await apiClient.delete(`/Worker/Profile/me/work-images/${mainImageId}`);
-      setWorkImages((prev) => prev.filter((p) => p.mainImageId !== mainImageId));
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  const deleteSubImage = useCallback(async (subImageId) => {
-    try {
-      await apiClient.delete(
-        `/Worker/Profile/me/work-sub-images/${subImageId}`
-      );
-      setWorkImages((prev) =>
-        prev.map((p) => ({
-          ...p,
-          subImages: p.subImages?.filter((s) => s.subImageId !== subImageId),
-        }))
-      );
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  const toggleAccountStatus = useCallback(async () => {
-    setToggling(true);
-    try {
-      const res = await apiClient.patch("/Worker/Profile/me/status-toggle");
-      setWorker(res.data);
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, error: "فشل تغيير حالة الحساب" };
-    } finally {
-      setToggling(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    fetch();
-  }, [fetch]);
-
-  return {
-    worker,
-    workImages,
-    loading,
-    saving,
-    toggling,
-    uploading,
-    updateProfile,
-    uploadAvatar,
-    addMainImage,
-    addSubImage,
-    deleteMainImage,
-    deleteSubImage,
-    toggleAccountStatus,
-  };
-};
-
-// ─────────────────────────────────────────────
-// ── Main Page ──
-// ─────────────────────────────────────────────
-const WorkerProfile = () => {
-  const [activeTab, setActiveTab] = useState("professional");
-  const [toast, setToast] = useState({ msg: "", type: "success", visible: false });
-  const { updateUser } = useAuth();
-
-  const showToast = useCallback((msg, type = "success") => {
-    setToast({ msg, type, visible: true });
-    setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3000);
-  }, []);
-
-  const {
-    worker,
-    workImages,
-    loading,
-    saving,
-    toggling,
-    uploading,
-    updateProfile,
-    uploadAvatar,
-    addMainImage,
-    addSubImage,
-    deleteMainImage,
-    deleteSubImage,
-    toggleAccountStatus,
-  } = useWorkerProfile();
-
-  const handleAvatarUpload = async (file) => {
-    const res = await uploadAvatar(file);
-    if (res.ok) {
-      updateUser({ profilePictureUrl: res.user?.profilePictureUrl });
-      showToast("تم تحديث الصورة الشخصية ✓");
-    } else {
-      showToast("فشل رفع الصورة", "error");
-    }
-  };
-
-  const handleSaveProfessional = async (payload) => {
-    const res = await updateProfile(payload);
-    if (res.ok) showToast("تم حفظ البيانات المهنية ✓");
-    else showToast(res.error, "error");
-    return res;
-  };
-
-  const handleAddMainImage = async (file) => {
-    const res = await addMainImage(file);
-    if (res.ok) showToast("تمت إضافة المشروع ✓");
-    else showToast("فشل رفع الصورة", "error");
-  };
-
-  const handleAddSubImage = async (mainId, file) => {
-    const res = await addSubImage(mainId, file);
-    if (res.ok) showToast("تمت إضافة الصورة ✓");
-    else showToast("فشل رفع الصورة", "error");
-  };
-
-  const tabs = [
-    { id: "professional", label: "المعلومات المهنية", icon: Briefcase },
-    { id: "gallery", label: "معرض الأعمال", icon: Images },
-    { id: "security", label: "الأمان", icon: Shield },
-  ];
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500" />
-      </div>
-    );
-  }
-
-  return (
-    <ToastContext.Provider value={showToast}>
-      <div dir="rtl" className="min-h-screen bg-gray-50/60 pb-16">
-        {/* Header Card */}
-        <div className="bg-white border-b border-gray-100 shadow-sm">
-          <div className="mx-auto max-w-2xl px-4 py-6">
-            <div className="flex items-start gap-4">
-              <AvatarUpload
-                worker={worker}
-                onUpload={handleAvatarUpload}
-                uploading={uploading}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-black text-gray-900 truncate">
-                    {worker?.firstName} {worker?.lastName}
-                  </h1>
-                  {worker?.isVerified && (
-                    <BadgeCheck size={18} className="text-blue-500 flex-shrink-0" />
-                  )}
-                </div>
-                <p className="mt-0.5 text-sm text-gray-500">
-                  {worker?.specialtyNames?.[0] ?? "عامل معتمد"}
-                </p>
-                <div className="mt-2 flex items-center gap-3 flex-wrap">
-                  <RatingStars rating={worker?.avgRating ?? 0} />
-                  <span className="text-xs text-gray-400 font-medium">
-                    {worker?.avgRating?.toFixed(1) ?? "—"} / 5.0
-                  </span>
-                  {worker?.status && (
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                        worker.status === "Active"
-                          ? "bg-green-50 text-green-600"
-                          : "bg-red-50 text-red-500"
-                      }`}
-                    >
-                      {worker.status === "Active" ? "نشط" : "غير نشط"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="mx-auto max-w-2xl px-4">
-          <div className="mt-4 flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm border border-gray-100">
-            {tabs.map((t) => (
-              <TabBtn
-                key={t.id}
-                {...t}
-                active={activeTab === t.id}
-                onClick={setActiveTab}
-              />
-            ))}
-          </div>
-
-          {/* Tab Content */}
-          <div className="mt-4">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-              >
-                {activeTab === "professional" && (
-                  <ProfessionalTab
-                    worker={worker}
-                    onSave={handleSaveProfessional}
-                    saving={saving}
-                  />
-                )}
-                {activeTab === "gallery" && (
-                  <GalleryTab
-                    workImages={workImages}
-                    onAddMainImage={handleAddMainImage}
-                    onAddSubImage={handleAddSubImage}
-                    onDeleteMainImage={deleteMainImage}
-                    onDeleteSubImage={deleteSubImage}
-                    uploading={uploading}
-                  />
-                )}
-                {activeTab === "security" && (
-                  <SecurityTab
-                    worker={worker}
-                    onToggleStatus={toggleAccountStatus}
-                    toggling={toggling}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Toast */}
-        <Toast message={toast.msg} type={toast.type} visible={toast.visible} />
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   );
 };
+const useToast = () => useContext(ToastContext);
+
+// ══════════════════════════════════════════════════════════════
+// LIGHTBOX
+// ══════════════════════════════════════════════════════════════
+const Lightbox = ({ images, initialIndex, onClose }) => {
+  const [current, setCurrent] = useState(initialIndex);
+  const prev = () => setCurrent(i => (i - 1 + images.length) % images.length);
+  const next = () => setCurrent(i => (i + 1) % images.length);
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="relative w-full max-w-3xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white transition">
+          <IconX size={28} />
+        </button>
+        <img src={images[current].url} alt={images[current].caption} className="w-full max-h-[75vh] object-contain rounded-2xl" />
+        <p className="text-center text-white/70 text-sm mt-3">{images[current].caption}</p>
+        {images.length > 1 && (
+          <div className="absolute inset-y-0 flex items-center justify-between w-full px-2 pointer-events-none">
+            <button onClick={prev} className="pointer-events-auto bg-black/40 hover:bg-black/70 text-white rounded-full p-2 transition">
+              <ChevronRight size={22} />
+            </button>
+            <button onClick={next} className="pointer-events-auto bg-black/40 hover:bg-black/70 text-white rounded-full p-2 transition">
+              <ChevronLeft size={22} />
+            </button>
+          </div>
+        )}
+        <div className="flex justify-center gap-1.5 mt-3">
+          {images.map((_, i) => (
+            <button key={i} onClick={() => setCurrent(i)}
+              className={`h-1.5 rounded-full transition-all ${i === current ? "w-6 bg-orange-400" : "w-1.5 bg-white/30"}`} />
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// STAR RATING
+// ══════════════════════════════════════════════════════════════
+const StarRating = ({ rating, size = 14 }) => (
+  <div className="flex items-center gap-0.5">
+    {[1, 2, 3, 4, 5].map(s => (
+      <Star key={s} size={size}
+        className={s <= Math.round(rating) ? "text-orange-400 fill-orange-400" : "text-gray-200 fill-gray-200"} />
+    ))}
+  </div>
+);
+
+// ══════════════════════════════════════════════════════════════
+// PROFILE HEADER CARD (top of page)
+// ══════════════════════════════════════════════════════════════
+const WorkerHeader = ({ worker, isOwner, onUploadImage, saving }) => {
+  const [imageHover, setImageHover] = useState(false);
+  const fileInputRef = React.useRef(null);
+  const availability = AVAILABILITY_MAP[worker.status] || AVAILABILITY_MAP["متاح"];
+  const fullName = `${worker.firstName} ${worker.lastName}`;
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=001e3c&color=ff9800&size=200&bold=true`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative mb-6 overflow-hidden rounded-3xl shadow-2xl"
+      style={{ background: "linear-gradient(135deg, #001e3c 0%, #003a6e 60%, #00285a 100%)" }}
+    >
+      {/* Decorative */}
+      <div className="absolute -top-16 -left-16 h-48 w-48 rounded-full opacity-10" style={{ background: "#ff9800" }} />
+      <div className="absolute -bottom-10 -right-10 h-36 w-36 rounded-full opacity-5" style={{ background: "#ff9800" }} />
+
+      {isOwner && <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={e => e.target.files[0] && onUploadImage(e.target.files[0])} />}
+
+      <div className="relative p-6 sm:p-8">
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end">
+          {/* Avatar */}
+          <div
+            className={`relative shrink-0 ${isOwner ? "cursor-pointer" : ""}`}
+            onClick={() => isOwner && !saving && fileInputRef.current?.click()}
+            onMouseEnter={() => isOwner && setImageHover(true)}
+            onMouseLeave={() => setImageHover(false)}
+          >
+            <div className="h-24 w-24 sm:h-28 sm:w-28 overflow-hidden rounded-2xl ring-4 ring-orange-400/50 relative">
+              <img
+                src={worker.profileImage || avatarUrl}
+                alt={fullName}
+                className={`h-full w-full object-cover transition-all duration-300 ${saving ? "blur-sm opacity-50" : ""}`}
+                style={{ transform: imageHover && isOwner ? "scale(1.08)" : "scale(1)" }}
+                onError={e => { e.target.src = avatarUrl; }}
+              />
+              {saving && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="animate-spin text-orange-400" size={24} />
+                </div>
+              )}
+            </div>
+            <AnimatePresence>
+              {imageHover && isOwner && !saving && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 backdrop-blur-sm">
+                  <Camera size={24} className="text-white" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <span className="absolute -bottom-1 -left-1 h-5 w-5 rounded-full border-2 border-[#001e3c]"
+              style={{ background: availability.dot }} />
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 text-center sm:text-right text-white">
+            <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+              <h1 className="text-2xl sm:text-3xl font-black">{fullName}</h1>
+              {worker.isVerified && <BadgeCheck size={22} className="text-orange-400 shrink-0" />}
+            </div>
+            <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
+              <span className="rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: "rgba(255,152,0,0.2)", color: "#ffb74d" }}>
+                {worker.category}
+              </span>
+              <span className="rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: availability.bg, color: availability.color }}>
+                {worker.status}
+              </span>
+              {isOwner && (
+                <span className="rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}>
+                  ملفك الشخصي
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-sm text-blue-200">
+              {worker.city && <span className="flex items-center gap-1"><MapPin size={13} />{worker.city}</span>}
+              <span className="flex items-center gap-1"><Mail size={13} />{worker.email}</span>
+            </div>
+          </div>
+
+          {/* ── RBAC: Action Buttons ── */}
+          <div className="flex flex-col gap-2.5 w-full sm:w-auto">
+            {isOwner ? (
+              /* OWNER buttons */
+              <>
+                <motion.button
+                  whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.02 }}
+                  className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-lg transition"
+                  style={{ background: "linear-gradient(135deg, #ff9800, #f57c00)" }}
+                >
+                  <Edit3 size={16} />
+                  تعديل الملف الشخصي
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.02 }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
+                >
+                  <BarChart2 size={16} />
+                  إحصائيات الحساب
+                </motion.button>
+              </>
+            ) : (
+              /* VISITOR buttons */
+              <>
+                <motion.button
+                  whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.02 }}
+                  className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-lg transition"
+                  style={{ background: "linear-gradient(135deg, #ff9800, #f57c00)" }}
+                >
+                  <CalendarCheck size={16} />
+                  احجز الآن
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.02 }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
+                >
+                  <MessageCircle size={16} />
+                  راسل العامل
+                </motion.button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// STATS BAR
+// ══════════════════════════════════════════════════════════════
+const StatsBar = ({ worker }) => {
+  const stats = [
+    { icon: Briefcase,    label: "سنوات الخبرة", value: `${worker.yearsOfExperience}+`, color: "#001e3c" },
+    { icon: Star,         label: "التقييم العام", value: worker.rating,                 color: "#f59e0b", isRating: true },
+    { icon: CheckCircle,  label: "مهام منجزة",   value: worker.completedJobs,           color: "#16a34a" },
+    { icon: Award,        label: "عدد التقييمات", value: worker.reviewsCount,           color: "#7c3aed" },
+  ];
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      {stats.map((s, i) => (
+        <motion.div
+          key={s.label}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.07 }}
+          className="flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm text-center hover:shadow-md hover:border-orange-200 transition-all duration-300"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${s.color}15` }}>
+            <s.icon size={18} style={{ color: s.color }} />
+          </div>
+          {s.isRating ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-xl font-black text-gray-800">{s.value}</span>
+              <StarRating rating={s.value} size={11} />
+            </div>
+          ) : (
+            <span className="text-xl font-black text-gray-800">{s.value}</span>
+          )}
+          <span className="text-xs text-gray-400 font-medium">{s.label}</span>
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// SIDEBAR NAV
+// ══════════════════════════════════════════════════════════════
+const WorkerSidebar = ({ worker, isOwner, activeTab, setActiveTab }) => {
+  const fullName = `${worker.firstName} ${worker.lastName}`;
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=ff9800&color=fff&size=200&bold=true`;
+  const tabs = isOwner ? OWNER_TABS : VISITOR_TABS;
+
+  return (
+    <aside className="lg:col-span-1">
+      <div className="sticky top-6 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+        {/* Mini profile */}
+        <div className="border-b border-gray-50 p-5 text-center">
+          <img
+            src={worker.profileImage || avatarUrl}
+            alt={fullName}
+            className="mx-auto mb-2 h-14 w-14 rounded-full object-cover ring-2 ring-orange-200"
+            onError={e => { e.target.src = avatarUrl; }}
+          />
+          <p className="text-sm font-bold text-gray-800">{fullName}</p>
+          <p className="text-xs text-gray-400">{worker.category}</p>
+          <div className="mt-2 flex justify-center">
+            <StarRating rating={worker.rating} size={12} />
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <nav className="p-3">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${activeTab === tab.id ? "bg-[#001e3c] text-white shadow-md" : "text-gray-500 hover:bg-gray-50"}`}
+            >
+              <tab.icon size={16} className={activeTab === tab.id ? "text-orange-400" : ""} />
+              <span className="flex-1 text-right">{tab.label}</span>
+              <ChevronRight size={14} className={activeTab === tab.id ? "rotate-180 text-orange-400" : "text-gray-300"} />
+            </button>
+          ))}
+        </nav>
+
+        {/* ── RBAC: Visitor quick-book card ── */}
+        {!isOwner && (
+          <div className="border-t border-gray-50 p-4 flex flex-col gap-2">
+            <button
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white transition hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, #ff9800, #f57c00)" }}
+            >
+              <CalendarCheck size={15} />
+              احجز الآن
+            </button>
+            <button className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-bold text-gray-600 transition hover:bg-gray-50">
+              <Phone size={15} />
+              اتصل بالعامل
+            </button>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// TAB: OVERVIEW
+// ══════════════════════════════════════════════════════════════
+const OverviewTab = ({ worker, isOwner }) => (
+  <div className="flex flex-col gap-5">
+    {/* Bio */}
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50">
+          <Info size={13} className="text-green-600" />
+        </div>
+        <h3 className="text-sm font-bold text-gray-800">نبذة عني</h3>
+      </div>
+      <p className="text-sm text-gray-600 leading-relaxed">{worker.bio}</p>
+    </div>
+
+    {/* Info grid */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {[
+        { icon: Phone,    label: "الهاتف",     value: worker.phone },
+        { icon: MapPin,   label: "الموقع",     value: worker.city },
+        { icon: Clock,    label: "الخبرة",     value: `${worker.yearsOfExperience} سنوات` },
+        { icon: Shield,   label: "التخصص",    value: worker.subcategory },
+        { icon: Mail,     label: "البريد",     value: worker.email },
+        { icon: Briefcase,label: "المهام المنجزة", value: `${worker.completedJobs} مهمة` },
+      ].map(item => (
+        <div key={item.label} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+          <item.icon size={14} className="text-orange-400 shrink-0" />
+          <div>
+            <p className="text-xs text-gray-400 font-medium">{item.label}</p>
+            <p className="text-xs font-semibold text-gray-700">{item.value}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* ── RBAC: Trust badges for visitor ── */}
+    {!isOwner && (
+      <div className="rounded-2xl border border-gray-100 bg-orange-50/40 p-4">
+        <p className="text-xs font-bold text-gray-700 mb-3">ضمانات تدبير</p>
+        <div className="flex flex-col gap-2">
+          {[
+            { icon: Shield,    text: "ضمان جودة العمل" },
+            { icon: BadgeCheck,text: "عامل موثق ومعتمد" },
+            { icon: Clock,     text: "دفع بعد اكتمال الخدمة" },
+          ].map(item => (
+            <div key={item.text} className="flex items-center gap-2 text-xs text-gray-600">
+              <item.icon size={13} className="text-green-500 shrink-0" />
+              {item.text}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* ── RBAC: Owner sees quick-stats panel instead ── */}
+    {isOwner && (
+      <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+        <p className="text-xs font-bold text-gray-700 mb-3">ملخص الأداء هذا الشهر</p>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "طلبات جديدة", value: "12" },
+            { label: "مكتملة",      value: "9" },
+            { label: "ملغاة",       value: "1" },
+          ].map(s => (
+            <div key={s.label} className="text-center rounded-xl bg-white border border-gray-100 py-3">
+              <p className="text-lg font-black text-gray-800">{s.value}</p>
+              <p className="text-xs text-gray-400">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// ══════════════════════════════════════════════════════════════
+// TAB: PORTFOLIO
+// ══════════════════════════════════════════════════════════════
+const PortfolioTab = ({ images, isOwner }) => {
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  return (
+    <div>
+      {/* ── RBAC: Owner sees upload button ── */}
+      {isOwner && (
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          className="mb-4 flex items-center gap-2 rounded-xl border border-dashed border-orange-300 bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-500 hover:bg-orange-100 transition"
+        >
+          <ImagePlus size={15} />
+          إضافة صورة جديدة
+        </motion.button>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {images.map((img, i) => (
+          <motion.div
+            key={img.id}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.05 }}
+            className="group relative cursor-pointer overflow-hidden rounded-2xl aspect-[4/3] bg-gray-100"
+            onClick={() => setLightboxIndex(i)}
+          >
+            <img src={img.url} alt={img.caption}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+              <p className="text-white text-xs font-semibold">{img.caption}</p>
+            </div>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90">
+                <ZoomIn size={13} className="text-gray-700" />
+              </div>
+            </div>
+            {/* ── RBAC: Delete button for owner ── */}
+            {isOwner && (
+              <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white hover:bg-red-600"
+                  onClick={e => { e.stopPropagation(); }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <Lightbox images={images} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// TAB: SERVICES
+// ══════════════════════════════════════════════════════════════
+const ServicesTab = ({ services, isOwner }) => (
+  <div>
+    {/* ── RBAC: Owner can add a service ── */}
+    {isOwner && (
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        className="mb-4 flex items-center gap-2 rounded-xl border border-dashed border-orange-300 bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-500 hover:bg-orange-100 transition"
+      >
+        <Tag size={15} />
+        إضافة خدمة جديدة
+      </motion.button>
+    )}
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {services.map((s, i) => (
+        <motion.div
+          key={s.name}
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.06 }}
+          className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/30 transition-all duration-200"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="h-2 w-2 rounded-full bg-orange-400 shrink-0" />
+            <span className="text-sm font-semibold text-gray-700">{s.name}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-orange-500 whitespace-nowrap">{s.price}</span>
+            {/* ── RBAC: Edit icon for owner ── */}
+            {isOwner && (
+              <button className="opacity-0 group-hover:opacity-100 transition text-gray-400 hover:text-orange-500">
+                <Edit3 size={13} />
+              </button>
+            )}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+);
+
+// ══════════════════════════════════════════════════════════════
+// TAB: REVIEWS
+// ══════════════════════════════════════════════════════════════
+const ReviewsTab = ({ reviews, rating, reviewsCount, isOwner }) => (
+  <div>
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-1.5">
+        <span className="text-2xl font-black text-gray-800">{rating}</span>
+        <div className="flex flex-col gap-0.5">
+          <StarRating rating={rating} size={13} />
+          <span className="text-xs text-gray-400">{reviewsCount} تقييم</span>
+        </div>
+      </div>
+      {/* ── RBAC: Visitor can add review, owner cannot ── */}
+      {!isOwner && (
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          className="flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-md"
+        >
+          <Star size={13} />
+          أضف تقييمك
+        </motion.button>
+      )}
+    </div>
+
+    <div className="flex flex-col gap-3">
+      {reviews.map((r, i) => (
+        <motion.div
+          key={r.id}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.08 }}
+          className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#001e3c] text-xs font-bold text-orange-400">
+                {r.name.charAt(0)}
+              </div>
+              <span className="text-sm font-bold text-gray-700">{r.name}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <StarRating rating={r.rating} size={12} />
+              <span className="text-xs text-gray-400">{new Date(r.date).toLocaleDateString("ar-SA")}</span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-600 leading-relaxed">{r.comment}</p>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+);
+
+// ══════════════════════════════════════════════════════════════
+// TAB: SETTINGS (Owner only)
+// ══════════════════════════════════════════════════════════════
+const SettingsTab = ({ worker }) => {
+  const toast = useToast();
+  const [availability, setAvailability] = useState(worker.status);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await new Promise(r => setTimeout(r, 1200));
+    setSaving(false);
+    toast("تم حفظ الإعدادات بنجاح ✓");
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Availability */}
+      <div>
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">حالة التوفر</h4>
+        <div className="flex gap-2 flex-wrap">
+          {Object.entries(AVAILABILITY_MAP).map(([status, meta]) => (
+            <button
+              key={status}
+              onClick={() => setAvailability(status)}
+              className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold transition border"
+              style={availability === status
+                ? { background: meta.bg, color: meta.color, borderColor: meta.color }
+                : { background: "#f9fafb", color: "#6b7280", borderColor: "#e5e7eb" }}
+            >
+              <span className="h-2 w-2 rounded-full" style={{ background: meta.dot }} />
+              {status}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Notification prefs */}
+      <div>
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">الإشعارات</h4>
+        <div className="flex flex-col gap-3">
+          {[
+            { label: "إشعارات الطلبات الجديدة", defaultOn: true },
+            { label: "إشعارات التقييمات",       defaultOn: true },
+            { label: "نشرة الأسبوعية",           defaultOn: false },
+          ].map(pref => {
+            const [on, setOn] = useState(pref.defaultOn);
+            return (
+              <div key={pref.label} className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <span className="text-sm font-medium text-gray-700">{pref.label}</span>
+                <button onClick={() => setOn(v => !v)} className="text-gray-400 hover:text-orange-500 transition">
+                  {on ? <ToggleRight size={24} className="text-orange-500" /> : <ToggleLeft size={24} />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Security */}
+      <div>
+        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">الأمان</h4>
+        <div className="flex flex-col gap-2">
+          <button className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700 hover:border-orange-200 hover:bg-orange-50/30 transition text-right w-full">
+            <Lock size={14} className="text-orange-400 shrink-0" />
+            تغيير كلمة المرور
+          </button>
+          <button className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50/40 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition text-right w-full">
+            <AlertTriangle size={14} className="shrink-0" />
+            تعطيل الحساب مؤقتاً
+          </button>
+        </div>
+      </div>
+
+      {/* Save */}
+      <div className="flex justify-end border-t border-gray-50 pt-4">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-md transition disabled:opacity-60"
+          style={{ background: "linear-gradient(135deg, #ff9800, #f57c00)" }}
+        >
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          {saving ? "جاري الحفظ..." : "حفظ الإعدادات"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// MOBILE FLOATING ACTIONS — RBAC-aware
+// ══════════════════════════════════════════════════════════════
+const FloatingActions = ({ isOwner, activeTab, setActiveTab }) => {
+  if (isOwner) {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-40 flex gap-3 border-t border-gray-100 bg-white/95 p-4 backdrop-blur-md sm:hidden">
+        <button
+          onClick={() => setActiveTab("settings")}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50"
+        >
+          <Settings size={15} />
+          الإعدادات
+        </button>
+        <button
+          onClick={() => setActiveTab("overview")}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-lg transition"
+          style={{ background: "linear-gradient(135deg, #ff9800, #f57c00)" }}
+        >
+          <Edit3 size={15} />
+          تعديل الملف
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex gap-3 border-t border-gray-100 bg-white/95 p-4 backdrop-blur-md sm:hidden">
+      <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50">
+        <MessageCircle size={15} />
+        رسالة
+      </button>
+      <button
+        className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-lg transition"
+        style={{ background: "linear-gradient(135deg, #ff9800, #f57c00)" }}
+      >
+        <CalendarCheck size={15} />
+        احجز الآن
+      </button>
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// MOBILE TAB BAR (small screens)
+// ══════════════════════════════════════════════════════════════
+const MobileTabBar = ({ activeTab, setActiveTab, isOwner }) => {
+  const tabs = isOwner ? OWNER_TABS : VISITOR_TABS;
+  return (
+    <div className="flex gap-1 mb-5 overflow-x-auto pb-1 lg:hidden">
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => setActiveTab(tab.id)}
+          className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold whitespace-nowrap transition ${activeTab === tab.id ? "bg-[#001e3c] text-white" : "bg-white border border-gray-100 text-gray-500"}`}
+        >
+          <tab.icon size={13} className={activeTab === tab.id ? "text-orange-400" : ""} />
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// MAIN EXPORT
+// ══════════════════════════════════════════════════════════════
+const WorkerProfileContent = ({ worker = MOCK_WORKER, currentUser = MOCK_CURRENT_USER }) => {
+  const isOwner = currentUser?.id === worker.id;
+  const [activeTab, setActiveTab] = useState("overview");
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+
+  const handleUploadImage = async (file) => {
+    setSaving(true);
+    await new Promise(r => setTimeout(r, 1500)); // simulate API call
+    setSaving(false);
+    toast("تم تحديث الصورة الشخصية بنجاح ✓");
+  };
+
+  const tabContent = {
+    overview:  <OverviewTab  worker={worker} isOwner={isOwner} />,
+    portfolio: <PortfolioTab images={worker.portfolioImages} isOwner={isOwner} />,
+    services:  <ServicesTab  services={worker.services} isOwner={isOwner} />,
+    reviews:   <ReviewsTab   reviews={worker.reviews} rating={worker.rating} reviewsCount={worker.reviewsCount} isOwner={isOwner} />,
+    settings:  isOwner ? <SettingsTab worker={worker} /> : null,
+  };
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-[#f8f6f3] p-4 pb-28 sm:p-6 sm:pb-6 lg:p-10">
+      <div className="mx-auto max-w-5xl">
+
+        {/* Profile Header */}
+        <WorkerHeader worker={worker} isOwner={isOwner} onUploadImage={handleUploadImage} saving={saving} />
+
+        {/* Stats Bar */}
+        <StatsBar worker={worker} />
+
+        {/* Mobile Tab Scroll */}
+        <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} isOwner={isOwner} />
+
+        {/* Main Grid: Sidebar + Content */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+
+          {/* Sidebar (hidden on mobile, uses MobileTabBar instead) */}
+          <div className="hidden lg:block lg:col-span-1">
+            <WorkerSidebar
+              worker={worker}
+              isOwner={isOwner}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+            />
+          </div>
+
+          {/* Content Panel */}
+          <main className="lg:col-span-3">
+            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm min-h-[400px]">
+              {/* Panel heading */}
+              <div className="mb-5 border-b border-gray-50 pb-4 flex items-center justify-between">
+                <h2 className="text-base font-black text-gray-800">
+                  {(isOwner ? OWNER_TABS : VISITOR_TABS).find(t => t.id === activeTab)?.label}
+                </h2>
+                {/* RBAC tag */}
+                <span className={`rounded-full px-3 py-0.5 text-xs font-bold ${isOwner ? "bg-orange-50 text-orange-500" : "bg-blue-50 text-blue-600"}`}>
+                  {isOwner ? "أنت المالك" : "زائر"}
+                </span>
+              </div>
+
+              {/* Animated Tab Content */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {tabContent[activeTab]}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      {/* Mobile Floating Actions */}
+      <FloatingActions isOwner={isOwner} activeTab={activeTab} setActiveTab={setActiveTab} />
+    </div>
+  );
+};
+
+const WorkerProfile = ({ worker, currentUser }) => (
+  <ToastProvider>
+   
+    <WorkerProfileContent worker={worker} currentUser={currentUser} />
+  </ToastProvider>
+);
 
 export default WorkerProfile;
