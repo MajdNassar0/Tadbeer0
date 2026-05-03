@@ -69,6 +69,14 @@ function Navbar() {
     }
   }, [location.pathname, location.hash]);
 
+
+const handleProfileNavigation = () => {
+  const profilePath =
+    role === "worker" ? `/worker-profile/${user.id}` : `/user-profile`;
+  navigate(profilePath);
+  setOpen(false);
+};
+
   useEffect(() => {
     if (location.pathname !== "/" || isNavigating) return;
     const sections = ["#about", "#ContactSection"];
@@ -191,20 +199,15 @@ function Navbar() {
                         لوحة التحكم
                       </button>
                     )}
+                    {user && (
+  <button
+    onClick={handleProfileNavigation}
+    className="flex items-center gap-3 text-gray-800 font-bold text-lg"
+  >
+    <User size={20} /> الملف الشخصي
+  </button>
+)}
 
-                    <button
-                      onClick={() => {
-    // إذا كان عامل يروح لبروفايل الويركر، وإذا زبون يروح لبروفايل اليوزر
-    const profilePath = user?.role === 'worker' 
-      ? `/worker/${user.id}` 
-      : `/user-profile`;
-    
-    navigate(profilePath);
-  }}
-                      className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
-                    >
-                      <User size={18} className="text-gray-400" /> الملف الشخصي
-                    </button>
 
                     <button
                       onClick={handleLogout}
