@@ -875,7 +875,9 @@ const SettingsTab = ({ worker, onToggleStatus, toggling, updateWorker, saving })
     return e;
   };
 
- const handleSave = async () => {
+// src/pages/WorkerProfile/WorkerProfile.jsx
+
+const handleSave = async () => {
   const errs = validate();
   if (Object.keys(errs).length) { setErrors(errs); return; }
 
@@ -888,10 +890,9 @@ const SettingsTab = ({ worker, onToggleStatus, toggling, updateWorker, saving })
 
   const res = await updateWorker(payload);
   if (res?.ok) {
-    // التعديل المطلوب هنا: تحديث الـ Context بالاسم الجديد
+    // ✅ التعديل: تحديث الاسم في الـ Context ليظهر في الـ Navbar فوراً
     updateUser({
-      firstName: form.FirstName,
-      lastName:  form.LastName
+      name: `${form.FirstName} ${form.LastName}`.trim()
     });
 
     toast("تم حفظ البيانات بنجاح ✓");
@@ -1211,14 +1212,17 @@ const WorkerProfileContent = () => {
 
   const handleEditClick     = () => setActiveTab("settings");
 
- const handleUploadProfile = async (file) => {
+// src/pages/WorkerProfile/WorkerProfile.jsx
+
+const handleUploadProfile = async (file) => {
   const res = await uploadProfileImage(file, worker);
   if (res.ok) {
-    // التعديل المطلوب هنا: تحديث الصورة في الـ Context
-    // افترضنا أن الـ res يحتوي على رابط الصورة الجديد أو نأخذه من الـ worker بعد التحديث
+    // ✅ التعديل: تحديث الصورة في الـ Context
+    // نستخدم الصورة العائدة من السيرفر (res.worker.profileImage) 
     updateUser({
-      profileImage: res.imageUrl || worker.profileImage 
+      image: res.worker?.profileImage || res.worker?.ProfileImage
     });
+    
     toast("تم تحديث صورة الملف الشخصي ✓");
   } else {
     toast(res.error || "فشل رفع الصورة", "error");
