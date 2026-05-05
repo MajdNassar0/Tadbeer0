@@ -5,7 +5,8 @@ import React, {
 } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext"; 
+
 import { useWorkerProfile } from "../../Hooks/useWorkerProfile";
 import { getFullImageUrl } from "../../Utils/imageHelper";
 import {
@@ -16,7 +17,7 @@ import {
   Edit3, Camera, Settings, Lock, LayoutDashboard,
   Save, Loader2, BarChart2, ToggleLeft, ToggleRight,
   AlertTriangle, Trash2, ImagePlus, Tag, AlertCircle,
-  User, FileText, Hash,
+  User, FileText, Hash, Navigation, Plus, Minus, Calendar,
 } from "lucide-react";
 
 // ══════════════════════════════════════════════════════════════
@@ -30,22 +31,28 @@ const AVAILABILITY_MAP = {
   مشغول:     { color: "#dc2626", bg: "#fee2e2", dot: "#ef4444", label: "مشغول" },
   إجازة:     { color: "#d97706", bg: "#fef3c7", dot: "#f59e0b", label: "إجازة" },
 };
-const getAvail = (status) =>
-  AVAILABILITY_MAP[status] || { color: "#16a34a", bg: "#dcfce7", dot: "#22c55e", label: status || "متاح" };
+const getAvail = (s) =>
+  AVAILABILITY_MAP[s] || { color:"#16a34a", bg:"#dcfce7", dot:"#22c55e", label: s || "متاح" };
+
+// أيام الأسبوع بالترتيب (Scalar enum values)
+const DAYS = [
+  { key: "Saturday",  label: "السبت"    },
+  { key: "Sunday",    label: "الأحد"    },
+  { key: "Monday",    label: "الاثنين"  },
+  { key: "Tuesday",   label: "الثلاثاء" },
+  { key: "Wednesday", label: "الأربعاء" },
+  { key: "Thursday",  label: "الخميس"  },
+  { key: "Friday",    label: "الجمعة"  },
+];
 
 const OWNER_TABS = [
   { id: "overview",  label: "نظرة عامة",       icon: LayoutDashboard },
-  { id: "portfolio", label: "معرض الأعمال",    icon: BookOpen },
-  { id: "services",  label: "الخدمات والأسعار", icon: Wrench },
-  { id: "reviews",   label: "التقييمات",        icon: Star },
-  { id: "settings",  label: "إعدادات الحساب",   icon: Settings },
+  { id: "portfolio", label: "معرض الأعمال",    icon: BookOpen        },
+  { id: "services",  label: "الخدمات والأسعار", icon: Wrench          },
+  { id: "reviews",   label: "التقييمات",        icon: Star            },
+  { id: "settings",  label: "إعدادات الحساب",   icon: Settings        },
 ];
-const VISITOR_TABS = [
-  { id: "overview",  label: "نظرة عامة",       icon: LayoutDashboard },
-  { id: "portfolio", label: "معرض الأعمال",    icon: BookOpen },
-  { id: "services",  label: "الخدمات والأسعار", icon: Wrench },
-  { id: "reviews",   label: "التقييمات",        icon: Star },
-];
+const VISITOR_TABS = OWNER_TABS.slice(0, 4);
 
 // ══════════════════════════════════════════════════════════════
 // TOAST
@@ -61,18 +68,19 @@ const ToastProvider = ({ children }) => {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2" style={{ minWidth: 260 }}>
+      <div className="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2"
+        style={{ minWidth: 260 }}>
         <AnimatePresence>
           {toasts.map(t => (
             <motion.div key={t.id}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              initial={{ opacity:0, y:20, scale:0.95 }}
+              animate={{ opacity:1, y:0,  scale:1    }}
+              exit={{ opacity:0, y:10, scale:0.95 }}
               className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-xl
                 ${t.type === "success" ? "bg-[#001e3c]" : "bg-red-600"}`}>
               {t.type === "success"
-                ? <CheckCircle size={16} className="text-orange-400" />
-                : <XCircle size={16} />}
+                ? <CheckCircle size={16} className="text-orange-400"/>
+                : <XCircle size={16}/>}
               {t.msg}
             </motion.div>
           ))}
@@ -84,10 +92,10 @@ const ToastProvider = ({ children }) => {
 const useToast = () => useContext(ToastCtx);
 
 // ══════════════════════════════════════════════════════════════
-// MICRO COMPONENTS
+// PRIMITIVES
 // ══════════════════════════════════════════════════════════════
 const Sk = ({ className = "" }) => (
-  <div className={`rounded-lg animate-pulse bg-gray-200 ${className}`} />
+  <div className={`rounded-lg animate-pulse bg-gray-200 ${className}`}/>
 );
 
 const StarRating = ({ rating, size = 14 }) => (
@@ -96,7 +104,7 @@ const StarRating = ({ rating, size = 14 }) => (
       <Star key={s} size={size}
         className={s <= Math.round(rating)
           ? "text-orange-400 fill-orange-400"
-          : "text-gray-200 fill-gray-200"} />
+          : "text-gray-200 fill-gray-200"}/>
     ))}
   </div>
 );
@@ -104,7 +112,7 @@ const StarRating = ({ rating, size = 14 }) => (
 const ErrorState = ({ message, onRetry }) => (
   <div className="flex flex-col items-center gap-4 py-20 text-center">
     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-      <AlertCircle size={32} className="text-red-400" />
+      <AlertCircle size={32} className="text-red-400"/>
     </div>
     <p className="text-lg font-bold text-gray-700">{message || "حدث خطأ ما"}</p>
     <button onClick={onRetry}
@@ -114,36 +122,35 @@ const ErrorState = ({ message, onRetry }) => (
   </div>
 );
 
-// ── Input field component ──────────────────────────────────
-const Field = ({ icon: Icon, label, name, value, onChange, error,
-                 placeholder = "", type = "text", as = "input", rows = 3 }) => (
+// Generic field wrapper (input / textarea)
+const Field = ({
+  icon: Icon, label, name, value, onChange, error,
+  placeholder = "", type = "text", as = "input", rows = 3,
+  min, max, step,
+}) => (
   <div className="flex flex-col gap-1.5">
     <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-      <Icon size={13} className="text-orange-400" />
+      <Icon size={13} className="text-orange-400"/>
       {label}
     </label>
     {as === "textarea" ? (
-      <textarea
-        name={name} value={value} onChange={onChange}
+      <textarea name={name} value={value} onChange={onChange}
         placeholder={placeholder} rows={rows}
         className={`w-full resize-none rounded-xl border px-4 py-2.5 text-sm font-medium text-gray-800
           outline-none transition-all duration-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100
           ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
-        dir="rtl"
-      />
+        dir="rtl"/>
     ) : (
-      <input
-        type={type} name={name} value={value} onChange={onChange}
-        placeholder={placeholder}
+      <input type={type} name={name} value={value} onChange={onChange}
+        placeholder={placeholder} min={min} max={max} step={step}
         className={`w-full rounded-xl border px-4 py-2.5 text-sm font-medium text-gray-800
           outline-none transition-all duration-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100
           ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
-        dir="rtl"
-      />
+        dir="rtl"/>
     )}
     <AnimatePresence>
       {error && (
-        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+        <motion.p initial={{ opacity:0, y:-4 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
           className="text-xs text-red-500 font-medium">
           {error}
         </motion.p>
@@ -157,39 +164,163 @@ const Field = ({ icon: Icon, label, name, value, onChange, error,
 // ══════════════════════════════════════════════════════════════
 const Lightbox = ({ images, initialIndex, onClose }) => {
   const [cur, setCur] = useState(initialIndex);
+  const img = images[cur];
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
       onClick={onClose}>
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-3xl"
+      <motion.div initial={{ scale:0.9, opacity:0 }} animate={{ scale:1, opacity:1 }}
+        exit={{ scale:0.9, opacity:0 }} className="relative w-full max-w-3xl"
         onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white">
-          <IconX size={28} />
+          <IconX size={28}/>
         </button>
-        <img src={getFullImageUrl(images[cur].imageUrl || images[cur].url) || images[cur].url}
-          alt={images[cur].caption || ""}
-          className="w-full max-h-[75vh] object-contain rounded-2xl" />
+        <img src={getFullImageUrl(img.imageUrl || img.url) || img.url}
+          alt={img.caption || ""}
+          className="w-full max-h-[75vh] object-contain rounded-2xl"/>
         {images.length > 1 && (
           <div className="absolute inset-y-0 flex items-center justify-between w-full px-2 pointer-events-none">
             <button onClick={() => setCur(i => (i-1+images.length)%images.length)}
               className="pointer-events-auto bg-black/40 hover:bg-black/70 text-white rounded-full p-2">
-              <ChevronRight size={22} />
+              <ChevronRight size={22}/>
             </button>
             <button onClick={() => setCur(i => (i+1)%images.length)}
               className="pointer-events-auto bg-black/40 hover:bg-black/70 text-white rounded-full p-2">
-              <ChevronLeft size={22} />
+              <ChevronLeft size={22}/>
             </button>
           </div>
         )}
         <div className="flex justify-center gap-1.5 mt-3">
-          {images.map((_, i) => (
+          {images.map((_,i) => (
             <button key={i} onClick={() => setCur(i)}
-              className={`h-1.5 rounded-full transition-all ${i===cur?"w-6 bg-orange-400":"w-1.5 bg-white/30"}`} />
+              className={`h-1.5 rounded-full transition-all ${i===cur?"w-6 bg-orange-400":"w-1.5 bg-white/30"}`}/>
           ))}
         </div>
       </motion.div>
     </motion.div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORKING HOURS EDITOR
+// Each row: dayOfWeek (enum) + startTime + endTime
+// ══════════════════════════════════════════════════════════════
+const WorkingHoursEditor = ({ value = [], onChange }) => {
+  const addRow = () => onChange([...value, { dayOfWeek: "Saturday", startTime: "08:00", endTime: "17:00" }]);
+  const removeRow = (i) => onChange(value.filter((_,idx) => idx !== i));
+  const updateRow = (i, field, val) => {
+    const next = value.map((r, idx) => idx === i ? { ...r, [field]: val } : r);
+    onChange(next);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+          <Clock size={13} className="text-orange-400"/>
+          ساعات العمل
+        </label>
+        <button type="button" onClick={addRow}
+          className="flex items-center gap-1 rounded-lg bg-orange-50 border border-orange-200 px-2.5 py-1 text-xs font-bold text-orange-500 hover:bg-orange-100 transition">
+          <Plus size={12}/>إضافة يوم
+        </button>
+      </div>
+
+      {value.length === 0 && (
+        <p className="text-xs text-gray-400 italic text-center py-3 border border-dashed border-gray-200 rounded-xl">
+          لم تُضف أي ساعات عمل بعد
+        </p>
+      )}
+
+      {value.map((row, i) => (
+        <motion.div key={i}
+          initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }}
+          className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+          {/* Day */}
+          <select value={row.dayOfWeek}
+            onChange={e => updateRow(i, "dayOfWeek", e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+            {DAYS.map(d => (
+              <option key={d.key} value={d.key}>{d.label}</option>
+            ))}
+          </select>
+          {/* Start */}
+          <input type="time" value={row.startTime}
+            onChange={e => updateRow(i, "startTime", e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100"/>
+          {/* End */}
+          <input type="time" value={row.endTime}
+            onChange={e => updateRow(i, "endTime", e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100"/>
+          {/* Remove */}
+          <button type="button" onClick={() => removeRow(i)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition">
+            <Minus size={14}/>
+          </button>
+        </motion.div>
+      ))}
+
+      {/* Legend */}
+      {value.length > 0 && (
+        <div className="flex items-center gap-4 text-xs text-gray-400 px-1">
+          <span>اليوم</span>
+          <span className="mr-auto">من</span>
+          <span>إلى</span>
+          <span className="w-7"/>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// SPECIALTY TAGS EDITOR (SpecialtyIds[])
+// ══════════════════════════════════════════════════════════════
+const SpecialtyEditor = ({ value = [], onChange }) => {
+  const [input, setInput] = useState("");
+
+  const add = () => {
+    const trimmed = input.trim();
+    if (trimmed && !value.includes(trimmed)) {
+      onChange([...value, trimmed]);
+    }
+    setInput("");
+  };
+
+  const remove = (id) => onChange(value.filter(v => v !== id));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+        <Tag size={13} className="text-orange-400"/>
+        التخصصات (Specialty IDs)
+      </label>
+      <div className="flex gap-2">
+        <input value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), add())}
+          placeholder="أدخل معرف التخصص واضغط Enter"
+          className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+          dir="rtl"/>
+        <button type="button" onClick={add}
+          className="flex items-center gap-1 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-100 transition">
+          <Plus size={13}/>إضافة
+        </button>
+      </div>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-1">
+          {value.map(id => (
+            <span key={id}
+              className="flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-3 py-1 text-xs font-bold text-orange-600">
+              {id}
+              <button type="button" onClick={() => remove(id)}
+                className="ml-1 hover:text-red-500 transition">
+                <IconX size={10}/>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -202,27 +333,24 @@ const WorkerHeader = ({
 }) => {
   const [hover, setHover] = useState(false);
   const ref = useRef(null);
-  const avail  = getAvail(worker?.status);
+  const avail = getAvail(worker?.status);
   const fullName = worker ? `${worker.firstName||""} ${worker.lastName||""}`.trim() : "";
-  const avatar = fullName
-    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=001e3c&color=ff9800&size=200&bold=true`
-    : `https://ui-avatars.com/api/?name=W&background=001e3c&color=ff9800&size=200&bold=true`;
+  const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName||"W")}&background=001e3c&color=ff9800&size=200&bold=true`;
 
   return (
     <motion.div initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }}
       className="relative mb-6 overflow-hidden rounded-3xl shadow-2xl"
-      style={{ background: "linear-gradient(135deg,#001e3c 0%,#003a6e 60%,#00285a 100%)" }}>
-      <div className="absolute -top-16 -left-16 h-48 w-48 rounded-full opacity-10 bg-orange-400" />
-      <div className="absolute -bottom-10 -right-10 h-36 w-36 rounded-full opacity-5 bg-orange-400" />
+      style={{ background:"linear-gradient(135deg,#001e3c 0%,#003a6e 60%,#00285a 100%)" }}>
+      <div className="absolute -top-16 -left-16 h-48 w-48 rounded-full opacity-10 bg-orange-400"/>
+      <div className="absolute -bottom-10 -right-10 h-36 w-36 rounded-full opacity-5 bg-orange-400"/>
 
       {isOwner && (
         <input ref={ref} type="file" className="hidden" accept="image/*"
-          onChange={e => e.target.files[0] && onUploadImage(e.target.files[0])} />
+          onChange={e => e.target.files[0] && onUploadImage(e.target.files[0])}/>
       )}
 
       <div className="relative p-6 sm:p-8">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end">
-
           {/* Avatar */}
           <div
             className={`relative shrink-0 ${isOwner && !loading ? "cursor-pointer" : ""}`}
@@ -230,36 +358,34 @@ const WorkerHeader = ({
             onMouseEnter={() => isOwner && !loading && setHover(true)}
             onMouseLeave={() => setHover(false)}>
             <div className="h-24 w-24 sm:h-28 sm:w-28 overflow-hidden rounded-2xl ring-4 ring-orange-400/50 relative">
-              {loading
-                ? <Sk className="h-full w-full" />
-                : <>
-                    <img
-                      src={getFullImageUrl(worker?.profileImage || worker?.ProfileImage) || avatar}
-                      alt={fullName}
-                      className={`h-full w-full object-cover transition-all duration-300
-                        ${saving ? "blur-sm opacity-50" : ""}`}
-                      style={{ transform: hover && isOwner ? "scale(1.08)" : "scale(1)" }}
-                      onError={e => { e.target.src = avatar; }}
-                    />
-                    {saving && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Loader2 className="animate-spin text-orange-400" size={24} />
-                      </div>
-                    )}
-                  </>
-              }
+              {loading ? <Sk className="h-full w-full"/> : (
+                <>
+                  <img
+                    src={getFullImageUrl(worker?.profileImage || worker?.ProfileImage) || avatar}
+                    alt={fullName}
+                    className={`h-full w-full object-cover transition-all duration-300 ${saving ? "blur-sm opacity-50" : ""}`}
+                    style={{ transform: hover && isOwner ? "scale(1.08)" : "scale(1)" }}
+                    onError={e => { e.target.src = avatar; }}
+                  />
+                  {saving && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="animate-spin text-orange-400" size={24}/>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <AnimatePresence>
               {hover && isOwner && !loading && !saving && (
                 <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
                   className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 backdrop-blur-sm">
-                  <Camera size={24} className="text-white" />
+                  <Camera size={24} className="text-white"/>
                 </motion.div>
               )}
             </AnimatePresence>
             {!loading && (
               <span className="absolute -bottom-1 -left-1 h-5 w-5 rounded-full border-2 border-[#001e3c]"
-                style={{ background: avail.dot }} />
+                style={{ background: avail.dot }}/>
             )}
           </div>
 
@@ -267,13 +393,13 @@ const WorkerHeader = ({
           <div className="flex-1 text-center sm:text-right text-white">
             {loading ? (
               <div className="flex flex-col gap-2 items-center sm:items-start">
-                <Sk className="h-8 w-52" /><Sk className="h-5 w-32" /><Sk className="h-4 w-40" />
+                <Sk className="h-8 w-52"/><Sk className="h-5 w-32"/><Sk className="h-4 w-40"/>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
                   <h1 className="text-2xl sm:text-3xl font-black">{fullName || "—"}</h1>
-                  {worker?.isVerified && <BadgeCheck size={22} className="text-orange-400 shrink-0" />}
+                  {worker?.isVerified && <BadgeCheck size={22} className="text-orange-400 shrink-0"/>}
                 </div>
                 <div className="flex items-center justify-center sm:justify-start gap-2 mb-3 flex-wrap">
                   {worker?.category && (
@@ -295,24 +421,22 @@ const WorkerHeader = ({
                 </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-sm text-blue-200">
                   {worker?.city  && <span className="flex items-center gap-1"><MapPin size={13}/>{worker.city}</span>}
-                  {worker?.email && <span className="flex items-center gap-1"><Mail size={13}/>{worker.email}</span>}
+                  {worker?.email && <span className="flex items-center gap-1"><Mail   size={13}/>{worker.email}</span>}
                 </div>
               </>
             )}
           </div>
 
-          {/* Buttons — RBAC */}
+          {/* Buttons */}
           {!loading && (
             <div className="flex flex-col gap-2.5 w-full sm:w-auto">
               {isOwner ? (
                 <>
-                  {/* ── OWNER: زر تعديل الملف الشخصي يفتح Settings tab ── */}
                   <motion.button whileTap={{ scale:0.97 }} whileHover={{ scale:1.02 }}
                     onClick={onEditClick}
                     className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-lg transition"
                     style={{ background:"linear-gradient(135deg,#ff9800,#f57c00)" }}>
-                    <Edit3 size={15} />
-                    تعديل الملف الشخصي
+                    <Edit3 size={15}/>تعديل الملف الشخصي
                   </motion.button>
                   <motion.button whileTap={{ scale:0.97 }} whileHover={{ scale:1.02 }}
                     onClick={onToggleStatus} disabled={toggling}
@@ -347,7 +471,7 @@ const WorkerHeader = ({
 // ══════════════════════════════════════════════════════════════
 const StatsBar = ({ worker, loading }) => {
   const stats = [
-    { icon:Briefcase,   label:"سنوات الخبرة", value:`${worker?.yearsOfExperience||0}+`, color:"#001e3c" },
+    { icon:Briefcase,   label:"سنوات الخبرة", value:`${worker?.experienceYears || worker?.yearsOfExperience || 0}+`, color:"#001e3c" },
     { icon:Star,        label:"التقييم العام", value:worker?.rating||0,                  color:"#f59e0b", isRating:true },
     { icon:CheckCircle, label:"مهام منجزة",   value:worker?.completedJobs||0,            color:"#16a34a" },
     { icon:Award,       label:"عدد التقييمات",value:worker?.reviewsCount||0,             color:"#7c3aed" },
@@ -398,7 +522,7 @@ const WorkerSidebar = ({ worker, isOwner, loading, activeTab, setActiveTab }) =>
                 className="mx-auto mb-2 h-14 w-14 rounded-full object-cover ring-2 ring-orange-200"
                 onError={e=>{ e.target.src=avatar; }}/>
               <p className="text-sm font-bold text-gray-800">{fullName}</p>
-              <p className="text-xs text-gray-400">{worker?.category}</p>
+              <p className="text-xs text-gray-400">{worker?.category || worker?.jobDescription}</p>
               <div className="mt-2 flex justify-center">
                 <StarRating rating={worker?.rating||0} size={12}/>
               </div>
@@ -418,11 +542,11 @@ const WorkerSidebar = ({ worker, isOwner, loading, activeTab, setActiveTab }) =>
         </nav>
         {!isOwner && !loading && (
           <div className="border-t border-gray-50 p-4 flex flex-col gap-2">
-            <button className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white transition hover:opacity-90"
+            <button className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white hover:opacity-90 transition"
               style={{ background:"linear-gradient(135deg,#ff9800,#f57c00)" }}>
               <CalendarCheck size={15}/>احجز الآن
             </button>
-            <button className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-bold text-gray-600 transition hover:bg-gray-50">
+            <button className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 transition">
               <Phone size={15}/>اتصل بالعامل
             </button>
           </div>
@@ -442,18 +566,20 @@ const OverviewTab = ({ worker, isOwner, loading }) => (
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50">
           <Info size={13} className="text-green-600"/>
         </div>
-        <h3 className="text-sm font-bold text-gray-800">نبذة عني</h3>
+        <h3 className="text-sm font-bold text-gray-800">وصف العمل</h3>
       </div>
       {loading
-        ? <div className="flex flex-col gap-2"><Sk className="h-4 w-full"/><Sk className="h-4 w-3/4"/><Sk className="h-4 w-5/6"/></div>
-        : <p className="text-sm text-gray-600 leading-relaxed">{worker?.bio || "لا توجد نبذة شخصية."}</p>
+        ? <div className="flex flex-col gap-2"><Sk className="h-4 w-full"/><Sk className="h-4 w-3/4"/></div>
+        : <p className="text-sm text-gray-600 leading-relaxed">
+            {worker?.jobDescription || worker?.bio || "لا يوجد وصف."}
+          </p>
       }
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {[
-        { icon:Phone,     label:"الهاتف",         value:worker?.phoneNumber||worker?.phone },
+        { icon:Phone,     label:"الهاتف",         value:worker?.phoneNumber },
         { icon:MapPin,    label:"الموقع",         value:worker?.city },
-        { icon:Clock,     label:"الخبرة",         value:worker?.yearsOfExperience ? `${worker.yearsOfExperience} سنوات` : null },
+        { icon:Clock,     label:"سنوات الخبرة",   value:(worker?.experienceYears ?? worker?.yearsOfExperience) != null ? `${worker.experienceYears ?? worker.yearsOfExperience} سنوات` : null },
         { icon:Shield,    label:"التخصص",         value:worker?.subcategory },
         { icon:Mail,      label:"البريد",         value:worker?.email },
         { icon:Briefcase, label:"المهام المنجزة", value:worker?.completedJobs ? `${worker.completedJobs} مهمة` : null },
@@ -462,12 +588,11 @@ const OverviewTab = ({ worker, isOwner, loading }) => (
           <item.icon size={14} className="text-orange-400 shrink-0"/>
           <div>
             <p className="text-xs text-gray-400 font-medium">{item.label}</p>
-            {loading
-              ? <Sk className="h-3 w-20 mt-1"/>
-              : <p className="text-xs font-semibold text-gray-700">
-                  {item.value || <span className="italic text-gray-300">غير محدد</span>}
-                </p>
-            }
+            {loading ? <Sk className="h-3 w-20 mt-1"/> : (
+              <p className="text-xs font-semibold text-gray-700">
+                {item.value || <span className="italic text-gray-300">غير محدد</span>}
+              </p>
+            )}
           </div>
         </div>
       ))}
@@ -552,13 +677,13 @@ const PortfolioTab = ({ images=[], isOwner, loading, onUploadImage, onDeleteImag
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
                 <p className="text-white text-xs font-semibold">{img.caption}</p>
               </div>
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90">
                   <ZoomIn size={13} className="text-gray-700"/>
                 </div>
               </div>
               {isOwner && (
-                <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white hover:bg-red-600"
                     onClick={e => { e.stopPropagation(); onDeleteImage(img.id); }}>
@@ -604,7 +729,7 @@ const ServicesTab = ({ services=[], isOwner, loading }) => (
         {services.map((s,i) => (
           <motion.div key={s.name||i}
             initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.06 }}
-            className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/30 transition-all duration-200">
+            className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/30 transition-all">
             <div className="flex items-center gap-2.5">
               <div className="h-2 w-2 rounded-full bg-orange-400 shrink-0"/>
               <span className="text-sm font-semibold text-gray-700">{s.name}</span>
@@ -686,36 +811,47 @@ const ReviewsTab = ({ reviews=[], rating=0, reviewsCount=0, isOwner, loading }) 
 );
 
 // ══════════════════════════════════════════════════════════════
-// TAB: SETTINGS — with full edit form wired to PUT /Worker/Profile/me
+// TAB: SETTINGS — Full form with ALL Scalar fields
 // ══════════════════════════════════════════════════════════════
 const SettingsTab = ({ worker, onToggleStatus, toggling, updateWorker, saving }) => {
   const toast = useToast();
   const avail = getAvail(worker?.status);
 
-  // ── Edit form state — pre-filled from worker data ──────────
-  const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState({
-    firstName:         worker?.firstName         || "",
-    lastName:          worker?.lastName          || "",
-    city:              worker?.city              || "",
-    phoneNumber:       worker?.phoneNumber       || "",
-    bio:               worker?.bio               || "",
-    yearsOfExperience: worker?.yearsOfExperience ?? "",
-  });
-  const [errors, setErrors] = useState({});
+  // ── Form state pre-filled from worker ─────────────────────
+  const blank = {
+    FirstName:       "",
+    LastName:        "",
+    PhoneNumber:     "",
+    JobDescription:  "",
+    ExperienceYears: "",
+    DateOfBirth:     "",
+    Latitude:        "",
+    Longitude:       "",
+    SpecialtyIds:    [],
+    WorkingHours:    [],
+  };
 
-  // Sync form when worker data loads
+  const [editMode,  setEditMode]  = useState(false);
+  const [form,      setForm]      = useState(blank);
+  const [errors,    setErrors]    = useState({});
+
+  // Sync form when worker data arrives
   useEffect(() => {
-    if (worker) {
-      setForm({
-        firstName:         worker.firstName         || "",
-        lastName:          worker.lastName          || "",
-        city:              worker.city              || "",
-        phoneNumber:       worker.phoneNumber       || "",
-        bio:               worker.bio               || "",
-        yearsOfExperience: worker.yearsOfExperience ?? "",
-      });
-    }
+    if (!worker) return;
+    setForm({
+      FirstName:       worker.firstName       || "",
+      LastName:        worker.lastName        || "",
+      PhoneNumber:     worker.phoneNumber     || "",
+      JobDescription:  worker.jobDescription  || worker.bio || "",
+      ExperienceYears: worker.experienceYears ?? worker.yearsOfExperience ?? "",
+      DateOfBirth:     worker.dateOfBirth
+        ? worker.dateOfBirth.split("T")[0]
+        : "",
+      Latitude:        worker.latitude  ?? "",
+      Longitude:       worker.longitude ?? "",
+      SpecialtyIds:    worker.specialtyIds    || [],
+      WorkingHours:    worker.workingHours    || [],
+    });
   }, [worker]);
 
   const handleChange = (e) => {
@@ -726,12 +862,16 @@ const SettingsTab = ({ worker, onToggleStatus, toggling, updateWorker, saving })
 
   const validate = () => {
     const e = {};
-    if (!form.firstName.trim()) e.firstName = "الاسم الأول مطلوب";
-    if (!form.lastName.trim())  e.lastName  = "الاسم الأخير مطلوب";
-    if (form.phoneNumber && !/^\+?[0-9\s\-]{7,15}$/.test(form.phoneNumber))
-      e.phoneNumber = "رقم الهاتف غير صالح";
-    if (form.yearsOfExperience !== "" && (isNaN(form.yearsOfExperience) || form.yearsOfExperience < 0))
-      e.yearsOfExperience = "يجب أن يكون رقماً صحيحاً";
+    if (!form.FirstName.trim())  e.FirstName  = "الاسم الأول مطلوب";
+    if (!form.LastName.trim())   e.LastName   = "الاسم الأخير مطلوب";
+    if (form.PhoneNumber && !/^\+?[0-9\s\-]{7,15}$/.test(form.PhoneNumber))
+      e.PhoneNumber = "رقم الهاتف غير صالح";
+    if (form.ExperienceYears !== "" && isNaN(Number(form.ExperienceYears)))
+      e.ExperienceYears = "يجب أن يكون رقماً";
+    if (form.Latitude  !== "" && (isNaN(Number(form.Latitude))  || Number(form.Latitude)  < -90  || Number(form.Latitude)  > 90))
+      e.Latitude  = "خط العرض بين -90 و 90";
+    if (form.Longitude !== "" && (isNaN(Number(form.Longitude)) || Number(form.Longitude) < -180 || Number(form.Longitude) > 180))
+      e.Longitude = "خط الطول بين -180 و 180";
     return e;
   };
 
@@ -739,20 +879,21 @@ const SettingsTab = ({ worker, onToggleStatus, toggling, updateWorker, saving })
   const errs = validate();
   if (Object.keys(errs).length) { setErrors(errs); return; }
 
-  // تجهيز البيانات لترسل للـ Hook
   const payload = {
-    firstName: form.firstName,
-    lastName: form.lastName,
-    phoneNumber: form.phoneNumber,
-    bio: form.bio, // سيتم تحويلها لـ JobDescription داخل الـ Hook
-    yearsOfExperience: parseInt(form.yearsOfExperience) || 0, // التأكد أنها رقم
-    // إذا أردت إضافة تاريخ الميلاد لاحقاً:
-    // DateOfBirth: form.dateOfBirth 
+    ...form,
+    ExperienceYears: form.ExperienceYears !== "" ? Number(form.ExperienceYears) : undefined,
+    Latitude:        form.Latitude        !== "" ? Number(form.Latitude)        : undefined,
+    Longitude:       form.Longitude       !== "" ? Number(form.Longitude)       : undefined,
   };
 
   const res = await updateWorker(payload);
-  
   if (res?.ok) {
+    // التعديل المطلوب هنا: تحديث الـ Context بالاسم الجديد
+    updateUser({
+      firstName: form.FirstName,
+      lastName:  form.LastName
+    });
+
     toast("تم حفظ البيانات بنجاح ✓");
     setEditMode(false);
     setErrors({});
@@ -767,25 +908,21 @@ const SettingsTab = ({ worker, onToggleStatus, toggling, updateWorker, saving })
     else toast(res?.error || "فشل تغيير الحالة", "error");
   };
 
-  // داخل SettingsTab في ملف WorkerProfile.jsx
-const formFields = [
-  { icon: User, label: "الاسم الأول", name: "firstName", placeholder: "أدخل الاسم الأول" },
-  { icon: User, label: "الاسم الأخير", name: "lastName", placeholder: "أدخل الاسم الأخير" },
-  // { icon: MapPin, label: "المدينة", name: "city", placeholder: "مثال: نابلس" }, // عطلها إذا كان السيرفر لا يدعم City
-  { icon: Phone, label: "رقم الهاتف", name: "phoneNumber", placeholder: "+970 5XX XXX XXX" },
-  { icon: Hash, label: "سنوات الخبرة", name: "yearsOfExperience", placeholder: "مثال: 5", type: "number" },
-];
+  // Section header component
+  const SectionHead = ({ title, subtitle }) => (
+    <div className="flex flex-col gap-0.5 mb-4">
+      <p className="text-sm font-bold text-gray-800">{title}</p>
+      {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-8">
 
-      {/* ── Section 1: Personal Info Edit ─────────────────── */}
+      {/* ══ SECTION 1: Personal Info ═══════════════════════════ */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="text-sm font-bold text-gray-800">البيانات الشخصية</h4>
-            <p className="text-xs text-gray-400 mt-0.5">تعديل معلوماتك المهنية</p>
-          </div>
+          <SectionHead title="البيانات الشخصية" subtitle="تعديل معلوماتك المهنية"/>
           {!editMode && (
             <motion.button whileTap={{ scale:0.97 }} onClick={() => setEditMode(true)}
               className="flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-500 hover:bg-orange-100 transition">
@@ -796,33 +933,79 @@ const formFields = [
 
         <AnimatePresence mode="wait">
           {editMode ? (
-            /* ── EDIT FORM ── */
-            <motion.div key="form"
-              initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }}>
+            <motion.div key="edit-form"
+              initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
 
-              {/* Text fields grid */}
+              {/* ── Row 1: Name ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                {formFields.map((f,i) => (
-                  <motion.div key={f.name}
-                    initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
-                    <Field {...f} value={form[f.name]} onChange={handleChange} error={errors[f.name]}/>
-                  </motion.div>
-                ))}
+                <Field icon={User} label="الاسم الأول *" name="FirstName"
+                  value={form.FirstName} onChange={handleChange} error={errors.FirstName}
+                  placeholder="أدخل الاسم الأول"/>
+                <Field icon={User} label="الاسم الأخير *" name="LastName"
+                  value={form.LastName} onChange={handleChange} error={errors.LastName}
+                  placeholder="أدخل الاسم الأخير"/>
               </div>
 
-              {/* Bio – full width */}
-              <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.22 }}
-                className="mb-5">
-                <Field icon={FileText} label="النبذة الشخصية" name="bio"
-                  value={form.bio} onChange={handleChange} error={errors.bio}
-                  placeholder="اكتب نبذة مختصرة عن خبرتك وتخصصك..."
-                  as="textarea" rows={4}/>
-              </motion.div>
+              {/* ── Row 2: Phone + Experience ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <Field icon={Phone} label="رقم الهاتف" name="PhoneNumber"
+                  value={form.PhoneNumber} onChange={handleChange} error={errors.PhoneNumber}
+                  placeholder="+970 5XX XXX XXX"/>
+                <Field icon={Hash} label="سنوات الخبرة" name="ExperienceYears"
+                  value={form.ExperienceYears} onChange={handleChange} error={errors.ExperienceYears}
+                  placeholder="مثال: 5" type="number" min="0" max="60"/>
+              </div>
 
-              {/* Action row */}
+              {/* ── Row 3: DateOfBirth ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <Field icon={Calendar} label="تاريخ الميلاد" name="DateOfBirth"
+                  value={form.DateOfBirth} onChange={handleChange} error={errors.DateOfBirth}
+                  type="date"/>
+              </div>
+
+              {/* ── JobDescription ── */}
+              <div className="mb-4">
+                <Field icon={FileText} label="وصف العمل (JobDescription)"
+                  name="JobDescription"
+                  value={form.JobDescription} onChange={handleChange} error={errors.JobDescription}
+                  placeholder="اكتب وصفاً لعملك وتخصصك..."
+                  as="textarea" rows={3}/>
+              </div>
+
+              {/* ── Location: Latitude + Longitude ── */}
+              <div className="mb-4">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2">
+                  <Navigation size={13} className="text-orange-400"/>
+                  الموقع الجغرافي (اختياري)
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field icon={Navigation} label="خط العرض (Latitude)" name="Latitude"
+                    value={form.Latitude} onChange={handleChange} error={errors.Latitude}
+                    placeholder="-90 إلى 90" type="number" min="-90" max="90" step="any"/>
+                  <Field icon={Navigation} label="خط الطول (Longitude)" name="Longitude"
+                    value={form.Longitude} onChange={handleChange} error={errors.Longitude}
+                    placeholder="-180 إلى 180" type="number" min="-180" max="180" step="any"/>
+                </div>
+              </div>
+
+              {/* ── SpecialtyIds ── */}
+              <div className="mb-4">
+                <SpecialtyEditor
+                  value={form.SpecialtyIds}
+                  onChange={val => setForm(p => ({ ...p, SpecialtyIds: val }))}/>
+              </div>
+
+              {/* ── WorkingHours ── */}
+              <div className="mb-6">
+                <WorkingHoursEditor
+                  value={form.WorkingHours}
+                  onChange={val => setForm(p => ({ ...p, WorkingHours: val }))}/>
+              </div>
+
+              {/* ── Buttons ── */}
               <div className="flex items-center justify-end gap-3 border-t border-gray-50 pt-4">
                 <button onClick={() => { setEditMode(false); setErrors({}); }}
-                  className="flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-500 transition hover:bg-gray-50">
+                  className="flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition">
                   <IconX size={14}/>إلغاء
                 </button>
                 <button onClick={handleSave} disabled={saving}
@@ -836,50 +1019,93 @@ const formFields = [
             </motion.div>
 
           ) : (
-            /* ── READ-ONLY VIEW ── */
-            /* ── READ-ONLY VIEW ── */
-<motion.div key="view"
-  initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-  className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-  {[
-    { icon: User,    label: "الاسم الأول",  value: worker?.firstName }, 
-  { icon: User,    label: "الاسم الأخير", value: worker?.lastName },
-  { icon: MapPin,  label: "المدينة",      value: worker?.city },
-  { icon: Phone,   label: "رقم الهاتف",   value: worker?.phoneNumber },
-  // هنا التعديل المهم: السيرفر غالباً يرسلها ExperienceYears
-  { icon: Hash,    label: "سنوات الخبرة", value: worker?.experienceYears || worker?.ExperienceYears }, 
-  { icon: Mail,    label: "البريد",        value: worker?.email },
-  ].map(item => (
-    <div key={item.label}
-      className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
-      <item.icon size={14} className="text-orange-400 shrink-0"/>
-      <div>
-        <p className="text-xs text-gray-400 font-medium">{item.label}</p>
-        <p className="text-xs font-semibold text-gray-700">
-          {item.value || <span className="italic text-gray-300">غير محدد</span>}
-        </p>
-      </div>
-    </div>
-  ))}
-  
-  {/* عرض الوصف الوظيفي (Bio) */}
-  {(worker?.jobDescription || worker?.bio) && (
-    <div className="sm:col-span-2 flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
-      <FileText size={14} className="text-orange-400 shrink-0 mt-0.5"/>
-      <div>
-        <p className="text-xs text-gray-400 font-medium">النبذة الشخصية</p>
-        <p className="text-xs font-semibold text-gray-700 leading-relaxed">
-          {worker?.jobDescription || worker?.bio}
-        </p>
-      </div>
-    </div>
-  )}
-</motion.div>
+            /* ── READ VIEW ── */
+            <motion.div key="read-view"
+              initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+              className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { icon:User,      label:"الاسم الأول",     value:worker?.firstName },
+                  { icon:User,      label:"الاسم الأخير",    value:worker?.lastName },
+                  { icon:Phone,     label:"رقم الهاتف",      value:worker?.phoneNumber },
+                  { icon:Hash,      label:"سنوات الخبرة",    value:worker?.experienceYears ?? worker?.yearsOfExperience },
+                  { icon:Calendar,  label:"تاريخ الميلاد",   value:worker?.dateOfBirth ? new Date(worker.dateOfBirth).toLocaleDateString("ar-SA") : null },
+                  { icon:Mail,      label:"البريد",           value:worker?.email },
+                  { icon:Navigation,label:"خط العرض",        value:worker?.latitude },
+                  { icon:Navigation,label:"خط الطول",        value:worker?.longitude },
+                ].map(item => (
+                  <div key={item.label}
+                    className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                    <item.icon size={14} className="text-orange-400 shrink-0"/>
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium">{item.label}</p>
+                      <p className="text-xs font-semibold text-gray-700">
+                        {item.value ?? <span className="italic text-gray-300">غير محدد</span>}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* JobDescription */}
+              {(worker?.jobDescription || worker?.bio) && (
+                <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                  <FileText size={14} className="text-orange-400 shrink-0 mt-0.5"/>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium">وصف العمل</p>
+                    <p className="text-xs font-semibold text-gray-700 leading-relaxed">
+                      {worker.jobDescription || worker.bio}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* SpecialtyIds */}
+              {worker?.specialtyIds?.length > 0 && (
+                <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                  <Tag size={14} className="text-orange-400 shrink-0 mt-0.5"/>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium mb-1.5">التخصصات</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {worker.specialtyIds.map(id => (
+                        <span key={id} className="rounded-full bg-orange-50 border border-orange-200 px-2.5 py-0.5 text-xs font-bold text-orange-600">
+                          {id}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* WorkingHours */}
+              {worker?.workingHours?.length > 0 && (
+                <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                  <Clock size={14} className="text-orange-400 shrink-0 mt-0.5"/>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 font-medium mb-2">ساعات العمل</p>
+                    <div className="flex flex-col gap-1.5">
+                      {worker.workingHours.map((wh, i) => {
+                        const day = DAYS.find(d => d.key === wh.dayOfWeek);
+                        return (
+                          <div key={i} className="flex items-center gap-3 text-xs font-semibold text-gray-700">
+                            <span className="w-16 text-orange-500">{day?.label || wh.dayOfWeek}</span>
+                            <span className="text-gray-400">من</span>
+                            <span>{wh.startTime}</span>
+                            <span className="text-gray-400">إلى</span>
+                            <span>{wh.endTime}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* ── Section 2: Availability ───────────────────────── */}
+      {/* ══ SECTION 2: Availability ════════════════════════════ */}
       <div>
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">حالة التوفر</h4>
         <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
@@ -898,7 +1124,7 @@ const formFields = [
         </div>
       </div>
 
-      {/* ── Section 3: Security ───────────────────────────── */}
+      {/* ══ SECTION 3: Security ════════════════════════════════ */}
       <div>
         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">الأمان</h4>
         <div className="flex flex-col gap-2">
@@ -912,13 +1138,12 @@ const formFields = [
           </button>
         </div>
       </div>
-
     </div>
   );
 };
 
 // ══════════════════════════════════════════════════════════════
-// MOBILE TAB BAR + FLOATING ACTIONS
+// MOBILE BAR + FLOATING ACTIONS
 // ══════════════════════════════════════════════════════════════
 const MobileTabBar = ({ activeTab, setActiveTab, isOwner }) => {
   const tabs = isOwner ? OWNER_TABS : VISITOR_TABS;
@@ -955,7 +1180,7 @@ const FloatingActions = ({ isOwner, setActiveTab }) => (
         <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-600">
           <MessageCircle size={15}/>رسالة
         </button>
-        <button className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-lg transition"
+        <button className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-lg"
           style={{ background:"linear-gradient(135deg,#ff9800,#f57c00)" }}>
           <CalendarCheck size={15}/>احجز الآن
         </button>
@@ -965,10 +1190,11 @@ const FloatingActions = ({ isOwner, setActiveTab }) => (
 );
 
 // ══════════════════════════════════════════════════════════════
-// MAIN CONTENT COMPONENT
+// MAIN CONTENT
 // ══════════════════════════════════════════════════════════════
 const WorkerProfileContent = () => {
-  const { workerId }     = useParams();
+  const { user, updateUser } = useAuth();
+  const { workerId }       = useParams();
   const { user: authUser } = useAuth();
   const toast = useToast();
 
@@ -983,61 +1209,58 @@ const WorkerProfileContent = () => {
 
   const [activeTab, setActiveTab] = useState("overview");
 
-  // زر "تعديل الملف الشخصي" في الهيدر → ينتقل لتبويب الإعدادات
-  const handleEditClick = () => setActiveTab("settings");
+  const handleEditClick     = () => setActiveTab("settings");
 
-  const handleUploadProfileImage = async (file) => {
-    const res = await uploadProfileImage(file, worker);
-    if (res.ok) toast("تم تحديث صورة الملف الشخصي ✓");
-    else toast(res.error || "فشل رفع الصورة", "error");
-  };
+ const handleUploadProfile = async (file) => {
+  const res = await uploadProfileImage(file, worker);
+  if (res.ok) {
+    // التعديل المطلوب هنا: تحديث الصورة في الـ Context
+    // افترضنا أن الـ res يحتوي على رابط الصورة الجديد أو نأخذه من الـ worker بعد التحديث
+    updateUser({
+      profileImage: res.imageUrl || worker.profileImage 
+    });
+    toast("تم تحديث صورة الملف الشخصي ✓");
+  } else {
+    toast(res.error || "فشل رفع الصورة", "error");
+  }
+};
 
-  const handleToggleStatus = async () => {
+  const handleToggleStatus  = async () => {
     const res = await toggleStatus();
     if (res.ok) toast("تم تغيير حالة التوفر ✓");
     else toast(res.error || "فشل تغيير الحالة", "error");
   };
 
-  const handleUploadWorkImage = async (file) => {
+  const handleUploadWork    = async (file) => {
     const res = await uploadWorkImage(file);
     if (res.ok) toast("تمت إضافة الصورة للمعرض ✓");
     else toast(res.error || "فشل رفع الصورة", "error");
   };
 
-  const handleDeleteWorkImage = async (id) => {
+  const handleDeleteWork    = async (id) => {
     const res = await deleteWorkImage(id);
     if (res.ok) toast("تم حذف الصورة ✓");
     else toast(res.error || "فشل حذف الصورة", "error");
   };
 
-  // الصور: إما من الـ hook (workImages) أو من بيانات العامل
   const portfolioImages = workImages.length > 0
     ? workImages
     : (worker?.portfolioImages || worker?.workImages || []);
 
   const tabContent = {
-    overview: <OverviewTab worker={worker} isOwner={isOwner} loading={loading}/>,
-    portfolio: (
-      <PortfolioTab
-        images={portfolioImages} isOwner={isOwner}
-        loading={loading} saving={saving}
-        onUploadImage={handleUploadWorkImage}
-        onDeleteImage={handleDeleteWorkImage}
-      />
-    ),
-    services: <ServicesTab services={worker?.services||[]} isOwner={isOwner} loading={loading}/>,
-    reviews: (
-      <ReviewsTab
-        reviews={worker?.reviews||[]} rating={worker?.rating||0}
-        reviewsCount={worker?.reviewsCount||0} isOwner={isOwner} loading={loading}
-      />
-    ),
+    overview:  <OverviewTab  worker={worker} isOwner={isOwner} loading={loading}/>,
+    portfolio: <PortfolioTab images={portfolioImages} isOwner={isOwner}
+                 loading={loading} saving={saving}
+                 onUploadImage={handleUploadWork} onDeleteImage={handleDeleteWork}/>,
+    services:  <ServicesTab  services={worker?.services||[]} isOwner={isOwner} loading={loading}/>,
+    reviews:   <ReviewsTab   reviews={worker?.reviews||[]} rating={worker?.rating||0}
+                 reviewsCount={worker?.reviewsCount||0} isOwner={isOwner} loading={loading}/>,
     settings: isOwner ? (
       <SettingsTab
         worker={worker}
         onToggleStatus={handleToggleStatus}
         toggling={toggling}
-        updateWorker={updateWorker}   // ← دالة الـ PUT مباشرة
+        updateWorker={updateWorker}
         saving={saving}
       />
     ) : null,
@@ -1059,9 +1282,9 @@ const WorkerProfileContent = () => {
         <WorkerHeader
           worker={worker} isOwner={isOwner}
           loading={loading} saving={saving} toggling={toggling}
-          onUploadImage={handleUploadProfileImage}
+          onUploadImage={handleUploadProfile}
           onToggleStatus={handleToggleStatus}
-          onEditClick={handleEditClick}       // ← ينقل للإعدادات
+          onEditClick={handleEditClick}
         />
         <StatsBar worker={worker} loading={loading}/>
         <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} isOwner={isOwner}/>
