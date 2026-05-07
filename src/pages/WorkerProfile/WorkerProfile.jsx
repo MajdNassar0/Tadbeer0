@@ -30,7 +30,7 @@ import SettingsTab from "./tabs/SettingsTab";
 
 // Tab definitions with icon components (not strings)
 const OWNER_TABS = [
-  { id: "overview",  label: "نظرة عامة",  icon: Info     },
+  { id: "overview",  label:"المعلومات الشخصية",  icon: Info     },
   { id: "portfolio", label: "الأعمال",     icon: BookOpen },
   { id: "services",  label: "الخدمات",    icon: Wrench   },
   { id: "reviews",   label: "التقييمات",  icon: Star     },
@@ -194,6 +194,7 @@ const WorkerProfileInner = () => {
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               tabs={tabs}
+              onUploadImage={handleUploadProfile}
             />
           </div>
 

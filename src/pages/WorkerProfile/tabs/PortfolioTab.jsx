@@ -25,7 +25,7 @@ const PortfolioTab = ({ images = [], isOwner, loading, onUploadImage, onDeleteIm
 
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="aspect-[4/3] rounded-2xl"/>)}
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="aspect-4/3 rounded-2xl"/>)}
         </div>
       ) : images.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -36,7 +36,7 @@ const PortfolioTab = ({ images = [], isOwner, loading, onUploadImage, onDeleteIm
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {images.map((img, i) => (
             <motion.div key={img.id || i} whileHover={{ scale: 1.02 }}
-              className="group relative cursor-pointer overflow-hidden rounded-2xl aspect-[4/3] bg-gray-100"
+              className="group relative cursor-pointer overflow-hidden rounded-2xl aspect-4/3 bg-gray-100"
               onClick={() => setLbIdx(i)}>
               <img src={getFullImageUrl(img.imageUrl || img.url) || img.url} alt=""
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"/>

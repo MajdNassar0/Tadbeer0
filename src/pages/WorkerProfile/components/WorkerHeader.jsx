@@ -63,12 +63,12 @@ const WorkerHeader = ({
             ) : (
               <>
                 <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                  <h1 className="text-2xl sm:text-3xl font-black">{fullName || "—"}</h1>
+                  <h1 className="text-2xl sm:text-3xl font-black m-2">{fullName || "—"}</h1>
                   {worker?.isVerified && <BadgeCheck size={22} className="text-orange-400 shrink-0"/>}
                 </div>
                 <div className="flex items-center justify-center sm:justify-start gap-2 mb-3 flex-wrap">
                   <span className="rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: avail.bg, color: avail.color }}>{avail.label}</span>
-                  {isOwner && <span className="rounded-full px-3 py-0.5 text-xs font-bold bg-white/10 text-white">ملفك الشخصي</span>}
+                  {isOwner && <span className="rounded-full px-3 py-0.5 text-xs font-bold border-b-black bg-white/10 text-emerald-100">ملفك الشخصي</span>}
                 </div>
               </>
             )}
