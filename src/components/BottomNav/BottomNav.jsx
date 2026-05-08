@@ -84,7 +84,7 @@ function BottomNav() {
               {active && (
                 <motion.div
                   layoutId="bottom-nav-pill"
-                  className="absolute inset-0 rounded-2xl bg-yellow-100"
+                  className="absolute inset-0 rounded-2xl "
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
@@ -117,7 +117,7 @@ function BottomNav() {
               {active && (
                 <motion.div
                   layoutId="bottom-nav-dot"
-                  className="absolute top-1.5 right-3  h-1.5 rounded-full bg-yellow-700"
+                  className="absolute top-1.5 right-3  h-1.5 rounded-full"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
