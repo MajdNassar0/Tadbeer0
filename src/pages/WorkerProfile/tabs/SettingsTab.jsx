@@ -1,136 +1,119 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  User, Phone, Hash, Calendar, FileText, Navigation, 
-  Edit3, X as IconX, Save, Loader2, ToggleRight, Lock, AlertTriangle 
+  User, Briefcase, ShieldCheck, Key, Shield, UserX, Trash2,
+  Phone, FileText, Calendar, MapPin, Clock, Check
 } from "lucide-react";
-import Field from "../../../components/UI/Field";
-import WorkingHoursEditor from "../components/Editors/WorkingHoursEditor";
-import { useToast } from "../../../context/ToastContext";
 
-const SettingsTab = ({ worker, onToggleStatus, toggling, updateWorker, saving, updateUser }) => {
-  const toast = useToast();
-  
-  const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState({
-    FirstName: "", LastName: "", PhoneNumber: "", JobDescription: "",
-    ExperienceYears: "", DateOfBirth: "", Latitude: "", Longitude: "",
-    SpecialtyIds: [], WorkingHours: [],
-  });
-  const [errors, setErrors] = useState({});
+const SettingsTab = ({ worker }) => {
+  const [activeTab, setActiveTab] = useState("profile"); // profile | work | security
 
-  useEffect(() => {
-    if (!worker) return;
-    setForm({
-      FirstName: worker.firstName || "",
-      LastName: worker.lastName || "",
-      PhoneNumber: worker.phoneNumber || "",
-      JobDescription: worker.jobDescription || worker.bio || "",
-      ExperienceYears: worker.experienceYears ?? worker.yearsOfExperience ?? "",
-      DateOfBirth: worker.dateOfBirth ? worker.dateOfBirth.split("T")[0] : "",
-      Latitude: worker.latitude ?? "",
-      Longitude: worker.longitude ?? "",
-      SpecialtyIds: worker.specialtyIds || [],
-      WorkingHours: worker.workingHours || [],
-    });
-  }, [worker]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(p => ({ ...p, [name]: value }));
-    if (errors[name]) setErrors(p => ({ ...p, [name]: undefined }));
-  };
-
-  const validate = () => {
-    const e = {};
-    if (!form.FirstName.trim()) e.FirstName = "الاسم الأول مطلوب";
-    if (!form.LastName.trim()) e.LastName = "الاسم الأخير مطلوب";
-    if (form.ExperienceYears !== "" && isNaN(Number(form.ExperienceYears))) e.ExperienceYears = "يجب أن يكون رقماً";
-    return e;
-  };
-
-  const handleSave = async () => {
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-
-    const payload = {
-      ...form,
-      ExperienceYears: form.ExperienceYears !== "" ? Number(form.ExperienceYears) : undefined,
-      Latitude: form.Latitude !== "" ? Number(form.Latitude) : undefined,
-      Longitude: form.Longitude !== "" ? Number(form.Longitude) : undefined,
-    };
-
-    const res = await updateWorker(payload);
-    if (res?.ok) {
-      updateUser({ name: `${form.FirstName} ${form.LastName}`.trim() });
-      toast("تم حفظ البيانات بنجاح ✓");
-      setEditMode(false);
-      setErrors({});
-    } else {
-      toast(res?.error || "فشل الحفظ", "error");
-    }
-  };
+  // مكون الصف الاحترافي (Row)
+  const SettingsRow = ({ icon: Icon, title, description, actionText, isDestructive = false }) => (
+    <motion.div 
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors mb-3"
+    >
+      <div className="flex items-center gap-4">
+        <div className={`p-3 rounded-xl ${isDestructive ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'}`}>
+          <Icon size={20} />
+        </div>
+        <div className="text-right">
+          <h4 className="text-sm font-bold text-gray-800">{title}</h4>
+          <p className="text-[11px] text-gray-400 mt-0.5">{description}</p>
+        </div>
+      </div>
+      <button className={`px-5 py-1.5 rounded-lg border text-xs font-bold transition ${
+        isDestructive ? "border-red-100 text-red-500 hover:bg-red-50" : "border-orange-100 text-orange-500 hover:bg-orange-50"
+      }`}>
+        {actionText}
+      </button>
+    </motion.div>
+  );
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-gray-800">البيانات الشخصية</h3>
-          {!editMode && (
-            <button onClick={() => setEditMode(true)} className="flex items-center gap-1.5 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-200 hover:bg-orange-100 transition">
-              <Edit3 size={12}/> تعديل
-            </button>
-          )}
-        </div>
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+      
+      {/* --- 1. تابات التنقل العلوي --- */}
+      <div className="flex items-center justify-around bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+        {[
+          { id: "profile", label: "الملف الشخصي", icon: User },
+          { id: "work", label: "إعدادات العمل", icon: Briefcase },
+          { id: "security", label: "الأمان والخصوصية", icon: ShieldCheck },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+              activeTab === tab.id 
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-100 scale-105" 
+                : "text-gray-400 hover:bg-gray-50"
+            }`}
+          >
+            <tab.icon size={18} />
+            <span className="hidden sm:inline">{tab.label}</span>
+          </button>
+        ))}
+      </div>
 
+      {/* --- 2. محتوى التابات مع أنيميشن --- */}
+      <div className="min-h-[400px]">
         <AnimatePresence mode="wait">
-          {editMode ? (
-            <motion.div key="edit" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field icon={User} label="الاسم الأول *" name="FirstName" value={form.FirstName} onChange={handleChange} error={errors.FirstName}/>
-                <Field icon={User} label="الاسم الأخير *" name="LastName" value={form.LastName} onChange={handleChange} error={errors.LastName}/>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field icon={Phone} label="رقم الهاتف" name="PhoneNumber" value={form.PhoneNumber} onChange={handleChange} error={errors.PhoneNumber}/>
-                <Field icon={Hash} label="سنوات الخبرة" name="ExperienceYears" type="number" value={form.ExperienceYears} onChange={handleChange} error={errors.ExperienceYears}/>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field icon={Calendar} label="تاريخ الميلاد" name="DateOfBirth" value={form.DateOfBirth} onChange={handleChange} type="date"/>
-              </div>
-
-              <Field icon={FileText} label="وصف العمل" name="JobDescription" as="textarea" rows={3} value={form.JobDescription} onChange={handleChange} placeholder="اكتب وصفاً لعملك..."/>
-              
-              <SpecialtyEditor value={form.SpecialtyIds} onChange={val => setForm(p => ({ ...p, SpecialtyIds: val }))}/>
-              <WorkingHoursEditor value={form.WorkingHours} onChange={val => setForm(p => ({ ...p, WorkingHours: val }))}/>
-
-              <div className="flex justify-end gap-3 border-t pt-4">
-                <button onClick={() => { setEditMode(false); setErrors({}); }} className="text-sm font-semibold text-gray-500 px-5 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition">إلغاء</button>
-                <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-orange-500 text-white px-6 py-2 rounded-xl font-bold shadow-md disabled:opacity-60 transition hover:bg-orange-600">
-                  {saving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} حفظ التغييرات
-                </button>
-              </div>
+          
+          {/* تاب الملف الشخصي */}
+          {activeTab === "profile" && (
+            <motion.div 
+              key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <h3 className="text-md font-bold text-gray-700 px-2">معلومات الحساب</h3>
+              <SettingsRow icon={User} title="الاسم الكامل" description={`${worker?.firstName} ${worker?.lastName}`} actionText="تعديل" />
+              <SettingsRow icon={Phone} title="رقم الهاتف" description={worker?.phoneNumber || "لم يربط بعد"} actionText="تعديل" />
+              <SettingsRow icon={Calendar} title="تاريخ الميلاد" description={worker?.dateOfBirth || "لم يحدد"} actionText="تعديل" />
             </motion.div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                 <User size={14} className="text-orange-400"/>
-                 <div>
-                   <p className="text-[10px] text-gray-400 font-medium">الاسم الكامل</p>
-                   <p className="text-xs font-semibold text-gray-700">{worker?.firstName} {worker?.lastName}</p>
-                 </div>
-               </div>
-               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                 <Phone size={14} className="text-orange-400"/>
-                 <div>
-                   <p className="text-[10px] text-gray-400 font-medium">رقم الهاتف</p>
-                   <p className="text-xs font-semibold text-gray-700">{worker?.phoneNumber || "غير محدد"}</p>
-                 </div>
-               </div>
-            </div>
           )}
+
+          {/* تاب العمل */}
+          {activeTab === "work" && (
+            <motion.div 
+              key="work" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <h3 className="text-md font-bold text-gray-700 px-2">إدارة المهنة</h3>
+              <SettingsRow icon={Briefcase} title="سنوات الخبرة" description={`${worker?.experienceYears || 0} سنوات خبرة`} actionText="تعديل" />
+              <SettingsRow icon={FileText} title="الوصف الوظيفي" description="تعديل النبذة التي يراها العملاء" actionText="تعديل" />
+              <SettingsRow icon={MapPin} title="موقع العمل" description="تحديد المدينة ونطاق التغطية" actionText="تحديد" />
+              <SettingsRow icon={Clock} title="ساعات العمل" description="تنظيم أوقات التوفر والاستراحة" actionText="إدارة" />
+            </motion.div>
+          )}
+
+          {/* تاب الأمان */}
+          {activeTab === "security" && (
+            <motion.div 
+              key="security" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <h3 className="text-md font-bold text-gray-700 px-2">حماية الحساب</h3>
+              <SettingsRow icon={Key} title="تغيير كلمة المرور" description="تحديث كلمة المرور بشكل دوري" actionText="تغيير" />
+              <SettingsRow icon={Shield} title="توثيق الهوية" description="ارفع هويتك للحصول على شارة موثوق" actionText="توثيق" />
+              <SettingsRow icon={UserX} title="تعطيل الحساب" description="إخفاء بروفايلك عن العملاء مؤقتاً" actionText="تعطيل" isDestructive={true} />
+              <SettingsRow icon={Trash2} title="حذف الحساب" description="حذف كافة بياناتك نهائياً" actionText="حذف" isDestructive={true} />
+            </motion.div>
+          )}
+
         </AnimatePresence>
       </div>
+
+      {/* قسم نشاط المنصة (دائماً يظهر في الأسفل أو يتبع التاب) */}
+      <div className="mt-4 p-6 bg-white rounded-3xl border border-gray-100 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800 mb-2">نشاط المنصة</h3>
+        <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
+           <div className="w-1/3 h-full bg-orange-500"></div>
+        </div>
+        <p className="text-[10px] text-gray-400 mt-2 italic">أكمل ملفك الشخصي بنسبة 70% لجذب عملاء أكثر</p>
+      </div>
+
     </div>
   );
 };
