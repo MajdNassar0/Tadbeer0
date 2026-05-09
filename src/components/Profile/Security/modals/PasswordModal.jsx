@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, X, Loader2, CheckCircle, Eye, EyeOff } from "lucide-react";
+import apiClient from "../../../../API/axiosConfig";
 
 const PasswordModal = ({ isOpen, onClose, toast }) => {
   const [loading, setLoading] = useState(false);
@@ -11,21 +12,39 @@ const PasswordModal = ({ isOpen, onClose, toast }) => {
     confirmPassword: "",
   });
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // فحص بسيط قبل الإرسال
+    // 1. فحص تطابق كلمات المرور محلياً قبل الإرسال
     if (formData.newPassword !== formData.confirmPassword) {
       return toast("كلمات المرور غير متطابقة", "error");
     }
 
     setLoading(true);
-    // محاكاة الاتصال بالـ API (هنا تربط مع الدالة الخاصة بك لاحقاً)
-    setTimeout(() => {
+
+    try {
+      // 2. إرسال الطلب باستخدام PATCH حسب توثيق Scalar
+      const response = await apiClient.patch("/Identity/Auth/change-password", {
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+        confirmNewPassword: formData.confirmPassword // التأكد من المسمى الصحيح للباك اند
+      });
+
+      // 3. التحقق من نجاح العملية حسب هيكلية Response في الصورة
+      if (response.data.isSuccess) {
+        toast("تم تحديث كلمة المرور بنجاح ✓");
+        setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        onClose();
+      } else {
+        toast(response.data.message || "فشل التحديث", "error");
+      }
+    } catch (error) {
+      // معالجة أخطاء الـ Validation أو السيرفر
+      const backendError = error.response?.data?.errors?.[0] || "حدث خطأ في النظام";
+      toast(backendError, "error");
+    } finally {
       setLoading(false);
-      toast("تم تحديث كلمة المرور بنجاح ✓");
-      onClose();
-    }, 1500);
+    }
   };
 
   return (

@@ -1,15 +1,19 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import PasswordModal from "../../../components/Profile/Security/modals/PasswordModal"; 
+import { useToast } from "../../../context/ToastContext";
 import { 
   User, Briefcase, ShieldCheck, Key, Shield, UserX, Trash2,
-  Phone, FileText, Calendar, MapPin, Clock, Check
+  Phone, FileText, Calendar, MapPin, Clock
 } from "lucide-react";
 
 const SettingsTab = ({ worker }) => {
   const [activeTab, setActiveTab] = useState("profile"); // profile | work | security
+  const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+  const toast = useToast();
 
-  // مكون الصف الاحترافي (Row)
-  const SettingsRow = ({ icon: Icon, title, description, actionText, isDestructive = false }) => (
+  // مكون الصف الاحترافي (Row) - معدل لاستقبال onClick
+  const SettingsRow = ({ icon: Icon, title, description, actionText, isDestructive = false, onClick }) => (
     <motion.div 
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
@@ -24,9 +28,14 @@ const SettingsTab = ({ worker }) => {
           <p className="text-[11px] text-gray-400 mt-0.5">{description}</p>
         </div>
       </div>
-      <button className={`px-5 py-1.5 rounded-lg border text-xs font-bold transition ${
-        isDestructive ? "border-red-100 text-red-500 hover:bg-red-50" : "border-orange-100 text-orange-500 hover:bg-orange-50"
-      }`}>
+      <button 
+        onClick={onClick} 
+        className={`px-5 py-1.5 rounded-lg border text-xs font-bold transition ${
+          isDestructive 
+            ? "border-red-100 text-red-500 hover:bg-red-50" 
+            : "border-orange-100 text-orange-500 hover:bg-orange-50"
+        }`}
+      >
         {actionText}
       </button>
     </motion.div>
@@ -64,7 +73,10 @@ const SettingsTab = ({ worker }) => {
           {/* تاب الملف الشخصي */}
           {activeTab === "profile" && (
             <motion.div 
-              key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              key="profile" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
               className="space-y-4"
             >
               <h3 className="text-md font-bold text-gray-700 px-2">معلومات الحساب</h3>
@@ -77,7 +89,10 @@ const SettingsTab = ({ worker }) => {
           {/* تاب العمل */}
           {activeTab === "work" && (
             <motion.div 
-              key="work" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              key="work" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
               className="space-y-4"
             >
               <h3 className="text-md font-bold text-gray-700 px-2">إدارة المهنة</h3>
@@ -91,11 +106,20 @@ const SettingsTab = ({ worker }) => {
           {/* تاب الأمان */}
           {activeTab === "security" && (
             <motion.div 
-              key="security" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              key="security" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
               className="space-y-4"
             >
               <h3 className="text-md font-bold text-gray-700 px-2">حماية الحساب</h3>
-              <SettingsRow icon={Key} title="تغيير كلمة المرور" description="تحديث كلمة المرور بشكل دوري" actionText="تغيير" />
+              <SettingsRow 
+                icon={Key} 
+                title="تغيير كلمة المرور" 
+                description="تحديث كلمة المرور بشكل دوري" 
+                actionText="تغيير" 
+                onClick={() => setIsPassModalOpen(true)} 
+              />
               <SettingsRow icon={Shield} title="توثيق الهوية" description="ارفع هويتك للحصول على شارة موثوق" actionText="توثيق" />
               <SettingsRow icon={UserX} title="تعطيل الحساب" description="إخفاء بروفايلك عن العملاء مؤقتاً" actionText="تعطيل" isDestructive={true} />
               <SettingsRow icon={Trash2} title="حذف الحساب" description="حذف كافة بياناتك نهائياً" actionText="حذف" isDestructive={true} />
@@ -105,7 +129,14 @@ const SettingsTab = ({ worker }) => {
         </AnimatePresence>
       </div>
 
-      {/* قسم نشاط المنصة (دائماً يظهر في الأسفل أو يتبع التاب) */}
+      {/* مودال تغيير كلمة المرور */}
+      <PasswordModal 
+        isOpen={isPassModalOpen} 
+        onClose={() => setIsPassModalOpen(false)} 
+        toast={toast} 
+      />
+
+      {/* قسم نشاط المنصة */}
       <div className="mt-4 p-6 bg-white rounded-3xl border border-gray-100 shadow-sm">
         <h3 className="text-sm font-bold text-gray-800 mb-2">نشاط المنصة</h3>
         <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
