@@ -516,16 +516,41 @@ const Booking = () => {
   const getDayName = (year, month, day) =>
     JS_DAY_TO_NAME[new Date(year, month, day).getDay()];
 
+  // Generate 1-hour slots from a working-hours entry (e.g. 08:00–17:00 → 9 slots)
+  const generateHourlySlots = (wh) => {
+    const slots = [];
+    const [startH, startM] = wh.startTime.split(":").map(Number);
+    const [endH,   endM  ] = wh.endTime.split(":").map(Number);
+    const startTotal = startH * 60 + startM;
+    const endTotal   = endH   * 60 + endM;
+    const pad = n => String(n).padStart(2, "0");
+    for (let t = startTotal; t + 60 <= endTotal; t += 60) {
+      const sh = Math.floor(t / 60), sm = t % 60;
+      const eh = Math.floor((t + 60) / 60), em = (t + 60) % 60;
+      slots.push({
+        id:         `${wh.id}_${t}`,   // unique per slot
+        workingHourId: wh.id,
+        dayOfWeek:  wh.dayOfWeek,
+        startTime:  `${pad(sh)}:${pad(sm)}:00`,
+        endTime:    `${pad(eh)}:${pad(em)}:00`,
+      });
+    }
+    return slots;
+  };
+
   const getSlotsForDate = (year, month, day) => {
     const dayName = getDayName(year, month, day);
-    return workingHours.filter(wh => wh.dayOfWeek?.toLowerCase() === dayName);
+    const dayHours = workingHours.filter(wh => wh.dayOfWeek?.toLowerCase() === dayName);
+    return dayHours.flatMap(generateHourlySlots);
   };
 
   const isSlotTaken = (slot, year, month, day) => {
     const pad = n => String(n).padStart(2, "0");
     const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
     return takenSlots.some(b =>
-      b.workingHourId === slot.id && b.bookingDate?.startsWith(dateStr)
+      b.workingHourId === slot.workingHourId &&
+      b.bookingDate?.startsWith(dateStr) &&
+      b.startTime?.slice(0, 5) === slot.startTime?.slice(0, 5)
     );
   };
 
@@ -580,7 +605,7 @@ const Booking = () => {
       const bookingDate = `${selDate.year}-${pad(selDate.month + 1)}-${pad(selDate.day)}`;
       const res = await axios.post(`${API}/User/Bookings`, {
         workerId,
-        workingHourId: selSlot.id,
+        workingHourId: selSlot.workingHourId,
         bookingDate,
         startTime: selSlot.startTime,
         endTime:   selSlot.endTime,

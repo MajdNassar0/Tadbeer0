@@ -50,10 +50,12 @@ function Workers() {
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  
+
   // Sidebar States
-  const [ratingFilter, setRatingFilter] = useState(null);
-  const [availability, setAvailability] = useState("all"); // Default to show all
+  const [ratingFilter, setRatingFilter]     = useState(null);
+  const [pendingRating, setPendingRating]   = useState(null);
+  const [availability, setAvailability]     = useState("all");
+  const [pendingAvail, setPendingAvail]     = useState("all");
 
   const specialtyIdFromUrl = searchParams.get("specialtyId");
 
@@ -88,6 +90,44 @@ function Workers() {
     return null;
   }, [workers, specialtyIdFromUrl]);
 
+  // ── Availability helpers based on workingHours ─────────────────────────────
+  const JS_DAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+
+  const isAvailableNow = (worker) => {
+    const wh = worker.workingHours;
+    if (!wh || wh.length === 0) return false;
+    const now     = new Date();
+    const dayName = JS_DAYS[now.getDay()];
+    const current = now.getHours() * 60 + now.getMinutes();
+    return wh.some(h => {
+      if (h.dayOfWeek?.toLowerCase() !== dayName) return false;
+      const [sh, sm] = (h.startTime || "00:00").split(":").map(Number);
+      const [eh, em] = (h.endTime   || "00:00").split(":").map(Number);
+      return current >= sh * 60 + sm && current <= eh * 60 + em;
+    });
+  };
+
+  const isAvailableWithin24h = (worker) => {
+    const wh = worker.workingHours;
+    if (!wh || wh.length === 0) return false;
+    const now      = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const todayName    = JS_DAYS[now.getDay()];
+    const tomorrowName = JS_DAYS[tomorrow.getDay()];
+    const currentMins  = now.getHours() * 60 + now.getMinutes();
+    return wh.some(h => {
+      const day = h.dayOfWeek?.toLowerCase();
+      const [sh, sm] = (h.startTime || "00:00").split(":").map(Number);
+      const [eh, em] = (h.endTime   || "00:00").split(":").map(Number);
+      if (day === todayName) {
+        // still has time left today
+        return eh * 60 + em > currentMins;
+      }
+      if (day === tomorrowName) return true;
+      return false;
+    });
+  };
+
   // --- FILTERING LOGIC ---
   const filteredWorkers = useMemo(() => {
     let result = [...workers];
@@ -102,16 +142,15 @@ function Workers() {
       result = result.filter(w => (w.avgRating || 5.0) >= ratingFilter);
     }
 
-    // 3. Availability ("Motah") Filter
+    // 3. Availability Filter — based on workingHours schedule
     if (availability === "now") {
-      // Logic: Show workers who are currently active/available
-      result = result.filter(w => w.isAvailable === true || w.status === "Available");
+      result = result.filter(w => isAvailableNow(w));
     } else if (availability === "24h") {
-      // Logic: Flexible check for workers available soon
-      result = result.filter(w => w.availableWithin24h === true || w.isAvailable === true);
+      result = result.filter(w => isAvailableWithin24h(w));
     }
 
     return result;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workers, specialtyIdFromUrl, ratingFilter, availability]);
 
   const PAGE_SIZE = 4;
@@ -149,7 +188,7 @@ function Workers() {
             </div>
 
             <div className="space-y-8">
-              {/* Availability Section (Motah) */}
+              {/* Availability Section */}
               <div>
                 <p className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <Clock size={16} className="text-orange-500" /> التوفر الحالي
@@ -163,13 +202,13 @@ function Workers() {
                     <div className="relative flex items-center justify-center">
                       <input
                         type="radio" name="avail"
-                        checked={availability === opt.id}
-                        onChange={() => { setAvailability(opt.id); setPage(1); }}
+                        checked={pendingAvail === opt.id}
+                        onChange={() => setPendingAvail(opt.id)}
                         className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded-full checked:border-[#F7A823] transition-all cursor-pointer"
                       />
                       <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F7A823] scale-0 peer-checked:scale-100 transition-transform"></div>
                     </div>
-                    <span className={`text-sm font-medium transition-colors ${availability === opt.id ? "text-orange-600 font-bold" : "text-gray-600"}`}>
+                    <span className={`text-sm font-medium transition-colors ${pendingAvail === opt.id ? "text-orange-600 font-bold" : "text-gray-600"}`}>
                       {opt.label}
                     </span>
                   </label>
@@ -179,30 +218,67 @@ function Workers() {
               {/* Rating Section */}
               <div className="pt-6 border-t border-gray-50">
                 <p className="text-sm font-bold text-gray-800 mb-4">التقييم</p>
+                {/* "All ratings" option */}
+                <label className="flex items-center gap-3 mb-3 cursor-pointer">
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="radio" name="rating"
+                      checked={pendingRating === null}
+                      onChange={() => setPendingRating(null)}
+                      className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded-full checked:border-[#F7A823] transition-all cursor-pointer"
+                    />
+                    <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F7A823] scale-0 peer-checked:scale-100 transition-transform"></div>
+                  </div>
+                  <span className={`text-sm font-medium transition-colors ${pendingRating === null ? "text-orange-600 font-bold" : "text-gray-600"}`}>
+                    الكل
+                  </span>
+                </label>
                 {[4.5, 4.0].map((val) => (
                   <label key={val} className="flex items-center gap-3 mb-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center">
                       <input
                         type="radio" name="rating"
-                        checked={ratingFilter === val}
-                        onChange={() => { setRatingFilter(val); setPage(1); }}
+                        checked={pendingRating === val}
+                        onChange={() => setPendingRating(val)}
                         className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded-full checked:border-[#F7A823] transition-all cursor-pointer"
                       />
                       <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F7A823] scale-0 peer-checked:scale-100 transition-transform"></div>
                     </div>
-                    <span className="text-sm text-gray-600 font-medium">{val} فأعلى</span>
+                    <span className={`text-sm font-medium transition-colors ${pendingRating === val ? "text-orange-600 font-bold" : "text-gray-600"}`}>
+                      {val} فأعلى
+                    </span>
                   </label>
                 ))}
               </div>
 
+              {/* Apply button */}
               <motion.button
                 whileHover={{ scale: 1.02, backgroundColor: "#002d5c" }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setAvailability(pendingAvail);
+                  setRatingFilter(pendingRating);
+                  setPage(1);
+                }}
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-md"
                 style={{ backgroundColor: NAVY }}
               >
                 تحديث البحث
               </motion.button>
+
+              {/* Reset link */}
+              {(ratingFilter !== null || availability !== "all") && (
+                <button
+                  onClick={() => {
+                    setAvailability("all"); setPendingAvail("all");
+                    setRatingFilter(null);  setPendingRating(null);
+                    setPage(1);
+                  }}
+                  className="w-full text-center text-xs text-orange-500 font-bold underline"
+                >
+                  إعادة ضبط الفلاتر
+                </button>
+              )}
             </div>
           </div>
         </aside>

@@ -197,7 +197,9 @@ const Login = () => {
                       setAuthError("");
                     }}
                     placeholder="كلمة المرور"
+                    autoComplete="current-password"
                     className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-12 text-right transition-colors
+                    [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden
                     ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
                     focus:outline-none focus:border-blue-900`}
                   />
