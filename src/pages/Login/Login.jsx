@@ -64,32 +64,34 @@ const Login = () => {
 
           const role = user.role?.trim().toLowerCase();
 
-          // 2. جلب تفاصيل البروفايل (الصورة والـ ID)
-          try {
-            const isWorker = role === "worker";
-            const profileUrl = isWorker
-              ? "https://tadbeer0.runasp.net/api/Worker/Profile/me"
-              : "https://tadbeer0.runasp.net/api/User/Profile/me";
+        // 2. جلب تفاصيل البروفايل (الصورة والـ ID)
+try {
+  const isWorker = role === "worker";
+  const profileUrl = isWorker
+    ? "https://tadbeer0.runasp.net/api/Worker/Profile/me"
+    : "https://tadbeer0.runasp.net/api/User/Profile/me";
 
-            const profileRes = await axios.get(profileUrl, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
+  const profileRes = await axios.get(profileUrl, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-            if (profileRes.data) {
-              user.image = profileRes.data.profileImage || profileRes.data.ProfileImage || profileRes.data.imagePath;
-              
-              if (isWorker && profileRes.data.id) {
-                localStorage.setItem("workerId", profileRes.data.id);
-              }
-            }
-          } catch (err) {
-            console.error("Failed to fetch profile details", err);
-          }
+  if (profileRes.data) {
+    // ✅ السطر الأهم: إضافة الـ id لكائن الـ user قبل إرساله للـ Context
+    user.id = profileRes.data.id || profileRes.data.userId; 
+    
+    user.image = profileRes.data.profileImage || profileRes.data.ProfileImage || profileRes.data.imagePath;
+    
+    if (isWorker && profileRes.data.id) {
+      localStorage.setItem("workerId", profileRes.data.id);
+    }
+  }
+} catch (err) {
+  console.error("Failed to fetch profile details", err);
+}
 
-          // 3. تخزين التوكن وإتمام الدخول
-          localStorage.setItem("token", token);
-          login(user, token);
-          toast.success("تم تسجيل الدخول بنجاح!");
+// 3. تخزين التوكن وإتمام الدخول
+localStorage.setItem("token", token);
+login(user, token); // الآن كائن user يحتوي على id داخله ✅
 
           // 4. تأخير بسيط ليظهر الـ Toast قبل الانتقال
           await new Promise((res) => setTimeout(res, 800));

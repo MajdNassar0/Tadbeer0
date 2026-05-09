@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Info, BookOpen, Wrench, Star, Settings } from "lucide-react";
 
 // Context & Hooks
+
 import { useAuth } from "../../context/AuthContext";
 import { useWorkerProfile } from "../../Hooks/useWorkerProfile";
 import { useToast } from "../../context/ToastContext";
@@ -38,30 +39,27 @@ const OWNER_TABS = [
 
 const VISITOR_TABS = OWNER_TABS.filter((t) => t.id !== "settings");
 
+
 const WorkerProfileInner = () => {
   const { workerId } = useParams();
   const { user: authUser, updateUser } = useAuth();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const {
-    worker,
-    workImages,
-    loading,
-    saving,
-    toggling,
-    error,
-    fetchWorker,
-    updateWorker,
-    toggleStatus,
-    uploadProfileImage,
-    uploadWorkImage,
-    deleteWorkImage,
-  } = useWorkerProfile(workerId || null);
+  // ✅ إذا كان الـ ID في الـ URL هو نفسه ID المستخدم → نعامله كـ Owner
+  const effectiveId = authUser?.id && workerId === String(authUser.id)
+    ? null
+    : workerId ?? null;
 
-  const isOwner =
-    !workerId ||
-    (authUser?.id && worker?.id && String(authUser.id) === String(worker.id));
+  // ✅ تمرير effectiveId وليس workerId
+  const {
+    worker, workImages, loading, saving, toggling, error,
+    fetchWorker, updateWorker, toggleStatus,
+    uploadProfileImage, uploadWorkImage, deleteWorkImage,
+  } = useWorkerProfile(effectiveId);
+
+
+ const isOwner = effectiveId === null;
 
   const tabs = isOwner ? OWNER_TABS : VISITOR_TABS;
 

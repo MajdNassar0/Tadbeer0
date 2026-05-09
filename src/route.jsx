@@ -39,7 +39,7 @@ const router = createBrowserRouter([
       { index: true,               element: <Home />           },
       { path: "services",          element: <Services />       },
       { path: "workers",           element: <Workers />        },
-      { path: "worker-profile/:id",element: <WorkerProfile />  },
+      { path: "worker-profile/:workerId",element: <WorkerProfile />  },
       {
         path: "user-profile",
         element: <ProtectedRoute><UserProfile /></ProtectedRoute>,

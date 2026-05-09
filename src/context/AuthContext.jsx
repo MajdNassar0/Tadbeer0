@@ -7,30 +7,40 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        const savedUser = localStorage.getItem("user");
-        // تأكد أن البيانات ليست فارغة أو "undefined" كنص
-        if (savedUser && savedUser !== "undefined") {
-          setUser(JSON.parse(savedUser));
-        }
-      } catch (error) {
-        console.error("خطأ في قراءة بيانات المستخدم من localStorage", error);
-        localStorage.removeItem("user"); // تنظيف البيانات التالفة
-      } finally {
-        setLoading(false); // نضمن أنها ستصبح false في كل الحالات
+useEffect(() => {
+  const initializeAuth = () => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser && savedUser !== "undefined") {
+        const parsedUser = JSON.parse(savedUser);
+        // إصلاح المعرف فوراً عند التحميل لضمان عدم ضياعه
+        const validatedUser = {
+          ...parsedUser,
+          id: parsedUser.id || parsedUser.userId || parsedUser._id
+        };
+        setUser(validatedUser);
       }
-    };
-
-    initializeAuth();
-  }, []);
-
-  const login = (userData, token) => {
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", token);
-    setUser(userData);
+    } catch (error) {
+      console.error("خطأ في قراءة بيانات المستخدم", error);
+    } finally {
+      setLoading(false);
+    }
   };
+  initializeAuth();
+}, []);
+
+// في AuthContext.jsx قم بتعديل دالة login
+const login = (userData, token) => {
+  // إضافة فحص للتأكد من وجود المعرف وتوحيده
+  const formattedUser = {
+    ...userData,
+    id: userData.id || userData.userId || userData._id // توحيد المسمى إلى id
+  };
+  
+  localStorage.setItem("user", JSON.stringify(formattedUser));
+  localStorage.setItem("token", token);
+  setUser(formattedUser);
+};
 
   const logout = () => {
     localStorage.removeItem("user");

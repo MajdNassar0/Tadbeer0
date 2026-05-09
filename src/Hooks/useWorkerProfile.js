@@ -24,34 +24,29 @@ export const useWorkerProfile = (workerId = null) => {
   const [error,         setError]         = useState(null);
 
   // ── GET ────────────────────────────────────────────────────
-  const fetchWorker = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const endpoint = workerId
-        ? `/Worker/Profile/${workerId}`
-        : "/Worker/Profile/me";
-      const res = await apiClient.get(endpoint);
-      setWorker(res.data);
-    } catch (err) {
-      setError(err.response?.data?.message || "فشل تحميل بيانات العامل");
-    } finally {
-      setLoading(false);
-    }
-  }, [workerId]);
-
+ // داخل src/Hooks/useWorkerProfile.js
+const fetchWorker = useCallback(async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    // إذا لم يوجد ID أو إذا كان الـ ID يخص المستخدم المسجل حالياً
+    const endpoint = workerId ? `/Worker/Profile/${workerId}` : "/Worker/Profile/me";
+    const res = await apiClient.get(endpoint);
+    setWorker(res.data);
+  } catch (err) {
+    setError(err.response?.data?.message || "فشل تحميل بيانات العامل");
+  } finally {
+    setLoading(false);
+  }
+}, [workerId]);
   // ── GET work-images ────────────────────────────────────────
   const fetchWorkImages = useCallback(async () => {
-    setImagesLoading(true);
-    try {
-      const res = await apiClient.get("/Worker/Profile/me/work-images");
-      setWorkImages(Array.isArray(res.data) ? res.data : res.data?.data || []);
-    } catch (err) {
-      console.error("فشل تحميل صور الأعمال", err);
-    } finally {
-      setImagesLoading(false);
-    }
-  }, []);
+  const endpoint = workerId
+    ? `/Worker/Profile/${workerId}/work-images`
+    : "/Worker/Profile/me/work-images";
+  const res = await apiClient.get(endpoint);
+  // ...
+}, [workerId]);
 
   // ── PUT /Worker/Profile/me ─────────────────────────────────
   // payload shape (all optional except FirstName + LastName):

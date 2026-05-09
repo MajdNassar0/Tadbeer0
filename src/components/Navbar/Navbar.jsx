@@ -70,11 +70,23 @@ function Navbar() {
   }, [location.pathname, location.hash]);
 
   const handleProfileNavigation = () => {
-    const profilePath =
-      role === "worker" ? `/worker-profile/${user.id}` : `/user-profile`;
-    navigate(profilePath);
-    setOpen(false);
-  };
+  // جلب المعرف من الـ user المتاح في الـ AuthContext
+  const currentId = user?.id || user?.userId || user?._id;
+
+  if (!currentId) {
+    console.error("User ID is missing!");
+    // يمكنك توجيه المستخدم لتسجيل الدخول مرة أخرى أو إظهار تنبيه
+    return;
+  }
+
+  // إذا كان عاملاً نستخدم مسار البروفايل مع الرقم، وإذا كان مستخدماً عادياً نستخدم المسار الثابت
+  const profilePath = role === "worker" 
+    ? `/worker-profile/${currentId}` 
+    : `/user-profile`;
+
+  navigate(profilePath);
+  setOpen(false);
+};
 
   useEffect(() => {
     if (location.pathname !== "/" || isNavigating) return;
