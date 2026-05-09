@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { useAuth } from "../../context/AuthContext";
@@ -12,20 +12,31 @@ const MONTH_NAMES_AR = [
 
 function BookingNotifier() {
   const { user } = useAuth();
+  const intervalRef = useRef(null);
 
   useEffect(() => {
+    // Stop if not logged in
     if (!user) return;
 
-    const checkBookings = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+    // ✅ Only run for regular customers — workers & admins use different endpoints
+    const role = (user.role ?? user.userType ?? "").toLowerCase();
+    if (role === "worker" || role === "admin") return;
 
+    const checkBookings = async () => {
+      const token = localStorage.getItem("token");
+
+      // Stop polling entirely if token is gone
+      if (!token) {
+        clearInterval(intervalRef.current);
+        return;
+      }
+
+      try {
         const res = await axios.get(`${API}/User/Bookings`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // ✅ normalize API response
+        // ✅ Normalize API response shape
         let bookings = [];
         if (Array.isArray(res.data)) {
           bookings = res.data;
@@ -35,7 +46,7 @@ function BookingNotifier() {
           bookings = res.data.data.items;
         }
 
-        // ✅ filter accepted bookings
+        // ✅ Filter accepted/confirmed bookings
         const accepted = bookings.filter(b => {
           const status = b.status?.toLowerCase();
           return status === "confirmed" || status === "accepted";
@@ -43,7 +54,7 @@ function BookingNotifier() {
 
         if (accepted.length === 0) return;
 
-        // ✅ prevent duplicate notifications
+        // ✅ Prevent duplicate notifications per user
         const storageKey = `notifiedBookings_${user.email}`;
         const alreadyNotified = JSON.parse(
           localStorage.getItem(storageKey) || "[]"
@@ -55,52 +66,53 @@ function BookingNotifier() {
 
         if (newlyAccepted.length === 0) return;
 
-        // ✅ update storage
-        const updated = [
-          ...alreadyNotified,
-          ...newlyAccepted.map(b => b.id),
-        ];
-        localStorage.setItem(storageKey, JSON.stringify(updated));
+        // ✅ Persist notified ids
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify([...alreadyNotified, ...newlyAccepted.map(b => b.id)])
+        );
 
-        // ✅ show notification(s)
-       newlyAccepted.forEach((b) => {
-  const date = b.bookingDate
-    ? (() => {
-        const d = new Date(b.bookingDate);
-        return `${d.getDate()} ${MONTH_NAMES_AR[d.getMonth()]}`;
-      })()
-    : "—";
+        // ✅ Show toast per new booking
+        newlyAccepted.forEach((b) => {
+          const date = b.bookingDate
+            ? (() => {
+                const d = new Date(b.bookingDate);
+                return `${d.getDate()} ${MONTH_NAMES_AR[d.getMonth()]}`;
+              })()
+            : "—";
 
-  const workerName =
-    b.workerName ||
-    b.worker?.name ||
-    b.providerName ||
-    "الفني";
+          const workerName =
+            b.workerName || b.worker?.name || b.providerName || "الفني";
 
-  const serviceName =
-    b.serviceName ||
-    b.service?.name ||
-    "الخدمة";
+          const serviceName =
+            b.serviceName || b.service?.name || "الخدمة";
 
-  toast.success("تم قبول حجزك ✅", {
-    description: `${workerName} وافق على حجز ${serviceName} بتاريخ ${date} من ${b.startTime?.slice(0, 5)} إلى ${b.endTime?.slice(0, 5)}`,
-    duration: 4000,
-  });
-});
+          toast.success("تم قبول حجزك ✅", {
+            description: `${workerName} وافق على حجز ${serviceName} بتاريخ ${date} من ${b.startTime?.slice(0, 5)} إلى ${b.endTime?.slice(0, 5)}`,
+            duration: 4000,
+          });
+        });
 
       } catch (err) {
-        console.error("❌ Notification error:", err);
+        const status = err.response?.status;
+
+        // ✅ Stop polling on auth errors — no point retrying
+        if (status === 401 || status === 403) {
+          console.warn("BookingNotifier: stopping poll — auth error", status);
+          clearInterval(intervalRef.current);
+          return;
+        }
+
+        // Log other errors silently (network issues etc.)
+        console.error("BookingNotifier error:", err.message);
       }
     };
 
-    // ✅ run immediately
+    // Run immediately, then every 10 seconds
     checkBookings();
+    intervalRef.current = setInterval(checkBookings, 10000);
 
-    // 🔁 repeat every 10 seconds
-    const interval = setInterval(checkBookings, 10000);
-
-    return () => clearInterval(interval);
-
+    return () => clearInterval(intervalRef.current);
   }, [user]);
 
   return null;
