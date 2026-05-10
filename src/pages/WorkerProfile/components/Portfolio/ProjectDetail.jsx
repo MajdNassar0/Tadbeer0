@@ -5,7 +5,7 @@ import apiClient from "../../../../API/axiosConfig";
 import { useToast } from "../../../../context/ToastContext";
 import { Skeleton } from "./shared/Skeleton";
 import ConfirmDialog from "./ConfirmDialog";
-import AddSubImagesModal from "./AddSubImagesModal";
+import AddSubImagesModal from "./AddSubimagesModal";
 import Lightbox from "./Lightbox";
 
 const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
