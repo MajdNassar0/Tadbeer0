@@ -40,12 +40,19 @@ const fetchWorker = useCallback(async () => {
   }
 }, [workerId]);
   // ── GET work-images ────────────────────────────────────────
-  const fetchWorkImages = useCallback(async () => {
-  const endpoint = workerId
-    ? `/Worker/Profile/${workerId}/work-images`
-    : "/Worker/Profile/me/work-images";
-  const res = await apiClient.get(endpoint);
-  // ...
+const fetchWorkImages = useCallback(async () => {
+  setImagesLoading(true);
+  try {
+    const endpoint = workerId
+      ? `/Worker/Profile/${workerId}/work-images`
+      : "/Worker/Profile/me/work-images";
+    const res = await apiClient.get(endpoint);
+    setWorkImages(res.data || []);
+  } catch (err) {
+    console.error("فشل تحميل صور المعرض", err);
+  } finally {
+    setImagesLoading(false);
+  }
 }, [workerId]);
 
   // ── PUT /Worker/Profile/me ─────────────────────────────────
@@ -182,7 +189,8 @@ const fetchWorker = useCallback(async () => {
   }, []);
 
   useEffect(() => { fetchWorker(); }, [fetchWorker]);
-  useEffect(() => { if (!workerId) fetchWorkImages(); }, [workerId, fetchWorkImages]);
+  useEffect(() => { fetchWorkImages(); }, [fetchWorkImages]);
+
 
   return {
     worker, workImages, loading, saving, toggling, imagesLoading, error,

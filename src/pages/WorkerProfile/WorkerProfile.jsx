@@ -100,16 +100,7 @@ const WorkerProfileInner = () => {
 
   const tabContent = {
     overview: <OverviewTab worker={worker} isOwner={isOwner} loading={loading} />,
-    portfolio: (
-      <PortfolioTab
-        images={portfolioImages}
-        isOwner={isOwner}
-        loading={loading}
-        saving={saving}
-        onUploadImage={handleUploadWork}
-        onDeleteImage={handleDeleteWork}
-      />
-    ),
+   portfolio: <PortfolioTab />,
     services: (
       <ServicesTab services={worker?.services || []} isOwner={isOwner} loading={loading} />
     ),
