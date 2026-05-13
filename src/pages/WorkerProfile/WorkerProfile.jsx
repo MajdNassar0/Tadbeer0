@@ -100,7 +100,7 @@ const WorkerProfileInner = () => {
 
   const tabContent = {
     overview: <OverviewTab worker={worker} isOwner={isOwner} loading={loading} />,
-   portfolio: <PortfolioTab />,
+   portfolio: <PortfolioTab isOwner={isOwner} />,
     services: (
       <ServicesTab services={worker?.services || []} isOwner={isOwner} loading={loading} />
     ),

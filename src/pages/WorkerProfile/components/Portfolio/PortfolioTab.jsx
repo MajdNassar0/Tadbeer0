@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Briefcase } from "lucide-react"; // أضفنا Briefcase للحالة الفارغة
+import { Plus, Briefcase } from "lucide-react"; 
 import apiClient from "../../../../API/axiosConfig";
 import { useToast } from "../../../../context/ToastContext";
 import { ProjectCardSkeleton } from "./shared/Skeleton";
@@ -10,8 +10,13 @@ import EmptyState from "./EmptyState";
 import CreateProjectModal from "./CreateProjectModal";
 import ConfirmDialog from "./ConfirmDialog";
 
-// 1. استقبال isOwner كخاصية للمكون [cite: 438, 451]
-const PortfolioTabInner = ({ isOwner }) => { 
+/**
+ * مكون معرض الأعمال (Portfolio)
+ * @param {boolean} isOwner - هل المستخدم الحالي هو صاحب البروفايل؟
+ * @param {string} workerId - معرف العامل القادم من الرابط
+ * @param {object} workerData - بيانات العامل الكاملة المجلوبة من الـ API العام
+ */
+const PortfolioTabInner = ({ isOwner, workerId, workerData }) => { 
   const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,19 +26,32 @@ const PortfolioTabInner = ({ isOwner }) => {
   const [deleting, setDeleting] = useState(false);
 
   const fetchProjects = useCallback(async () => {
+    // حالة الزائر: نأخذ الصور من البيانات المجلوبة مسبقاً في المكون الأب
+    if (!isOwner) {
+      if (workerData?.workImages) {
+        setProjects(workerData.workImages);
+      } else {
+        setProjects([]);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // حالة المالك: نجلب البيانات من مسار الإدارة الخاص به
     setLoading(true);
     try {
-      // ملاحظة: هنا يفضل استخدام مسار ديناميكي إذا كان الزائر يشاهد بروفايل شخص آخر
       const res = await apiClient.get("/Worker/Profile/me/work-images"); 
       setProjects(res.data || []);
-    } catch {
-      toast("فشل تحميل المشاريع", "error");
+    } catch (err) {
+      toast("فشل تحميل مشاريعك الشخصية", "error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isOwner, workerData, toast]);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => { 
+    fetchProjects(); 
+  }, [fetchProjects]);
 
   const handleDeleteProject = async () => {
     if (!confirm.project) return;
@@ -41,9 +59,9 @@ const PortfolioTabInner = ({ isOwner }) => {
     try {
       await apiClient.delete(`/Worker/Profile/me/work-images/${confirm.project.id}`); 
       setProjects((prev) => prev.filter((p) => p.id !== confirm.project.id));
-      toast("تم حذف المشروع ✓");
-    } catch {
-      toast("فشل حذف المشروع", "error");
+      toast("تم حذف المشروع بنجاح ✓");
+    } catch (err) {
+      toast("فشل حذف المشروع، يرجى المحاولة لاحقاً", "error");
     } finally {
       setDeleting(false);
       setConfirm({ open: false, project: null });
@@ -71,13 +89,16 @@ const PortfolioTabInner = ({ isOwner }) => {
             exit={{ opacity: 0 }}
             className="space-y-5"
           >
-            {/* Header */}
+            {/* الهيدر */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-black text-gray-900">معرض الأعمال</h2>
-                <p className="text-sm text-gray-400 mt-0.5">{projects.length} مشروع منجز</p>
+                <p className="text-sm text-gray-400 mt-0.5">
+                   {projects.length} {projects.length === 1 ? "مشروع منجز" : "مشاريع منجزة"}
+                </p>
               </div>
-              {/* 2. إظهار زر الإضافة فقط للمالك [cite: 438] */}
+              
+              {/* إظهار زر الإضافة فقط للمالك */}
               {isOwner && projects.length > 0 && (
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -88,13 +109,12 @@ const PortfolioTabInner = ({ isOwner }) => {
               )}
             </div>
 
-            {/* Grid */}
+            {/* شبكة المشاريع */}
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...Array(6)].map((_, i) => <ProjectCardSkeleton key={i} />)}
               </div>
             ) : projects.length === 0 ? (
-              // 3. التمييز في الحالة الفارغة بين المالك والزائر [cite: 223, 460]
               isOwner ? (
                 <EmptyState onAdd={() => setShowCreateModal(true)} />
               ) : (
@@ -107,7 +127,7 @@ const PortfolioTabInner = ({ isOwner }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {projects.map((project, i) => (
                   <ProjectCard
-                    key={project.id}
+                    key={project.id || i}
                     project={project}
                     index={i}
                     onClick={setSelectedProject}
@@ -120,22 +140,24 @@ const PortfolioTabInner = ({ isOwner }) => {
         )}
       </AnimatePresence>
 
-      {/* مودال الإنشاء يظهر للمالك فقط برمجياً [cite: 269] */}
+      {/* مودالات التحكم (تظهر فقط للمالك) */}
       {isOwner && (
-        <CreateProjectModal
-          open={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={(newProject) => setProjects((prev) => [newProject, ...prev])}
-        />
+        <>
+          <CreateProjectModal
+            open={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onCreated={(newProject) => setProjects((prev) => [newProject, ...prev])}
+          />
+          
+          <ConfirmDialog
+            open={confirm.open}
+            message={`هل تريد حذف "${confirm.project?.title || "هذا المشروع"}"؟`}
+            loading={deleting}
+            onConfirm={handleDeleteProject}
+            onCancel={() => setConfirm({ open: false, project: null })}
+          />
+        </>
       )}
-
-      <ConfirmDialog
-        open={confirm.open}
-        message={`هل تريد حذف "${confirm.project?.title || "هذا المشروع"}"؟`}
-        loading={deleting}
-        onConfirm={handleDeleteProject}
-        onCancel={() => setConfirm({ open: false, project: null })}
-      />
     </div>
   );
 };

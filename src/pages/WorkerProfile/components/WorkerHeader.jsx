@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { 
   BadgeCheck, Camera, Loader2, Edit3, 
   ToggleRight, CalendarCheck, MessageCircle, Mail, MapPin 
@@ -20,7 +21,7 @@ const WorkerHeader = ({
 }) => {
   const [hover, setHover] = useState(false);
   const ref = useRef(null);
-  
+  const navigate = useNavigate();
   const avail = AVAILABILITY_MAP[worker?.status] || AVAILABILITY_MAP["Available"];
   const fullName = worker ? `${worker.firstName || ""} ${worker.lastName || ""}`.trim() : "";
   const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || "W")}&background=001e3c&color=ff9800&size=200&bold=true`;
@@ -87,9 +88,12 @@ const WorkerHeader = ({
                   </button>
                 </>
               ) : (
-                <button className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-lg">
-                  <CalendarCheck size={15}/>احجز الآن
-                </button>
+                <button 
+    onClick={() => navigate(`/booking/${worker.id}`)} // 👈 التعديل هنا للتوجيه الديناميكي
+    className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-lg"
+  >
+    <CalendarCheck size={15}/>احجز الآن
+  </button>
               )}
             </div>
           )}
