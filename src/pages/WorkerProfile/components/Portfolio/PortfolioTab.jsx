@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus } from "lucide-react";
+import { Plus, Briefcase } from "lucide-react"; // أضفنا Briefcase للحالة الفارغة
 import apiClient from "../../../../API/axiosConfig";
 import { useToast } from "../../../../context/ToastContext";
 import { ProjectCardSkeleton } from "./shared/Skeleton";
@@ -10,7 +10,8 @@ import EmptyState from "./EmptyState";
 import CreateProjectModal from "./CreateProjectModal";
 import ConfirmDialog from "./ConfirmDialog";
 
-const PortfolioTabInner = () => {
+// 1. استقبال isOwner كخاصية للمكون [cite: 438, 451]
+const PortfolioTabInner = ({ isOwner }) => { 
   const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +23,8 @@ const PortfolioTabInner = () => {
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get("/Worker/Profile/me/work-images");
+      // ملاحظة: هنا يفضل استخدام مسار ديناميكي إذا كان الزائر يشاهد بروفايل شخص آخر
+      const res = await apiClient.get("/Worker/Profile/me/work-images"); 
       setProjects(res.data || []);
     } catch {
       toast("فشل تحميل المشاريع", "error");
@@ -37,7 +39,7 @@ const PortfolioTabInner = () => {
     if (!confirm.project) return;
     setDeleting(true);
     try {
-      await apiClient.delete(`/Worker/Profile/me/work-images/${confirm.project.id}`);
+      await apiClient.delete(`/Worker/Profile/me/work-images/${confirm.project.id}`); 
       setProjects((prev) => prev.filter((p) => p.id !== confirm.project.id));
       toast("تم حذف المشروع ✓");
     } catch {
@@ -75,7 +77,8 @@ const PortfolioTabInner = () => {
                 <h2 className="text-xl font-black text-gray-900">معرض الأعمال</h2>
                 <p className="text-sm text-gray-400 mt-0.5">{projects.length} مشروع منجز</p>
               </div>
-              {projects.length > 0 && (
+              {/* 2. إظهار زر الإضافة فقط للمالك [cite: 438] */}
+              {isOwner && projects.length > 0 && (
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-200"
@@ -91,7 +94,15 @@ const PortfolioTabInner = () => {
                 {[...Array(6)].map((_, i) => <ProjectCardSkeleton key={i} />)}
               </div>
             ) : projects.length === 0 ? (
-              <EmptyState onAdd={() => setShowCreateModal(true)} />
+              // 3. التمييز في الحالة الفارغة بين المالك والزائر [cite: 223, 460]
+              isOwner ? (
+                <EmptyState onAdd={() => setShowCreateModal(true)} />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-dashed border-gray-200">
+                  <Briefcase size={40} className="text-gray-200 mb-3" />
+                  <p className="text-sm text-gray-400 font-medium">لا توجد أعمال معروضة لهذا العامل حالياً</p>
+                </div>
+              )
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {projects.map((project, i) => (
@@ -100,7 +111,7 @@ const PortfolioTabInner = () => {
                     project={project}
                     index={i}
                     onClick={setSelectedProject}
-                    onDelete={(p) => setConfirm({ open: true, project: p })}
+                    onDelete={isOwner ? (p) => setConfirm({ open: true, project: p }) : null}
                   />
                 ))}
               </div>
@@ -109,11 +120,14 @@ const PortfolioTabInner = () => {
         )}
       </AnimatePresence>
 
-      <CreateProjectModal
-        open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onCreated={(newProject) => setProjects((prev) => [newProject, ...prev])}
-      />
+      {/* مودال الإنشاء يظهر للمالك فقط برمجياً [cite: 269] */}
+      {isOwner && (
+        <CreateProjectModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={(newProject) => setProjects((prev) => [newProject, ...prev])}
+        />
+      )}
 
       <ConfirmDialog
         open={confirm.open}

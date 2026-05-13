@@ -1,9 +1,16 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Briefcase, Trash2 } from "lucide-react";
+import { getFullImageUrl } from "../../../../Utils/imageHelper";
 
 const ProjectCard = ({ project, onClick, onDelete, index }) => {
   const [hover, setHover] = useState(false);
+
+  // 1. تحديد الرابط الصحيح (سواء كان محلي blob أو من السيرفر)
+  const imageSrc = project.imageUrl || project.mainImageUrl;
+  const finalSrc = imageSrc?.startsWith('blob:') 
+    ? imageSrc 
+    : getFullImageUrl(imageSrc);
 
   return (
     <motion.div
@@ -16,9 +23,9 @@ const ProjectCard = ({ project, onClick, onDelete, index }) => {
       onClick={() => onClick(project)}
     >
       <div className="h-52 overflow-hidden bg-gray-100">
-        {(project.imageUrl || project.mainImageUrl) ? (
+        {imageSrc ? (
           <motion.img
-            src={project.imageUrl || project.mainImageUrl}
+            src={finalSrc} // استخدمنا الرابط المعالج هنا
             alt={project.title || "مشروع"}
             className="w-full h-full object-cover"
             animate={{ scale: hover ? 1.06 : 1 }}
@@ -61,7 +68,10 @@ const ProjectCard = ({ project, onClick, onDelete, index }) => {
         <div className="mt-2 flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
           <span className="text-[11px] text-orange-500 font-medium">
-            {project.subImagesCount ?? 0} صور إضافية
+            {/* 2. تعديل العداد ليقرأ من المصفوفة subImages إذا كان العداد صفر */}
+            {(project.subImagesCount > 0) 
+              ? project.subImagesCount 
+              : (project.subImages?.length || 0)} صور إضافية
           </span>
         </div>
       </div>

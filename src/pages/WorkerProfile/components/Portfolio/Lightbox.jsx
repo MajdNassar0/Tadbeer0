@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { getFullImageUrl } from "../../../../Utils/imageHelper";
 
 const Lightbox = ({ images, startIndex, onClose }) => {
   const [current, setCurrent] = useState(startIndex);
@@ -20,7 +21,7 @@ const Lightbox = ({ images, startIndex, onClose }) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[9997] bg-black/95 flex items-center justify-center"
+      className="fixed inset-0 z-9997 bg-black/95 flex items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -53,7 +54,7 @@ const Lightbox = ({ images, startIndex, onClose }) => {
       <AnimatePresence mode="wait">
         <motion.img
           key={current}
-          src={images[current]?.imageUrl || images[current]?.url}
+          src={getFullImageUrl(images[current]?.imageUrl || images[current]?.url)} 
           alt=""
           className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl"
           initial={{ opacity: 0, scale: 0.95 }}

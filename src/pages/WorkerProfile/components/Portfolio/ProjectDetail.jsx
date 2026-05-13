@@ -7,6 +7,7 @@ import { Skeleton } from "./shared/Skeleton";
 import ConfirmDialog from "./ConfirmDialog";
 import AddSubImagesModal from "./AddSubImagesModal";
 import Lightbox from "./Lightbox";
+import { getFullImageUrl } from "../../../../Utils/imageHelper";
 
 const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
   const toast = useToast();
@@ -18,6 +19,8 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
   const [deleting, setDeleting] = useState(false);
   const [confirmProject, setConfirmProject] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
+
+  console.log("البيانات المستلمة للمشروع:", project);
 
   const fetchSubImages = useCallback(async () => {
     setLoading(true);
@@ -112,7 +115,11 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
         onClick={() => setLightbox(0)}
       >
         {(project.imageUrl || project.mainImageUrl) ? (
-          <img src={project.imageUrl || project.mainImageUrl} alt="" className="w-full h-full object-cover" />
+          <img 
+  src={getFullImageUrl(project.imageUrl || project.mainImageUrl)} 
+  alt="" 
+  className="w-full h-full object-cover" 
+/>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Briefcase size={40} className="text-gray-300" />
@@ -155,7 +162,11 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
                 className="relative group rounded-2xl overflow-hidden h-32 bg-gray-100 cursor-pointer"
                 onClick={() => setLightbox(i + 1)}
               >
-                <img src={img.imageUrl || img.url} alt="" className="w-full h-full object-cover" />
+                <img 
+  src={getFullImageUrl(img.imageUrl || img.url)} 
+  alt="" 
+  className="w-full h-full object-cover" 
+/>
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition" />
                 <button
                   onClick={(e) => { e.stopPropagation(); setConfirm({ open: true, subImageId: img.id }); }}

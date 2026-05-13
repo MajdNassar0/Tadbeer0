@@ -15,25 +15,42 @@ const CreateProjectModal = ({ open, onClose, onCreated }) => {
   const reset = () => { setFile(null); setTitle(""); setDescription(""); };
   const handleClose = () => { reset(); onClose(); };
 
-  const handleSubmit = async () => {
-    if (!file) return toast("الرجاء اختيار صورة غلاف", "error");
-    setLoading(true);
+ const handleSubmit = async () => {
+    if (!file) return toast("الرجاء اختيار صورة غلاف", "error"); 
+    setLoading(true); 
+
     try {
       const fd = new FormData();
-      fd.append("MainImage", file);
-      if (title) fd.append("Title", title);
-      if (description) fd.append("Description", description);
+      fd.append("MainImage", file); 
+      if (title) fd.append("Title", title); 
+      if (description) fd.append("Description", description); 
 
-      const res = await apiClient.post("/Worker/Profile/me/work-images", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const res = await apiClient.post("/Worker/Profile/me/work-images", fd, { 
+        headers: { "Content-Type": "multipart/form-data" }, 
       });
-      toast("تم إنشاء المشروع بنجاح ✓");
-      onCreated(res.data);
+
+      toast("تم إنشاء المشروع بنجاح ✓"); 
+
+      // --- الجزء الجديد والمعدل ---
+      const newProject = {
+        id: res.data?.id || Date.now(), 
+        // نستخدم رابط الصورة من السيرفر إذا وصل، وإلا نستخدم الرابط المحلي للمعاينة
+        imageUrl: res.data?.imageUrl || URL.createObjectURL(file), 
+        title: title || "مشروع جديد",
+        description: description || "",
+        subImages: [],
+        subImagesCount: 0
+      };
+
+      onCreated(newProject);
       handleClose();
-    } catch {
-      toast("فشل إنشاء المشروع", "error");
+      // --------------------------
+
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast("فشل إنشاء المشروع", "error"); 
     } finally {
-      setLoading(false);
+      setLoading(false); 
     }
   };
 
@@ -41,7 +58,7 @@ const CreateProjectModal = ({ open, onClose, onCreated }) => {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0"
+          className="fixed inset-0 z-9995 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

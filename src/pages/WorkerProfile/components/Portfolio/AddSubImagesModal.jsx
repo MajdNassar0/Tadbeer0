@@ -14,6 +14,7 @@ const AddSubImagesModal = ({ open, projectId, onClose, onAdded }) => {
 
   const handleSubmit = async () => {
     if (!files.length) return toast("اختر صورة واحدة على الأقل", "error");
+    console.log("Project ID being sent:", projectId);
     setLoading(true);
     const results = [];
     for (const file of files) {
@@ -42,7 +43,7 @@ const AddSubImagesModal = ({ open, projectId, onClose, onAdded }) => {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0"
+          className="fixed inset-0 z-9995 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
