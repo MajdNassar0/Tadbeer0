@@ -30,7 +30,7 @@ const fetchWorker = useCallback(async () => {
   setError(null);
   try {
     // إذا لم يوجد ID أو إذا كان الـ ID يخص المستخدم المسجل حالياً
-    const endpoint = workerId ? `/Worker/Profile/${workerId}` : "/Worker/Profile/me";
+    const endpoint = workerId ?  `/General/Workers/${workerId}/profile  `: "/Worker/Profile/me";
     const res = await apiClient.get(endpoint);
     setWorker(res.data);
   } catch (err) {
@@ -44,7 +44,7 @@ const fetchWorkImages = useCallback(async () => {
   setImagesLoading(true);
   try {
     const endpoint = workerId
-      ? `/Worker/Profile/${workerId}/work-images`
+      ? `/General/Workers/${workerId}/profile `
       : "/Worker/Profile/me/work-images";
     const res = await apiClient.get(endpoint);
     setWorkImages(res.data || []);
