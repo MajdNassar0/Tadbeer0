@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PasswordModal from "../../../components/Profile/Security/modals/PasswordModal"; 
 import { useToast } from "../../../context/ToastContext";
+import PersonalInfoForm from "../components/sub-settings/PersonalInfoForm";
 import { 
   User, Briefcase, ShieldCheck, Key, Shield, UserX, Trash2,
   Phone, FileText, Calendar, MapPin, Clock
 } from "lucide-react";
-
-const SettingsTab = ({ worker }) => {
+const SettingsTab = ({ worker, updateWorker, saving, onToggleStatus, toggling, updateUser }) => {
   const [activeTab, setActiveTab] = useState("profile"); // profile | work | security
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
   const toast = useToast();
@@ -67,24 +67,17 @@ const SettingsTab = ({ worker }) => {
       </div>
 
       {/* --- 2. محتوى التابات مع أنيميشن --- */}
-      <div className="min-h-[400px]">
+      <div className="min-h-100">
         <AnimatePresence mode="wait">
           
           {/* تاب الملف الشخصي */}
           {activeTab === "profile" && (
-            <motion.div 
-              key="profile" 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
-            >
-              <h3 className="text-md font-bold text-gray-700 px-2">معلومات الحساب</h3>
-              <SettingsRow icon={User} title="الاسم الكامل" description={`${worker?.firstName} ${worker?.lastName}`} actionText="تعديل" />
-              <SettingsRow icon={Phone} title="رقم الهاتف" description={worker?.phoneNumber || "لم يربط بعد"} actionText="تعديل" />
-              <SettingsRow icon={Calendar} title="تاريخ الميلاد" description={worker?.dateOfBirth || "لم يحدد"} actionText="تعديل" />
-            </motion.div>
-          )}
+  <PersonalInfoForm 
+    worker={worker} 
+    updateWorker={updateWorker} 
+    saving={saving} 
+  />
+)}
 
           {/* تاب العمل */}
           {activeTab === "work" && (

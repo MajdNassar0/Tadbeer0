@@ -112,16 +112,16 @@ const WorkerProfileInner = () => {
         loading={loading}
       />
     ),
-    settings: isOwner ? (
-      <SettingsTab
-        worker={worker}
-        onToggleStatus={handleToggleStatus}
-        toggling={toggling}
-        updateWorker={updateWorker}
-        saving={saving}
-        updateUser={updateUser}
-      />
-    ) : null,
+   settings: isOwner ? (
+  <SettingsTab
+    worker={worker}
+    updateWorker={updateWorker} // مررنا الدالة هنا
+    saving={saving}             // مررنا حالة التحميل هنا
+    onToggleStatus={handleToggleStatus}
+    toggling={toggling}
+    updateUser={updateUser}
+  />
+) : null,
   };
 
   // ── Error state ───────────────────────────────────────────────
