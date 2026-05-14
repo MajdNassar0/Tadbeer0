@@ -56,6 +56,9 @@ const WorkerProfileInner = () => {
     worker, workImages, loading, saving, toggling, error,
     fetchWorker, updateWorker, toggleStatus,
     uploadProfileImage, uploadWorkImage, deleteWorkImage,
+    addWorkingHour,      // استخرجيها هنا
+    updateWorkingHour,   // استخرجيها هنا
+    deleteWorkingHour,
   } = useWorkerProfile(effectiveId);
 
 
@@ -120,6 +123,9 @@ const WorkerProfileInner = () => {
     onToggleStatus={handleToggleStatus}
     toggling={toggling}
     updateUser={updateUser}
+     addWorkingHour={addWorkingHour}        // ✅ أضيفي هذا
+    updateWorkingHour={updateWorkingHour}  // ✅ أضيفي هذا
+    deleteWorkingHour={deleteWorkingHour} 
   />
 ) : null,
   };

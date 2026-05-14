@@ -30,7 +30,7 @@ const fetchWorker = useCallback(async () => {
   setError(null);
   try {
     // إذا لم يوجد ID أو إذا كان الـ ID يخص المستخدم المسجل حالياً
-    const endpoint = workerId ?  `/General/Workers/${workerId}/profile  `: "/Worker/Profile/me";
+    const endpoint = workerId ?  `/General/Workers/${workerId}/profile`: "/Worker/Profile/me";
     const res = await apiClient.get(endpoint);
     setWorker(res.data);
   } catch (err) {
@@ -44,7 +44,7 @@ const fetchWorkImages = useCallback(async () => {
   setImagesLoading(true);
   try {
     const endpoint = workerId
-      ? `/General/Workers/${workerId}/profile `
+      ? `/General/Workers/${workerId}/profile`
       : "/Worker/Profile/me/work-images";
     const res = await apiClient.get(endpoint);
     setWorkImages(res.data || []);
@@ -89,14 +89,16 @@ const fetchWorkImages = useCallback(async () => {
         payload.SpecialtyIds.forEach(id => fd.append("SpecialtyIds", id));
       }
 
-      // WorkingHours → append as indexed fields (ASP.NET Core FormData convention)
-      if (Array.isArray(payload.WorkingHours)) {
-        payload.WorkingHours.forEach((wh, i) => {
-          fd.append(`WorkingHours[${i}].dayOfWeek`, wh.dayOfWeek);
-          fd.append(`WorkingHours[${i}].startTime`, wh.startTime);
-          fd.append(`WorkingHours[${i}].endTime`,   wh.endTime);
-        });
-      }
+      
+// سطر 58 تقريباً في useWorkerProfile.js 
+if (Array.isArray(payload.WorkingHours)) {
+  payload.WorkingHours.forEach((wh, i) => {
+    // نستخدم wh.dayOfWeek (سمول) لتطابق ما يخرج من الـ Editor 
+    fd.append(`WorkingHours[${i}].DayOfWeek`, wh.dayOfWeek || wh.DayOfWeek);
+    fd.append(`WorkingHours[${i}].StartTime`, wh.startTime || wh.StartTime);
+    fd.append(`WorkingHours[${i}].EndTime`,   wh.endTime   || wh.EndTime);
+  });
+}
 
       const res = await apiClient.put("/Worker/Profile/me", fd);
       setWorker(res.data);
@@ -194,6 +196,55 @@ const uploadWorkImage = useCallback(async (imageFile, name = "", description = "
     }
   }, []);
 
+// 1. إضافة موعد جديد (POST)
+const addWorkingHour = useCallback(async (hourData) => {
+  setSaving(true);
+  try {
+    const res = await apiClient.post("/Worker/WorkingHours", hourData);
+    // تحديث الحالة المحلية فوراً ليظهر الموعد الجديد
+    setWorker(prev => ({
+      ...prev,
+      workingHours: [...(prev.workingHours || []), res.data]
+    }));
+    return { ok: true, data: res.data };
+  } catch (err) {
+    return { ok: false, error: "فشل إضافة موعد العمل" };
+  } finally {
+    setSaving(false);
+  }
+}, []);
+
+// 2. تحديث موعد موجود (PUT)
+const updateWorkingHour = useCallback(async (id, hourData) => {
+  setSaving(true);
+  try {
+    const res = await apiClient.put(`/Worker/WorkingHours/${id}`, hourData);
+    setWorker(prev => ({
+      ...prev,
+      workingHours: prev.workingHours.map(h => h.id === id ? res.data : h)
+    }));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: "فشل تحديث الموعد" };
+  } finally {
+    setSaving(false);
+  }
+}, []);
+
+// 3. حذف موعد (DELETE)
+const deleteWorkingHour = useCallback(async (id) => {
+  try {
+    await apiClient.delete(`/Worker/WorkingHours/${id}`);
+    setWorker(prev => ({
+      ...prev,
+      workingHours: prev.workingHours.filter(h => h.id !== id)
+    }));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: "فشل حذف الموعد" };
+  }
+}, []);
+
   useEffect(() => { fetchWorker(); }, [fetchWorker]);
   useEffect(() => { fetchWorkImages(); }, [fetchWorkImages]);
 
@@ -205,5 +256,6 @@ const uploadWorkImage = useCallback(async (imageFile, name = "", description = "
     uploadProfileImage,
     uploadWorkImage, deleteWorkImage,
     uploadSubImage, deleteSubImage,
+    addWorkingHour, updateWorkingHour, deleteWorkingHour
   };
 };

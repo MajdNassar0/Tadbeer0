@@ -3,11 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import PasswordModal from "../../../components/Profile/Security/modals/PasswordModal"; 
 import { useToast } from "../../../context/ToastContext";
 import PersonalInfoForm from "../components/sub-settings/PersonalInfoForm";
+import ProfessionalInfoForm from "../components/sub-settings/ProfessionalInfoForm";
 import { 
   User, Briefcase, ShieldCheck, Key, Shield, UserX, Trash2,
   Phone, FileText, Calendar, MapPin, Clock
 } from "lucide-react";
-const SettingsTab = ({ worker, updateWorker, saving, onToggleStatus, toggling, updateUser }) => {
+const SettingsTab = ({ worker, updateWorker, saving, onToggleStatus, toggling, updateUser ,addWorkingHour,      // استلام هنا
+  updateWorkingHour, 
+  deleteWorkingHour }) => {
   const [activeTab, setActiveTab] = useState("profile"); // profile | work | security
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
   const toast = useToast();
@@ -80,21 +83,30 @@ const SettingsTab = ({ worker, updateWorker, saving, onToggleStatus, toggling, u
 )}
 
           {/* تاب العمل */}
-          {activeTab === "work" && (
-            <motion.div 
-              key="work" 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
-            >
-              <h3 className="text-md font-bold text-gray-700 px-2">إدارة المهنة</h3>
-              <SettingsRow icon={Briefcase} title="سنوات الخبرة" description={`${worker?.experienceYears || 0} سنوات خبرة`} actionText="تعديل" />
-              <SettingsRow icon={FileText} title="الوصف الوظيفي" description="تعديل النبذة التي يراها العملاء" actionText="تعديل" />
-              <SettingsRow icon={MapPin} title="موقع العمل" description="تحديد المدينة ونطاق التغطية" actionText="تحديد" />
-              <SettingsRow icon={Clock} title="ساعات العمل" description="تنظيم أوقات التوفر والاستراحة" actionText="إدارة" />
-            </motion.div>
-          )}
+{activeTab === "work" && (
+  <motion.div 
+    key="work" 
+    initial={{ opacity: 0, y: 10 }} 
+    animate={{ opacity: 1, y: 0 }} 
+    exit={{ opacity: 0, y: -10 }}
+    className="space-y-4"
+  >
+    <div className="px-2 mb-2">
+      <h3 className="text-md font-bold text-gray-700">إدارة الملف المهني</h3>
+      <p className="text-[11px] text-gray-400">تحكم في تخصصاتك، خبراتك، وساعات تواجدك الميداني.</p>
+    </div>
+
+    {/* استدعاء الفورم الجديد وتمرير الـ Props اللازمة */}
+    <ProfessionalInfoForm 
+      worker={worker} 
+  updateWorker={updateWorker} 
+  saving={saving}
+  addWorkingHour={addWorkingHour}      
+  updateWorkingHour={updateWorkingHour} 
+  deleteWorkingHour={deleteWorkingHour}
+    />
+  </motion.div>
+)}
 
           {/* تاب الأمان */}
           {activeTab === "security" && (
