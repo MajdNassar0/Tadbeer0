@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import WorkerProfile from "./pages/WorkerProfile/WorkerProfile";
 import UserProfile from "./pages/UserProfile/UserProfile";
+import WorkerView from "./pages/WorkerView/WorkerView";
 
 // Admin
 import AdminLayout   from "./pages/Admin/AdminLayout";
@@ -39,7 +40,8 @@ const router = createBrowserRouter([
       { index: true,               element: <Home />           },
       { path: "services",          element: <Services />       },
       { path: "workers",           element: <Workers />        },
-      { path: "worker-profile/:workerId",element: <WorkerProfile />  },
+      { path: "worker-view/:workerId",element: <WorkerView />  },
+      { path:"/worker-profile/:workerId", element:<WorkerProfile />},
       {
         path: "user-profile",
         element: <ProtectedRoute><UserProfile /></ProtectedRoute>,
