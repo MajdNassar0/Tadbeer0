@@ -50,13 +50,44 @@ const STATUS_COLORS = {
   inactive: "bg-gray-50  text-gray-500",
   banned:   "bg-red-50   text-red-600",
 };
+const STATUS_LABEL = {
+  active: "نشط",
+  inactive: "غير نشط",
+  banned: "محظور",
+};
 
 // Endpoints tried in order until one works
+const IMAGE_BASE = "https://tadbeer0.runasp.net/";
+
+const fullImg = (url) => {
+  if (!url || url === "string") return null;
+  return url.startsWith("http") ? url : `${IMAGE_BASE}${url}`;
+};
+
 const ENDPOINTS = [
-  "https://tadbeer0.runasp.net/api/Admin/Workers",
   "https://tadbeer0.runasp.net/api/Admin/Users?role=Worker",
   "https://tadbeer0.runasp.net/api/General/Workers",
 ];
+
+function WorkerAvatar({ src, name, initial }) {
+  const [err, setErr] = React.useState(false);
+  if (src && !err) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setErr(true)}
+        className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100"
+      />
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-full bg-[#001F3F] flex items-center justify-center
+                    text-[#F7A823] text-[11px] font-bold flex-shrink-0">
+      {initial}
+    </div>
+  );
+}
 
 const Technicians = () => {
   const navigate = useNavigate();
@@ -75,9 +106,7 @@ const Technicians = () => {
 
       for (const url of ENDPOINTS) {
         try {
-          console.log(`[Technicians] Trying: ${url}`);
           const res = await axios.get(url, { headers });
-          console.log(`[Technicians] Success from ${url}:`, res.data);
 
           const raw  = res.data?.items ?? res.data?.data ?? res.data ?? [];
           const list = Array.isArray(raw) ? raw : [];
@@ -177,6 +206,7 @@ const Technicians = () => {
                   <th className="py-3 px-4 text-right font-medium">البريد</th>
                   <th className="py-3 px-4 text-right font-medium">رقم الهاتف</th>
                   <th className="py-3 px-4 text-right font-medium">التخصص</th>
+                  <th className="py-3 px-4 text-right font-medium">المدينة</th>
                   <th className="py-3 px-4 text-right font-medium">الخبرة</th>
                   <th className="py-3 px-4 text-right font-medium">التقييم</th>
                   <th className="py-3 px-4 text-right font-medium">تاريخ الانضمام</th>
@@ -187,8 +217,9 @@ const Technicians = () => {
               <tbody className="text-xs divide-y divide-gray-50">
                 {techs.map((t, i) => {
                   const name      = `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim() || t.name || t.fullName || "—";
-                  const phone     = t.phoneNumber || t.phoneNumbers?.[0] || "—";
+                  const phone     = t.primaryPhoneNumber || t.phoneNumber || "—";
                   const specialty = t.specialtyNames?.[0] || t.specialty || "—";
+                  const city      = t.city || "—";
                   const statusKey = t.status?.toLowerCase() ?? "";
                   const statusCls = STATUS_COLORS[statusKey] ?? "bg-gray-50 text-gray-400";
                   return (
@@ -196,15 +227,11 @@ const Technicians = () => {
 
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          {t.profileImage && t.profileImage !== "string" ? (
-                            <img src={t.profileImage} alt={name}
-                                 className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-yellow-500 flex items-center
-                                            justify-center text-[10px] font-medium text-[#0a1d37] flex-shrink-0">
-                              {t.firstName?.[0] ?? t.name?.[0] ?? "ف"}
-                            </div>
-                          )}
+                          <WorkerAvatar
+                            src={fullImg(t.profileImage || null)}
+                            name={name}
+                            initial={t.firstName?.[0] ?? t.name?.[0] ?? "ف"}
+                          />
                           <span className="font-medium text-gray-800">{name}</span>
                         </div>
                       </td>
@@ -219,6 +246,8 @@ const Technicians = () => {
                           </span>
                         ) : "—"}
                       </td>
+
+                      <td className="py-4 px-4 text-gray-400">{city}</td>
 
                       <td className="py-4 px-4 text-gray-400">
                         {t.experienceYears != null ? `${t.experienceYears} سنوات` : "—"}
@@ -239,7 +268,7 @@ const Technicians = () => {
 
                       <td className="py-4 px-4 text-center">
                         <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusCls}`}>
-                          {t.status || "—"}
+                          {STATUS_LABEL[statusKey] || t.status || "—"}
                         </span>
                       </td>
 

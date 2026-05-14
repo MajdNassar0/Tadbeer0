@@ -100,6 +100,7 @@ const WorkerLayout = () => {
         );
         const p = res.data;
         const updated = {
+          id:           p.id           || p.workerId   || user?.id,
           name:         `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || user?.name,
           email:        p.email        || user?.email,
           role:         p.role         || user?.role,
