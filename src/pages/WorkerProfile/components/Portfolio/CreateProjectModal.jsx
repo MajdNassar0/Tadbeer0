@@ -15,21 +15,20 @@ const CreateProjectModal = ({ open, onClose, onCreated }) => {
   const reset = () => { setFile(null); setTitle(""); setDescription(""); };
   const handleClose = () => { reset(); onClose(); };
 
- const handleSubmit = async () => {
-    if (!file) return toast("الرجاء اختيار صورة غلاف", "error"); 
-    setLoading(true); 
+const handleSubmit = async () => {
+  if (!file) return toast("الرجاء اختيار صورة غلاف", "error"); 
+  setLoading(true);
+  try {
+    const fd = new FormData();
+    fd.append("ImageFile", file); // تحديث المسمى هنا
+    if (title) fd.append("Name", title); // تحديث المسمى هنا (السيرفر يتوقع Name)
+    if (description) fd.append("Description", description); 
 
-    try {
-      const fd = new FormData();
-      fd.append("MainImage", file); 
-      if (title) fd.append("Title", title); 
-      if (description) fd.append("Description", description); 
-
-      const res = await apiClient.post("/Worker/Profile/me/work-images", fd, { 
-        headers: { "Content-Type": "multipart/form-data" }, 
-      });
-
-      toast("تم إنشاء المشروع بنجاح ✓"); 
+    const res = await apiClient.post("/Worker/Profile/me/work-images", fd, { 
+      headers: { "Content-Type": "multipart/form-data" }, 
+    });
+    
+    toast("تم إنشاء المشروع بنجاح ✓"); 
 
       // --- الجزء الجديد والمعدل ---
       const newProject = {

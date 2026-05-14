@@ -7,7 +7,7 @@ const ProjectCard = ({ project, onClick, onDelete, index }) => {
   const [hover, setHover] = useState(false);
 
   // 1. تحديد الرابط الصحيح (سواء كان محلي blob أو من السيرفر)
-  const imageSrc = project.imageUrl || project.mainImageUrl;
+  const imageSrc = project.imageUrl || project.mainImageUrl || project.url;
   const finalSrc = imageSrc?.startsWith('blob:') 
     ? imageSrc 
     : getFullImageUrl(imageSrc);
@@ -26,7 +26,7 @@ const ProjectCard = ({ project, onClick, onDelete, index }) => {
         {imageSrc ? (
           <motion.img
             src={finalSrc} // استخدمنا الرابط المعالج هنا
-            alt={project.title || "مشروع"}
+            alt={project.name || "مشروع"}
             className="w-full h-full object-cover"
             animate={{ scale: hover ? 1.06 : 1 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
@@ -41,7 +41,7 @@ const ProjectCard = ({ project, onClick, onDelete, index }) => {
       <AnimatePresence>
         {hover && (
           <motion.div
-            className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end p-4"
+            className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent flex items-end p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -60,7 +60,7 @@ const ProjectCard = ({ project, onClick, onDelete, index }) => {
 
       <div className="p-4">
         <h4 className="font-bold text-gray-900 text-sm truncate">
-          {project.title || "مشروع بدون عنوان"}
+          {project.name || "مشروع بدون عنوان"}
         </h4>
         {project.description && (
           <p className="text-xs text-gray-400 mt-0.5 truncate">{project.description}</p>

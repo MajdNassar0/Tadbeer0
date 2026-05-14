@@ -20,8 +20,7 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
   const [confirmProject, setConfirmProject] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
 
-  console.log("البيانات المستلمة للمشروع:", project);
-
+  // جلب الصور الفرعية من السيرفر [cite: 215]
   const fetchSubImages = useCallback(async () => {
     setLoading(true);
     try {
@@ -32,7 +31,7 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
     } finally {
       setLoading(false);
     }
-  }, [project.id]);
+  }, [project.id, toast]);
 
   useEffect(() => { fetchSubImages(); }, [fetchSubImages]);
 
@@ -64,9 +63,16 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
     }
   };
 
+  // توحيد مسميات الحقول لضمان عمل الـ Lightbox مع السكيما القديمة والجديدة [cite: 223, 224]
   const allImages = [
-    { id: "main", imageUrl: project.imageUrl || project.mainImageUrl },
-    ...subImages,
+    { 
+      id: "main", 
+      imageUrl: project.imageUrl || project.mainImageUrl || project.url 
+    },
+    ...subImages.map(img => ({
+      ...img,
+      imageUrl: img.imageUrl || img.url 
+    })),
   ].filter((img) => img.imageUrl);
 
   return (
@@ -87,7 +93,8 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h3 className="font-bold text-gray-900">{project.title || "تفاصيل المشروع"}</h3>
+            {/* دعم حقل name الجديد من السيرفر [cite: 125, 128] */}
+            <h3 className="font-bold text-gray-900">{project.name || project.title || "تفاصيل المشروع"}</h3>
             {project.description && (
               <p className="text-xs text-gray-400 mt-0.5">{project.description}</p>
             )}
@@ -109,17 +116,17 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
         </div>
       </div>
 
-      {/* Cover */}
+      {/* Cover - تم تحديثه ليدعم imageUrl لعدم الاختفاء بعد الـ Refresh [cite: 127] */}
       <div
         className="relative h-64 rounded-3xl overflow-hidden bg-gray-100 cursor-pointer group"
         onClick={() => setLightbox(0)}
       >
-        {(project.imageUrl || project.mainImageUrl) ? (
+        {(project.imageUrl || project.mainImageUrl || project.url) ? (
           <img 
-  src={getFullImageUrl(project.imageUrl || project.mainImageUrl)} 
-  alt="" 
-  className="w-full h-full object-cover" 
-/>
+            src={getFullImageUrl(project.imageUrl || project.mainImageUrl || project.url)} 
+            alt={project.name || "Project Cover"} 
+            className="w-full h-full object-cover" 
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Briefcase size={40} className="text-gray-300" />
@@ -163,10 +170,10 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
                 onClick={() => setLightbox(i + 1)}
               >
                 <img 
-  src={getFullImageUrl(img.imageUrl || img.url)} 
-  alt="" 
-  className="w-full h-full object-cover" 
-/>
+                  src={getFullImageUrl(img.imageUrl || img.url)} 
+                  alt="" 
+                  className="w-full h-full object-cover" 
+                />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition" />
                 <button
                   onClick={(e) => { e.stopPropagation(); setConfirm({ open: true, subImageId: img.id }); }}

@@ -20,7 +20,7 @@ const AddSubImagesModal = ({ open, projectId, onClose, onAdded }) => {
     for (const file of files) {
       try {
         const fd = new FormData();
-        fd.append("SubImageFiles", file);
+        fd.append("SubImage", file);
         const res = await apiClient.post(
           `/Worker/Profile/me/work-images/${projectId}/sub-images`,
           fd,
@@ -33,6 +33,7 @@ const AddSubImagesModal = ({ open, projectId, onClose, onAdded }) => {
     }
     if (results.length) {
       toast(`تم رفع ${results.length} صورة بنجاح ✓`);
+      
       onAdded(results);
       handleClose();
     }

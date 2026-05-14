@@ -134,23 +134,29 @@ const fetchWorkImages = useCallback(async () => {
   }, [updateWorker]);
 
   // ── POST work-images ───────────────────────────────────────
-  const uploadWorkImage = useCallback(async (imageFile) => {
-    setSaving(true);
-    try {
-      const fd = new FormData();
-      fd.append("MainImage", imageFile);
-      const res = await apiClient.post("/Worker/Profile/me/work-images", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      const newImg = res.data;
-      setWorkImages(prev => [...prev, newImg]);
-      return { ok: true, image: newImg };
-    } catch (err) {
-      return { ok: false, error: err.response?.data?.message || "فشل رفع الصورة" };
-    } finally {
-      setSaving(false);
-    }
-  }, []);
+// البحث عن دالة uploadWorkImage وتحديثها
+const uploadWorkImage = useCallback(async (imageFile, name = "", description = "") => {
+  setSaving(true);
+  try {
+    const fd = new FormData();
+    // التعديل حسب السكيما الجديدة: ImageFile بدلاً من MainImage
+    fd.append("ImageFile", imageFile); 
+    fd.append("Name", name); // كانت Title سابقاً
+    fd.append("Description", description);
+
+    const res = await apiClient.post("/Worker/Profile/me/work-images", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    
+    const newImg = res.data;
+    setWorkImages(prev => [...prev, newImg]);
+    return { ok: true, image: newImg };
+  } catch (err) {
+    return { ok: false, error: err.response?.data?.message || "فشل رفع المشروع" };
+  } finally {
+    setSaving(false);
+  }
+}, []);
 
   // ── DELETE work-images/{mainImageId} ──────────────────────
   const deleteWorkImage = useCallback(async (mainImageId) => {
