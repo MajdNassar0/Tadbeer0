@@ -105,7 +105,14 @@ const WorkerLayout = () => {
           email:        p.email        || user?.email,
           role:         p.role         || user?.role,
           specialty:    p.specialtyNames?.[0] || "فني متخصص",
-          profileImage: p.profileImage ?? null,
+          profileImage: (() => {
+            // Try every field name the API might use
+            const raw = p.profileImage || p.ProfileImage || p.profileImageUrl
+                     || p.ProfileImageUrl || p.image || p.Image || p.avatar || null;
+            console.log("[WorkerLayout] raw image field:", raw, "| full p keys:", Object.keys(p));
+            if (!raw || raw === 'string') return null;
+            return raw.startsWith('http') ? raw : `https://tadbeer0.runasp.net/${raw}`;
+          })(),
           avgRating:    p.avgRating    ?? null,
           city:         p.city         ?? null,
         };

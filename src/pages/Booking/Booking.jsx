@@ -113,7 +113,7 @@ function WorkerHeroCard({ worker }) {
       <div className="absolute left-0 top-0 w-48 h-48 bg-white/5 rounded-full -translate-x-16 -translate-y-16" />
       <div className="relative z-10 flex-1 min-w-0">
         <p className="text-gray-400 text-xs mb-1">الفني</p>
-        <h2 className="text-white text-xl font-medium mb-1">المهندس {name}</h2>
+        <h2 className="text-white text-xl font-medium mb-1"> {name}</h2>
         <p className="text-yellow-400 text-xs mb-3">✏️ {worker.specialtyNames?.[0] || "فني متخصص"}</p>
         <div className="flex flex-wrap gap-2">
           {worker.city && (
