@@ -188,11 +188,16 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
       </div>
 
       <AddSubImagesModal
-        open={showAddModal}
-        projectId={project.id}
-        onClose={() => setShowAddModal(false)}
-        onAdded={(newImgs) => setSubImages((prev) => [...prev, ...newImgs])}
-      />
+       open={showAddModal}
+  projectId={project.id}
+  onClose={() => setShowAddModal(false)}
+  onAdded={() => {
+    // ✅ الحل الجذري: نطلب من المكون إعادة جلب الصور من السيرفر فوراً
+    // هذا سيجلب الصور الجديدة بنفس التنسيق الذي يتوقعه الـ Lightbox
+    fetchSubImages(); 
+    toast("تم تحديث معرض الصور بنجاح ✓");
+  }}
+/>
 
       <ConfirmDialog
         open={confirm.open}

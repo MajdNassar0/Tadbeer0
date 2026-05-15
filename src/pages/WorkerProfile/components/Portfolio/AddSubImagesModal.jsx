@@ -11,34 +11,38 @@ const AddSubImagesModal = ({ open, projectId, onClose, onAdded }) => {
   const [loading, setLoading] = useState(false);
 
   const handleClose = () => { setFiles([]); onClose(); };
-
-  const handleSubmit = async () => {
-    if (!files.length) return toast("اختر صورة واحدة على الأقل", "error");
+  // داخل handleSubmit في AddSubImagesModal.jsx
+const handleSubmit = async () => {
+ if (!files.length) return toast("اختر صورة واحدة على الأقل", "error");
     console.log("Project ID being sent:", projectId);
     setLoading(true);
-    const results = [];
-    for (const file of files) {
-      try {
-        const fd = new FormData();
-        fd.append("SubImage", file);
-        const res = await apiClient.post(
-          `/Worker/Profile/me/work-images/${projectId}/sub-images`,
-          fd,
-          { headers: { "Content-Type": "multipart/form-data" } }
-        );
-        results.push(res.data);
-      } catch {
-        toast("فشل رفع إحدى الصور", "error");
-      }
-    }
-    if (results.length) {
-      toast(`تم رفع ${results.length} صورة بنجاح ✓`);
+      const results = [];
+  for (const file of files) {
+    try {
+      const fd = new FormData();
+      fd.append("SubImage", file);
+      const res = await apiClient.post(
+        `/Worker/Profile/me/work-images/${projectId}/sub-images`,
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
       
-      onAdded(results);
-      handleClose();
+      // ✅ تأكد هنا: إذا كان السيرفر يعيد الصورة داخل res.data.data استخدمها
+      // وإذا كان يعيدها مباشرة في res.data فكودك الحالي صحيح
+      results.push(res.data?.data || res.data); 
+    } catch {
+      toast("فشل رفع إحدى الصور", "error");
     }
-    setLoading(false);
-  };
+  }
+
+  if (results.length) {
+    // نرسل مصفوفة الصور الجديدة للأب
+    onAdded(results); 
+    handleClose();
+  }
+};
+
+
 
   return (
     <AnimatePresence>
