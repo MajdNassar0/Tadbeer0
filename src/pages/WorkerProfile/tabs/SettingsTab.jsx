@@ -4,6 +4,7 @@ import PasswordModal from "../../../components/Profile/Security/modals/PasswordM
 import { useToast } from "../../../context/ToastContext";
 import PersonalInfoForm from "../components/sub-settings/PersonalInfoForm";
 import ProfessionalInfoForm from "../components/sub-settings/ProfessionalInfoForm";
+import DeactivateModal from "../../../components/Profile/Security/modals/DeactivateModal";
 import { 
   User, Briefcase, ShieldCheck, Key, Shield, UserX, Trash2,
   Phone, FileText, Calendar, MapPin, Clock
@@ -13,6 +14,7 @@ const SettingsTab = ({ worker, updateWorker, saving, onToggleStatus, toggling, u
   deleteWorkingHour }) => {
   const [activeTab, setActiveTab] = useState("profile"); // profile | work | security
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState(null);
   const toast = useToast();
 
   // مكون الصف الاحترافي (Row) - معدل لاستقبال onClick
@@ -126,8 +128,14 @@ const SettingsTab = ({ worker, updateWorker, saving, onToggleStatus, toggling, u
                 onClick={() => setIsPassModalOpen(true)} 
               />
               <SettingsRow icon={Shield} title="توثيق الهوية" description="ارفع هويتك للحصول على شارة موثوق" actionText="توثيق" />
-              <SettingsRow icon={UserX} title="تعطيل الحساب" description="إخفاء بروفايلك عن العملاء مؤقتاً" actionText="تعطيل" isDestructive={true} />
-              <SettingsRow icon={Trash2} title="حذف الحساب" description="حذف كافة بياناتك نهائياً" actionText="حذف" isDestructive={true} />
+              <SettingsRow 
+  icon={UserX} 
+  title={worker?.status === "Inactive" ? "تفعيل الحساب" : "تعطيل الحساب"} 
+  description="إخفاء بروفايلك عن العملاء مؤقتاً" 
+  actionText={worker?.status === "Inactive" ? "تفعيل" : "تعطيل"}
+  isDestructive={worker?.status !== "Inactive"}
+  onClick={() => setActiveModal("deactivate")} // تفعيل الزر عند الضغط
+/>
             </motion.div>
           )}
 
@@ -140,15 +148,18 @@ const SettingsTab = ({ worker, updateWorker, saving, onToggleStatus, toggling, u
         onClose={() => setIsPassModalOpen(false)} 
         toast={toast} 
       />
+      <DeactivateModal 
+  isOpen={activeModal === "deactivate"} 
+  onClose={() => setActiveModal(null)} 
+  onConfirm={async () => {
+    const res = await onToggleStatus(); // استدعاء دالة الـ PATCH للعامل
+    if (res.ok) setActiveModal(null);
+  }}
+  loading={toggling}
+  isInactive={worker?.status === "Inactive"} 
+/>
 
-      {/* قسم نشاط المنصة */}
-      <div className="mt-4 p-6 bg-white rounded-3xl border border-gray-100 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800 mb-2">نشاط المنصة</h3>
-        <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
-           <div className="w-1/3 h-full bg-orange-500"></div>
-        </div>
-        <p className="text-[10px] text-gray-400 mt-2 italic">أكمل ملفك الشخصي بنسبة 70% لجذب عملاء أكثر</p>
-      </div>
+      
 
     </div>
   );

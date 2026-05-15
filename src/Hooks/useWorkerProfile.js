@@ -111,18 +111,29 @@ if (Array.isArray(payload.WorkingHours)) {
   }, []);
 
   // ── PATCH status-toggle ────────────────────────────────────
-  const toggleStatus = useCallback(async () => {
-    setToggling(true);
-    try {
-      const res = await apiClient.patch("/Worker/Profile/me/status-toggle");
+const toggleStatus = useCallback(async () => {
+  setToggling(true);
+  try {
+    const res = await apiClient.patch("/Worker/Profile/me/status-toggle");
+    
+    // ✅ الحل: إذا السيرفر أعاد بيانات نستخدمها، وإلا نحدث الحالة محلياً
+    if (res.data && Object.keys(res.data).length > 0) {
       setWorker(res.data);
       return { ok: true, worker: res.data };
-    } catch (err) {
-      return { ok: false, error: "فشل تغيير حالة التوفر" };
-    } finally {
-      setToggling(false);
+    } else {
+      // السيرفر أعاد No Body — نحدث الحالة محلياً
+      setWorker(prev => ({
+        ...prev,
+        status: prev.status === "Active" ? "Inactive" : "Active"
+      }));
+      return { ok: true };
     }
-  }, []);
+  } catch (err) {
+    return { ok: false, error: "فشل تغيير حالة التوفر" };
+  } finally {
+    setToggling(false);
+  }
+}, []);
 
   // ── Upload profile image via PUT ───────────────────────────
   const uploadProfileImage = useCallback(async (file, currentWorker) => {
@@ -253,7 +264,7 @@ const deleteWorkingHour = useCallback(async (id) => {
     worker, workImages, loading, saving, toggling, imagesLoading, error,
     fetchWorker, fetchWorkImages,
     updateWorker, toggleStatus,
-    uploadProfileImage,
+    uploadProfileImage, setWorker,
     uploadWorkImage, deleteWorkImage,
     uploadSubImage, deleteSubImage,
     addWorkingHour, updateWorkingHour, deleteWorkingHour

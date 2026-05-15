@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, BookOpen, Wrench, Star, Settings } from "lucide-react";
+import ReactivateScreen from "../../components/UI/ReactivateScreen";
 
 // Context & Hooks
-
 import { useAuth } from "../../context/AuthContext";
 import { useWorkerProfile } from "../../Hooks/useWorkerProfile";
 import { useToast } from "../../context/ToastContext";
@@ -39,34 +39,53 @@ const OWNER_TABS = [
 
 const VISITOR_TABS = OWNER_TABS.filter((t) => t.id !== "settings");
 
-
 const WorkerProfileInner = () => {
   const { workerId } = useParams();
-  const { user: authUser, updateUser } = useAuth();
+  const { user: authUser, updateUser, logout } = useAuth(); // أضفنا logout هنا [cite: 72]
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
-  // ✅ إذا كان الـ ID في الـ URL هو نفسه ID المستخدم → نعامله كـ Owner
+  // ✅ تحديد المالك بناءً على الـ ID
   const effectiveId = authUser?.id && workerId === String(authUser.id)
     ? null
     : workerId ?? null;
 
-  // ✅ تمرير effectiveId وليس workerId
   const {
     worker, workImages, loading, saving, toggling, error,
     fetchWorker, updateWorker, toggleStatus,
     uploadProfileImage, uploadWorkImage, deleteWorkImage,
-    addWorkingHour,      // استخرجيها هنا
-    updateWorkingHour,   // استخرجيها هنا
+    addWorkingHour,   setWorker,    
+    updateWorkingHour,   
     deleteWorkingHour,
   } = useWorkerProfile(effectiveId);
 
-
- const isOwner = effectiveId === null;
-
-  const tabs = isOwner ? OWNER_TABS : VISITOR_TABS;
+  const isOwner = effectiveId === null;
 
   // ── Handlers ────────────────────────────────────────────────
+  
+const handleToggleStatus = async () => {
+  const res = await toggleStatus();
+  
+  if (res.ok) {
+    // ✅ الهوك حدّث worker.status بشكل صحيح (محلياً أو من السيرفر)
+    // نحتاج فقط للـ toast — لا حاجة لـ fetchWorker() أو updateUser()
+    // نقرأ الحالة الجديدة من res.worker أو نحسبها من الحالة الحالية
+    const newStatus = res.worker?.status ?? 
+      (worker.status === "Active" ? "Inactive" : "Active");
+    
+    const msg = newStatus === "Inactive" ? "تم تعطيل الحساب" : "تم تفعيل الحساب";
+    toast(`${msg} بنجاح ✓`);
+    
+    // هذا اختياري — فقط لتحديث AuthContext إذا كنت تحتاجينه في أماكن أخرى
+    updateUser({ status: newStatus });
+    
+    return res;
+  } else {
+    toast(res.error || "فشل تغيير الحالة", "error");
+    return res;
+  }
+};
+
   const handleUploadProfile = async (file) => {
     const res = await uploadProfileImage(file, worker);
     if (res.ok) {
@@ -75,12 +94,6 @@ const WorkerProfileInner = () => {
     } else {
       toast(res.error || "فشل رفع الصورة", "error");
     }
-  };
-
-  const handleToggleStatus = async () => {
-    const res = await toggleStatus();
-    if (res.ok) toast("تم تغيير حالة التوفر ✓");
-    else toast(res.error || "فشل تغيير الحالة", "error");
   };
 
   const handleUploadWork = async (file) => {
@@ -95,15 +108,25 @@ const WorkerProfileInner = () => {
     else toast(res.error || "فشل حذف الصورة", "error");
   };
 
-  // ── Derived data ─────────────────────────────────────────────
-  const portfolioImages =
-    workImages.length > 0
-      ? workImages
-      : worker?.portfolioImages || worker?.workImages || [];
+  // ✅ فحص حالة التعطيل: يتم الفحص بعد انتهاء التحميل لضمان دقة البيانات [cite: 85]
+  if (!loading && isOwner && worker?.status === "Inactive") {
+    return (
+      <ReactivateScreen 
+        onReactivate={handleToggleStatus} 
+        loading={toggling} 
+        onLogout={() => {
+          logout(); // استخدام دالة الخروج الرسمية [cite: 72]
+          window.location.href = "/login";
+        }} 
+      />
+    );
+  }
+
+  const tabs = isOwner ? OWNER_TABS : VISITOR_TABS;
 
   const tabContent = {
     overview: <OverviewTab worker={worker} isOwner={isOwner} loading={loading} />,
-   portfolio: <PortfolioTab isOwner={isOwner} />,
+    portfolio: <PortfolioTab isOwner={isOwner} />,
     services: (
       <ServicesTab services={worker?.services || []} isOwner={isOwner} loading={loading} />
     ),
@@ -115,22 +138,21 @@ const WorkerProfileInner = () => {
         loading={loading}
       />
     ),
-   settings: isOwner ? (
-  <SettingsTab
-    worker={worker}
-    updateWorker={updateWorker} // مررنا الدالة هنا
-    saving={saving}             // مررنا حالة التحميل هنا
-    onToggleStatus={handleToggleStatus}
-    toggling={toggling}
-    updateUser={updateUser}
-     addWorkingHour={addWorkingHour}        // ✅ أضيفي هذا
-    updateWorkingHour={updateWorkingHour}  // ✅ أضيفي هذا
-    deleteWorkingHour={deleteWorkingHour} 
-  />
-) : null,
+    settings: isOwner ? (
+      <SettingsTab
+        worker={worker}
+        updateWorker={updateWorker}
+        saving={saving}
+        onToggleStatus={handleToggleStatus} 
+        toggling={toggling}
+        updateUser={updateUser}
+        addWorkingHour={addWorkingHour}
+        updateWorkingHour={updateWorkingHour}
+        deleteWorkingHour={deleteWorkingHour} 
+      />
+    ) : null,
   };
 
-  // ── Error state ───────────────────────────────────────────────
   if (error && !loading) {
     return (
       <div className="min-h-screen bg-[#f8f6f3] p-4 lg:p-10" dir="rtl">
@@ -139,11 +161,9 @@ const WorkerProfileInner = () => {
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────
   return (
     <div dir="rtl" className="min-h-screen bg-[#f8f6f3] p-4 pb-28 sm:p-6 lg:p-10">
       <div className="mx-auto max-w-5xl">
-        {/* Header */}
         <WorkerHeader
           worker={worker}
           isOwner={isOwner}
@@ -155,10 +175,8 @@ const WorkerProfileInner = () => {
           onEditClick={() => setActiveTab("settings")}
         />
 
-        {/* Stats Bar */}
         <StatsBar worker={worker} loading={loading} />
 
-        {/* Mobile Tab Bar */}
         <MobileTabBar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -167,7 +185,6 @@ const WorkerProfileInner = () => {
         />
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-          {/* Sidebar – desktop only */}
           <div className="hidden lg:block lg:col-span-1">
             <WorkerSidebar
               worker={worker}
@@ -180,24 +197,17 @@ const WorkerProfileInner = () => {
             />
           </div>
 
-          {/* Main tab content */}
           <main className="lg:col-span-3">
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm min-h-[400px]">
-              {/* Tab header row */}
               <div className="mb-5 border-b border-gray-50 pb-4 flex items-center justify-between">
                 <h2 className="text-base font-black text-gray-800">
                   {tabs.find((t) => t.id === activeTab)?.label}
                 </h2>
-                <span
-                  className={`rounded-full px-3 py-0.5 text-xs font-bold ${
-                    isOwner ? "bg-orange-50 text-orange-500" : "bg-blue-50 text-blue-600"
-                  }`}
-                >
+                <span className={`rounded-full px-3 py-0.5 text-xs font-bold ${isOwner ? "bg-orange-50 text-orange-500" : "bg-blue-50 text-blue-600"}`}>
                   {isOwner ? "أنت المالك" : "زائر"}
                 </span>
               </div>
 
-              {/* Animated tab content */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
@@ -213,14 +223,11 @@ const WorkerProfileInner = () => {
           </main>
         </div>
       </div>
-
-      {/* Floating action buttons – mobile only */}
       <FloatingActions isOwner={isOwner} setActiveTab={setActiveTab} />
     </div>
   );
 };
 
-// الـ Export الصحيح والوحيد في الملف
 const WorkerProfile = () => (
   <ToastProvider>
     <WorkerProfileInner />

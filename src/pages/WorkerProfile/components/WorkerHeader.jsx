@@ -83,9 +83,7 @@ const WorkerHeader = ({
                   <button onClick={onEditClick} className="flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 transition shadow-lg">
                     <Edit3 size={15}/>تعديل الملف الشخصي
                   </button>
-                  <button onClick={onToggleStatus} disabled={toggling} className="flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/20 transition">
-                    {toggling ? <Loader2 size={15} className="animate-spin"/> : <ToggleRight size={15}/>} تغيير حالة التوفر
-                  </button>
+                  
                 </>
               ) : (
                 <button 
