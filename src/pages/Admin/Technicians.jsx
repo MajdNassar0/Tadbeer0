@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { UserCog, Trash2, X, Star } from "lucide-react";
+import { UserCog, Trash2, X, Star, ExternalLink } from "lucide-react";
+
+const API_BASE = "https://tadbeer0.runasp.net/api";
 
 function Spinner() {
   return (
@@ -46,17 +48,20 @@ function ConfirmModal({ name, onConfirm, onCancel, loading }) {
 }
 
 const STATUS_COLORS = {
-  active:   "bg-green-50 text-green-700",
-  inactive: "bg-gray-50  text-gray-500",
-  banned:   "bg-red-50   text-red-600",
+  active:      "bg-green-50 text-green-700",
+  inactive:    "bg-gray-50  text-gray-500",
+  banned:      "bg-red-50   text-red-600",
+  available:   "bg-green-50 text-green-700",
+  unavailable: "bg-orange-50 text-orange-500",
 };
 const STATUS_LABEL = {
-  active: "نشط",
-  inactive: "غير نشط",
-  banned: "محظور",
+  active:      "نشط",
+  inactive:    "غير نشط",
+  banned:      "محظور",
+  available:   "متاح",
+  unavailable: "غير متاح",
 };
 
-// Endpoints tried in order until one works
 const IMAGE_BASE = "https://tadbeer0.runasp.net/";
 
 const fullImg = (url) => {
@@ -64,10 +69,45 @@ const fullImg = (url) => {
   return url.startsWith("http") ? url : `${IMAGE_BASE}${url}`;
 };
 
-const ENDPOINTS = [
-  "https://tadbeer0.runasp.net/api/Admin/Users?role=Worker",
-  "https://tadbeer0.runasp.net/api/General/Workers",
-];
+// Confirmed field names from OverviewTab.jsx / WorkerProfile API
+const resolveWorker = (t) => {
+  const name = `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim() || t.fullName || t.name || "—";
+
+  // OverviewTab uses t.phoneNumber directly
+  const phone = t.phoneNumber || t.primaryPhoneNumber || "—";
+
+  // OverviewTab uses t.specialtyNames?.join(" ، ")
+  const specialtyAll = Array.isArray(t.specialtyNames) && t.specialtyNames.length > 0
+    ? t.specialtyNames.join(" ، ")
+    : t.specialty || t.specialtyName || null;
+
+  // OverviewTab uses t.city
+  const city = t.city || "—";
+
+  // OverviewTab uses t.experienceYears
+  const experience = t.experienceYears != null ? `${t.experienceYears} سنوات` : "—";
+
+  // OverviewTab uses t.avgRating
+  const rating = t.avgRating != null ? Number(t.avgRating) : null;
+
+  const reviewsCount = t.reviewsCount ?? null;
+
+  // isAvailable bool (WorkerProfile) takes priority, fallback to status string
+  const statusRaw =
+    t.isAvailable === true  ? "available"   :
+    t.isAvailable === false ? "unavailable" :
+    (t.status?.toLowerCase() ?? "");
+
+  const bio = t.jobDescription || t.bio || null;
+
+  const completedJobs = t.completedJobsCount ?? t.completedJobs ?? null;
+
+  const profileImage = fullImg(t.profileImage || t.ProfileImage || null);
+
+  const joinDate = t.createdAt || t.joinedAt || null;
+
+  return { id: t.id, name, email: t.email || "—", phone, specialtyAll, city, experience, rating, reviewsCount, statusRaw, bio, completedJobs, profileImage, joinDate };
+};
 
 function WorkerAvatar({ src, name, initial }) {
   const [err, setErr] = React.useState(false);
@@ -91,7 +131,8 @@ function WorkerAvatar({ src, name, initial }) {
 
 const Technicians = () => {
   const navigate = useNavigate();
-  const [techs,    setTechs   ] = useState(null);
+  const [techs,    setTechs   ] = useState(null);   // null = loading, [] = empty
+  const [profiles, setProfiles] = useState({});      // id → full profile data
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -102,43 +143,61 @@ const Technicians = () => {
       if (!token) { navigate("/auth/login"); return; }
       const headers = { Authorization: `Bearer ${token}` };
 
-      let lastError = null;
-
-      for (const url of ENDPOINTS) {
-        try {
-          const res = await axios.get(url, { headers });
-
-          const raw  = res.data?.items ?? res.data?.data ?? res.data ?? [];
-          const list = Array.isArray(raw) ? raw : [];
-
-          // If mixed roles returned, filter to workers only
-          const workers = list.filter(u =>
-            !u.role ||
-            u.role?.toLowerCase().includes("worker") ||
-            u.role?.toLowerCase().includes("technician")
-          );
-
-          setTechs(workers.length > 0 ? workers : list);
+      // Step 1 — fetch the user list
+      let list = [];
+      try {
+        const res = await axios.get(`${API_BASE}/Admin/Users?role=Worker`, { headers });
+        const raw = res.data?.items ?? res.data?.data ?? res.data ?? [];
+        list = Array.isArray(raw) ? raw : [];
+        // Filter to workers only if mixed roles returned
+        const workers = list.filter(u =>
+          !u.role ||
+          u.role?.toLowerCase().includes("worker") ||
+          u.role?.toLowerCase().includes("technician")
+        );
+        list = workers.length > 0 ? workers : list;
+      } catch (err) {
+        console.warn("[Technicians] Admin/Users failed:", err.response?.status);
+        if (err.response?.status === 401) { localStorage.clear(); navigate("/auth/login"); return; }
+        if (err.response?.status === 403) {
+          setErrorMsg("ليس لديك صلاحية الوصول إلى هذه البيانات (403)");
+          setTechs([]);
           return;
-        } catch (err) {
-          console.warn(`[Technicians] Failed ${url}:`, err.response?.status, err.response?.data);
-          lastError = err;
-          if (err.response?.status === 401) {
-            localStorage.clear();
-            navigate("/auth/login");
-            return;
-          }
+        }
+        // Fallback to General/Workers
+        try {
+          const res2 = await axios.get(`${API_BASE}/General/Workers`, { headers });
+          const raw2 = res2.data?.items ?? res2.data?.data ?? res2.data ?? [];
+          list = Array.isArray(raw2) ? raw2 : [];
+        } catch (err2) {
+          const s = err2.response?.status;
+          setErrorMsg(`فشل تحميل البيانات (${s ?? "خطأ في الشبكة"})`);
+          setTechs([]);
+          return;
         }
       }
 
-      // All failed
-      const status = lastError?.response?.status;
-      setErrorMsg(
-        status === 403 ? "ليس لديك صلاحية الوصول إلى هذه البيانات (403)" :
-        status === 404 ? "المسار غير موجود، يرجى مراجعة الـ API (404)" :
-        `فشل تحميل البيانات (${status ?? "خطأ في الشبكة"})`
-      );
-      setTechs([]);
+      setTechs(list);
+
+      // Step 2 — enrich each worker with full profile (specialty, city, experience, rating…)
+      // Uses the same endpoint WorkerProfile uses: General/Workers/{id}
+      const enrichAll = async () => {
+        const enriched = {};
+        await Promise.allSettled(
+          list.map(async (u) => {
+            if (!u.id) return;
+            try {
+              const r = await axios.get(`${API_BASE}/General/Workers/${u.id}`, { headers });
+              enriched[u.id] = r.data?.data ?? r.data ?? {};
+            } catch {
+              // silently skip — row will show base data
+            }
+          })
+        );
+        setProfiles(enriched);
+      };
+
+      enrichAll();
     };
 
     load();
@@ -151,10 +210,11 @@ const Technicians = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.delete(
-        `https://tadbeer0.runasp.net/api/Admin/Users/${toDelete.id}`,
+        `${API_BASE}/Admin/Users/${toDelete.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setTechs(prev => prev.filter(t => t.id !== toDelete.id));
+      setProfiles(prev => { const n = { ...prev }; delete n[toDelete.id]; return n; });
       setToDelete(null);
     } catch {
       setErrorMsg("فشل الحذف، يرجى المحاولة مجدداً");
@@ -209,72 +269,121 @@ const Technicians = () => {
                   <th className="py-3 px-4 text-right font-medium">المدينة</th>
                   <th className="py-3 px-4 text-right font-medium">الخبرة</th>
                   <th className="py-3 px-4 text-right font-medium">التقييم</th>
+                  <th className="py-3 px-4 text-right font-medium">الوظائف المكتملة</th>
                   <th className="py-3 px-4 text-right font-medium">تاريخ الانضمام</th>
                   <th className="py-3 px-4 text-center font-medium">الحالة</th>
+                  <th className="py-3 px-4 text-center font-medium">الملف</th>
                   <th className="py-3 px-6 text-center font-medium">حذف</th>
                 </tr>
               </thead>
               <tbody className="text-xs divide-y divide-gray-50">
-                {techs.map((t, i) => {
-                  const name      = `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim() || t.name || t.fullName || "—";
-                  const phone     = t.primaryPhoneNumber || t.phoneNumber || "—";
-                  const specialty = t.specialtyNames?.[0] || t.specialty || "—";
-                  const city      = t.city || "—";
-                  const statusKey = t.status?.toLowerCase() ?? "";
-                  const statusCls = STATUS_COLORS[statusKey] ?? "bg-gray-50 text-gray-400";
+                {techs.map((base, i) => {
+                  // Merge base list data with the enriched full profile (if loaded)
+                  const full = profiles[base.id] ?? {};
+                  const merged = { ...base, ...full };
+                  const t = resolveWorker(merged);
+                  const statusCls = STATUS_COLORS[t.statusRaw] ?? "bg-gray-50 text-gray-400";
+                  const isEnriched = !!profiles[base.id];
+
                   return (
                     <tr key={t.id ?? i} className="hover:bg-gray-50/60 transition-colors">
 
+                      {/* Name + avatar */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <WorkerAvatar
-                            src={fullImg(t.profileImage || null)}
-                            name={name}
-                            initial={t.firstName?.[0] ?? t.name?.[0] ?? "ف"}
+                            src={t.profileImage}
+                            name={t.name}
+                            initial={base.firstName?.[0] ?? base.name?.[0] ?? "ف"}
                           />
-                          <span className="font-medium text-gray-800">{name}</span>
+                          <div>
+                            <span className="font-medium text-gray-800 block">{t.name}</span>
+                            {t.bio && (
+                              <span className="text-[10px] text-gray-400 line-clamp-1 max-w-[140px]">
+                                {t.bio}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
-                      <td className="py-4 px-4 text-gray-500">{t.email || "—"}</td>
-                      <td className="py-4 px-4 text-gray-400">{phone}</td>
+                      <td className="py-4 px-4 text-gray-500">{t.email}</td>
+                      <td className="py-4 px-4 text-gray-400">{t.phone}</td>
 
+                      {/* Specialty */}
                       <td className="py-4 px-4">
-                        {specialty !== "—" ? (
-                          <span className="px-2 py-1 rounded-full text-[10px] bg-yellow-50 text-yellow-700">
-                            {specialty}
-                          </span>
-                        ) : "—"}
+                        {isEnriched ? (
+                          t.specialtyAll ? (
+                            <span className="px-2 py-1 rounded-full text-[10px] bg-yellow-50 text-yellow-700">
+                              {t.specialtyAll}
+                            </span>
+                          ) : <span className="text-gray-300">—</span>
+                        ) : (
+                          <span className="inline-block w-16 h-3 bg-gray-100 rounded animate-pulse" />
+                        )}
                       </td>
 
-                      <td className="py-4 px-4 text-gray-400">{city}</td>
-
+                      {/* City */}
                       <td className="py-4 px-4 text-gray-400">
-                        {t.experienceYears != null ? `${t.experienceYears} سنوات` : "—"}
+                        {isEnriched ? t.city : <span className="inline-block w-12 h-3 bg-gray-100 rounded animate-pulse" />}
                       </td>
 
+                      {/* Experience */}
+                      <td className="py-4 px-4 text-gray-400">
+                        {isEnriched ? t.experience : <span className="inline-block w-14 h-3 bg-gray-100 rounded animate-pulse" />}
+                      </td>
+
+                      {/* Rating */}
                       <td className="py-4 px-4">
-                        {t.avgRating != null ? (
-                          <div className="flex items-center gap-1">
-                            <Star size={11} className="fill-yellow-400 text-yellow-400" />
-                            <span className="text-gray-600">{Number(t.avgRating).toFixed(1)}</span>
-                          </div>
-                        ) : "—"}
+                        {isEnriched ? (
+                          t.rating != null ? (
+                            <div className="flex items-center gap-1">
+                              <Star size={11} className="fill-yellow-400 text-yellow-400" />
+                              <span className="text-gray-600">{t.rating.toFixed(1)}</span>
+                              {t.reviewsCount != null && (
+                                <span className="text-gray-300">({t.reviewsCount})</span>
+                              )}
+                            </div>
+                          ) : <span className="text-gray-300">—</span>
+                        ) : <span className="inline-block w-10 h-3 bg-gray-100 rounded animate-pulse" />}
                       </td>
 
+                      {/* Completed jobs */}
                       <td className="py-4 px-4 text-gray-400">
-                        {t.createdAt ? new Date(t.createdAt).toLocaleDateString("ar-EG") : "—"}
+                        {isEnriched
+                          ? (t.completedJobs != null ? t.completedJobs : "—")
+                          : <span className="inline-block w-8 h-3 bg-gray-100 rounded animate-pulse" />}
                       </td>
 
+                      {/* Join date */}
+                      <td className="py-4 px-4 text-gray-400">
+                        {t.joinDate ? new Date(t.joinDate).toLocaleDateString("ar-EG") : "—"}
+                      </td>
+
+                      {/* Status */}
                       <td className="py-4 px-4 text-center">
                         <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusCls}`}>
-                          {STATUS_LABEL[statusKey] || t.status || "—"}
+                          {STATUS_LABEL[t.statusRaw] || base.status || "—"}
                         </span>
                       </td>
 
+                      {/* View profile */}
+                      <td className="py-4 px-4 text-center">
+                        <button
+                          onClick={() => navigate(`/worker-profile/${t.id}`)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg
+                                     bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors
+                                     text-[10px] font-medium"
+                        >
+                          <ExternalLink size={11} />
+                          الملف
+                        </button>
+                      </td>
+
+                      {/* Delete */}
                       <td className="py-4 px-6 text-center">
                         <button
-                          onClick={() => setToDelete({ id: t.id, name })}
+                          onClick={() => setToDelete({ id: t.id, name: t.name })}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
                                      bg-red-50 text-red-500 hover:bg-red-100 transition-colors
                                      text-[10px] font-medium"
