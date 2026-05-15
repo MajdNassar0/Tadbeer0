@@ -126,7 +126,11 @@ const handleToggleStatus = async () => {
 
   const tabContent = {
     overview: <OverviewTab worker={worker} isOwner={isOwner} loading={loading} />,
-    portfolio: <PortfolioTab isOwner={isOwner} />,
+    portfolio: <PortfolioTab 
+      isOwner={isOwner} 
+      workerId={workerId} // معرف العامل المجلوب من useParams
+      workerData={worker} // ✅ مرري كائن الـ worker كاملاً هنا
+    /> ,
     services: (
       <ServicesTab services={worker?.services || []} isOwner={isOwner} loading={loading} />
     ),
