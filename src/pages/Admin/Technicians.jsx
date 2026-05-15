@@ -179,18 +179,42 @@ const Technicians = () => {
 
       setTechs(list);
 
-      // Step 2 — enrich each worker with full profile (specialty, city, experience, rating…)
-      // Uses the same endpoint WorkerProfile uses: General/Workers/{id}
+      // Step 2 — fetch Admin/Bookings ONCE (same as Dashboard.jsx), distribute per worker
       const enrichAll = async () => {
+        // Single bookings request — exact same endpoint as Dashboard.jsx line 215
+        let allBookings = [];
+        try {
+          const rb = await axios.get(`${API_BASE}/Admin/Bookings`, { headers });
+          const raw = rb.data?.items ?? rb.data ?? [];
+          allBookings = Array.isArray(raw) ? raw : [];
+        } catch {
+          // bookings unavailable — completed column shows 0
+        }
+
+        // Build completedMap: workerId → completed count
+        // Uses same fields as Dashboard: b.workerId || b.worker?.id
+        // Uses same getKey logic: toLowerCase().trim().replace(/\s/g,"")
+        const completedMap = {};
+        allBookings.forEach(b => {
+          const wid = b.workerId || b.worker?.id;
+          if (!wid) return;
+          const s = b.status?.toString().toLowerCase().trim().replace(/\s/g, "");
+          if (s === "completed") {
+            completedMap[wid] = (completedMap[wid] ?? 0) + 1;
+          }
+        });
+
+        // Fetch each worker's full profile in parallel
         const enriched = {};
         await Promise.allSettled(
           list.map(async (u) => {
             if (!u.id) return;
             try {
               const r = await axios.get(`${API_BASE}/General/Workers/${u.id}`, { headers });
-              enriched[u.id] = r.data?.data ?? r.data ?? {};
+              const profile = r.data?.data ?? r.data ?? {};
+              enriched[u.id] = { ...profile, completedJobs: completedMap[u.id] ?? 0 };
             } catch {
-              // silently skip — row will show base data
+              enriched[u.id] = { completedJobs: completedMap[u.id] ?? 0 };
             }
           })
         );

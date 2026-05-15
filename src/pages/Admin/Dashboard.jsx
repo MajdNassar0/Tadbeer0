@@ -47,6 +47,27 @@ function Spinner() {
   );
 }
 
+function WorkerAvatar({ src, name }) {
+  const [err, setErr] = React.useState(false);
+  if (src && !err) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setErr(true)}
+        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+      />
+    );
+  }
+  const initials = name?.split(" ").filter(Boolean).map(p => p[0]).slice(0,2).join("") || "ف";
+  return (
+    <div className="w-8 h-8 rounded-full bg-[#001F3F] flex items-center justify-center
+                    text-[#F7A823] text-[11px] font-bold flex-shrink-0">
+      {initials}
+    </div>
+  );
+}
+
 // ── Mini review card (same style as Reviews page) ────────────────────────────
 function MiniReviewCard({ review }) {
   return (
@@ -99,14 +120,7 @@ function WorkerRow({ worker, wAvatar, wCompleted, wPending, statusInfo, getKey, 
         className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50/60 transition-colors text-right"
       >
         <div className="flex items-center gap-3">
-          <img
-            src={worker.image
-              ? (worker.image.startsWith("http") ? worker.image : `https://tadbeer0.runasp.net/${worker.image}`)
-              : wAvatar}
-            onError={(e) => { e.target.src = wAvatar; }}
-            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-            alt={worker.name}
-          />
+          <WorkerAvatar src={wAvatar} name={worker.name} />
           <div className="text-right">
             <p className="text-xs font-medium text-gray-800">{worker.name}</p>
             <p className="text-[10px] text-gray-400">{worker.bookings.length} حجز</p>
@@ -197,6 +211,7 @@ const Dashboard = () => {
   const [bookings,  setBookings ] = useState(undefined);
   const [reviews,   setReviews  ] = useState(null);
   const [actioning, setActioning] = useState({});
+  const [workerImages, setWorkerImages] = useState({}); // workerId → full image URL
 
   // Get worker ID from saved user
   const workerUser = (() => {
@@ -234,6 +249,36 @@ const Dashboard = () => {
   }, [navigate, workerId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Fetch worker images once on mount — separate from load() so polling doesn't reset them
+  useEffect(() => {
+    const fetchWorkerImages = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const h = { headers: { Authorization: `Bearer ${token}` } };
+      try {
+        const wRes = await axios.get(`${API_BASE}/General/Workers`, h);
+        const wRaw = wRes.data?.items ?? wRes.data?.data ?? wRes.data ?? [];
+        const wList = Array.isArray(wRaw) ? wRaw : [];
+        const imgMap = {};
+        await Promise.allSettled(
+          wList.map(async (w) => {
+            if (!w.id) return;
+            try {
+              const wr = await axios.get(`${API_BASE}/General/Workers/${w.id}`, h);
+              const p = wr.data?.data ?? wr.data ?? {};
+              const raw = p.profileImage || p.ProfileImage || null;
+              if (!raw || raw === "string") return;
+              const url = raw.startsWith("http") ? raw : `https://tadbeer0.runasp.net/${raw}`;
+              imgMap[String(w.id)] = url;
+            } catch { /* skip */ }
+          })
+        );
+        setWorkerImages(imgMap);
+      } catch { /* skip */ }
+    };
+    fetchWorkerImages();
+  }, []); // runs once only
 
   useEffect(() => {
     const id = setInterval(load, 8000);
@@ -352,13 +397,12 @@ const Dashboard = () => {
             // Group bookings by worker
             const workerMap = {};
             (bookings ?? []).forEach(b => {
-              const wid  = b.workerId || b.worker?.id || "unknown";
+              const wid  = String(b.workerId || b.worker?.id || "unknown");
               const wname = b.workerName ||
                 (b.worker ? `${b.worker.firstName ?? ""} ${b.worker.lastName ?? ""}`.trim() : "") ||
                 "فني غير معروف";
-              const wimg = b.workerImage && b.workerImage !== "string" ? b.workerImage : null;
               if (!workerMap[wid]) {
-                workerMap[wid] = { id: wid, name: wname, image: wimg, bookings: [] };
+                workerMap[wid] = { id: wid, name: wname, bookings: [] };
               }
               workerMap[wid].bookings.push(b);
             });
@@ -371,7 +415,9 @@ const Dashboard = () => {
                 {workers.map(w => {
                   const wCompleted = w.bookings.filter(b => getKey(b.status) === "completed").length;
                   const wPending   = w.bookings.filter(b => getKey(b.status) === "pending").length;
-                  const wAvatar    = `https://ui-avatars.com/api/?name=${encodeURIComponent(w.name)}&background=001F3F&color=F7A823&size=64&bold=true`;
+                  const wImg = workerImages[String(w.id)] || null;
+                  const wAvatar = wImg
+                    || `https://ui-avatars.com/api/?name=${encodeURIComponent(w.name)}&background=001F3F&color=F7A823&size=64&bold=true`;
                   return (
                     <WorkerRow
                       key={w.id}
