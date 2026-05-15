@@ -109,13 +109,21 @@ const WorkingHoursEditor = ({ value = [], onChange, onAdd, onUpdate, onDelete })
 
             <div className="flex gap-1">
               <button 
-                type="button"
-                onClick={() => handleSave(slot, index)}
-                disabled={loadingId === index}
-                className="p-2.5 text-green-500 bg-green-50 rounded-2xl hover:bg-green-100 transition-all shadow-sm"
-              >
-                {loadingId === index ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              </button>
+    type="button"
+    onClick={() => handleSave(slot, index)}
+    disabled={loadingId === index}
+    className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold text-green-400 bg-[#001F3F] rounded-xl hover:bg-green-100 transition-all shadow-sm border border-green-100"
+  >
+    {loadingId === index ? (
+      <Loader2 size={12} className="animate-spin" />
+    ) : (
+      <>
+        <Save size={12} />
+        <span>حفظ</span>
+      </>
+    )}
+  </button>
+ 
               <button 
                 type="button"
                 onClick={() => slot.id ? onDelete(slot.id) : onChange(value.filter((_, i) => i !== index))}

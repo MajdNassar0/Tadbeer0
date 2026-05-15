@@ -78,20 +78,40 @@ const ProfessionalInfoForm = ({
           />
         </div>
 
-        <div className="space-y-2 max-w-[180px]"> 
-          <label className="text-[11px] font-black text-gray-400 mr-1 flex items-center gap-1 uppercase tracking-wider">
-            <Briefcase size={12} className="text-orange-500" /> سنوات الخبرة
-          </label>
-          <div className="relative">
-            <input 
-              type="number"
-              className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-sm font-bold text-gray-700 outline-none pr-10"
-              value={formData.ExperienceYears}
-              onChange={(e) => setFormData({...formData, ExperienceYears: parseInt(e.target.value) || 0})}
-            />
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">سنة</span>
-          </div>
-        </div>
+{/* قسم سنوات الخبرة مع زر الحفظ المدمج */}
+<div className="flex flex-col sm:flex-row items-end justify-between gap-6 pt-2 w-full"> 
+  {/* حقل سنوات الخبرة */}
+  <div className="space-y-2 w-full sm:w-[180px]"> 
+    <label className="text-[11px] font-black text-gray-400 mr-1 flex items-center gap-1 uppercase tracking-wider">
+      <Briefcase size={12} className="text-orange-500" /> سنوات الخبرة
+    </label>
+    <div className="relative">
+      <input 
+        type="number"
+        className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-sm font-bold text-gray-700 outline-none pr-10 focus:ring-2 focus:ring-orange-50 transition-all"
+        value={formData.ExperienceYears}
+        onChange={(e) => setFormData({...formData, ExperienceYears: parseInt(e.target.value) || 0})}
+      />
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">سنة</span>
+    </div>
+  </div>
+
+  {/* زر التحديث في أقصى اليسار */}
+  <button 
+    type="submit"
+    disabled={saving}
+    className="h-[48px] px-10 bg-[#001F3F] text-white rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 hover:bg-[#002d5c] active:scale-[0.98] transition-all disabled:opacity-50 shadow-xl shadow-blue-900/10 min-w-[200px]"
+  >
+    {saving ? (
+      <Loader2 size={16} className="animate-spin" />
+    ) : (
+      <>
+        <Save size={14} className="text-orange-400" />
+        <span>تحديث البيانات المهنية</span>
+      </>
+    )}
+  </button>
+</div>
       </div>
 
       {/* 3. ساعات العمل - الربط مع الـ Endpoints المنفصلة [cite: 87] */}
@@ -105,14 +125,7 @@ const ProfessionalInfoForm = ({
         />
       </section>
 
-      <button 
-        type="submit"
-        disabled={saving}
-        className="w-full bg-[#001F3F] text-white py-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 hover:bg-[#002d5c] active:scale-[0.98] transition-all disabled:opacity-50"
-      >
-        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-        حفظ واعتماد إعدادات العمل
-      </button>
+
     </form>
   );
 };
