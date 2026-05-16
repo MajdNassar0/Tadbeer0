@@ -37,12 +37,11 @@ function BottomNav() {
     {
       label: "طلباتي",
       icon: ClipboardList,
-      path: "/orders",
+      path: "", // معتمد كلياً على منطق الدالة الذكية لمنع أخطاء الـ 404
     },
     {
       label: "حسابي",
       icon: User,
-      // إذا كان عامل، نترك المسار فارغاً ليعتمد على الـ onClick لفتح القائمة السفلية
       path: role === "worker" ? "" : profilePath,
     },
   ];
@@ -52,7 +51,6 @@ function BottomNav() {
       return location.pathname === item.path && location.hash === "";
     }
     if (item.label === "حسابي") {
-      // يضيء الزر إذا كان الفني يتنقل داخل البروفايل أو لوحة تحكم الفني (technical)
       return (
         location.pathname.startsWith("/user-profile") ||
         location.pathname.startsWith("/worker-profile") || 
@@ -63,19 +61,36 @@ function BottomNav() {
     return location.pathname.startsWith(item.path);
   };
 
-  const handleProfileClick = (item) => {
-    if (role === "worker") {
-      setShowAccountMenu(true);
-    } else {
-      navigate(item.path);
+  // ✅ دالة التحكم الشاملة لجميع أزرار القائمة السفلية
+  const handleNavClick = (item) => {
+    if (item.label === "حسابي") {
+      if (role === "worker") {
+        setShowAccountMenu(true);
+      } else {
+        navigate(item.path);
+      }
+      return;
     }
+
+    if (item.label === "طلباتي") {
+      if (role === "worker") {
+        navigate("/technical"); // العامل يرى لوحة التحكم الإدارية الخاصة به
+      } else {
+        // الزبون ينتقل لصفحة حسابي مع تمرير حالة لتفعيل تبويب طلباتي فوراً
+        navigate("/user-profile", { state: { defaultTab: "requests" } }); 
+      }
+      return;
+    }
+
+    // التنقل الطبيعي لباقي الأزرار (الرئيسية، الخدمات)
+    navigate(item.path);
   };
 
   return (
     <>
       <nav
         dir="rtl"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white border-t border-gray-100"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-9990 bg-white border-t border-gray-100"
         style={{ boxShadow: "0 -4px 20px rgba(0,0,0,0.07)" }}
       >
         <div className="flex items-center justify-around px-2 pt-2 pb-safe">
@@ -86,7 +101,7 @@ function BottomNav() {
             return (
               <button
                 key={item.label}
-                onClick={() => item.label === "حسابي" ? handleProfileClick(item) : navigate(item.path)}
+                onClick={() => handleNavClick(item)} // ✅ تمرير العنصر بالكامل للدالة الذكية
                 className="relative flex flex-col items-center justify-center gap-0.5 py-2 px-4 rounded-2xl flex-1 min-w-0"
                 aria-label={item.label}
               >
@@ -138,7 +153,7 @@ function BottomNav() {
         {showAccountMenu && (
           <>
             <motion.div
-              className="fixed inset-0 z-[9991] bg-black/40 backdrop-blur-xs"
+              className="fixed inset-0 z-9991 bg-black/40 backdrop-blur-xs"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -146,7 +161,7 @@ function BottomNav() {
             />
 
             <motion.div
-              className="fixed bottom-0 left-0 right-0 z-[9992] bg-white rounded-t-[2.5rem] p-6 pb-8 shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-9992 bg-white rounded-t-[2.5rem] p-6 pb-8 shadow-2xl"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -189,7 +204,7 @@ function BottomNav() {
                 {/* الخيار الثاني: لوحة التحكم الإدارية (الطلبات، الحجوزات والتقارير) */}
                 <button 
                   onClick={() => {
-                    navigate(`/technical`); // يوجهه للداشبورد المبرمجة بالملفات المرفقة
+                    navigate(`/technical`);
                     setShowAccountMenu(false);
                   }} 
                   className="w-full flex items-center justify-between p-4 rounded-2xl bg-gray-50/50 border border-gray-100 hover:bg-gray-50 transition-all text-right group"

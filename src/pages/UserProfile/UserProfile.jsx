@@ -2,7 +2,9 @@ import { useUserProfile } from "../../Hooks/useUserProfile";
 import { getFullImageUrl } from "../../Utils/imageHelper";
 import ActivityChart from "../../components/ActivityChart/ActivityChart";
 import { useAuth } from "../../context/AuthContext"; 
+import UserBookings from "./components/UserBookings";
 import SecurityTab from "../../components/Profile/Security/SecurityTab";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import React, { useState, useCallback, createContext, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -85,6 +87,7 @@ const ToastProvider = ({ children }) => {
   );
 };
 export const useToast = () => useContext(ToastContext);
+
 // ══════════════════════════════════════════════════════════════
 // UI COMPONENTS (Skeleton, ProfileField, InputField, EditForm)
 // ══════════════════════════════════════════════════════════════
@@ -336,6 +339,7 @@ const UserProfileContent = () => {
   const { user, loading, saving, updateUser } = useUserProfile();
   const [userActivity, setUserActivity] = useState([]);
   const [activeTab, setActiveTab] = useState("personal");
+  const location = useLocation();
   const toast = useToast(); // هسا رح يشتغل صح!
 
   const handleSave = async (payload) => {
@@ -407,7 +411,7 @@ const UserProfileContent = () => {
                 <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                   {activeTab === "personal" && <PersonalInfoTab user={user} loading={loading} saving={saving} onSave={handleSave} />}
                   {activeTab === "security" && <SecurityTab />}
-                  {activeTab === "requests" && <RequestsTab />}
+                  {activeTab === "requests" && <UserBookings />}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -425,7 +429,6 @@ const UserProfileContent = () => {
 const UserProfile = () => {
   return (
     <ToastProvider>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap'); *, *::before, *::after { font-family: 'Tajawal', sans-serif !important; } @keyframes skshimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
       <UserProfileContent />
     </ToastProvider>
   );
