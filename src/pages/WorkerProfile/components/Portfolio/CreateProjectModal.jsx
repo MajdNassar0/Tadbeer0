@@ -16,42 +16,31 @@ const CreateProjectModal = ({ open, onClose, onCreated }) => {
   const handleClose = () => { reset(); onClose(); };
 
 const handleSubmit = async () => {
-  if (!file) return toast("الرجاء اختيار صورة غلاف", "error"); 
+  if (!file) return toast("الرجاء اختيار صورة غلاف", "error");
   setLoading(true);
   try {
     const fd = new FormData();
-    fd.append("ImageFile", file); // تحديث المسمى هنا
-    if (title) fd.append("Name", title); // تحديث المسمى هنا (السيرفر يتوقع Name)
-    if (description) fd.append("Description", description); 
+    fd.append("ImageFile", file);
+    if (title) fd.append("Name", title);
+    if (description) fd.append("Description", description);
 
-    const res = await apiClient.post("/Worker/Profile/me/work-images", fd, { 
+    await apiClient.post("/Worker/Profile/me/work-images", fd, { 
       headers: { "Content-Type": "multipart/form-data" }, 
     });
+
+    toast("تم إنشاء المشروع بنجاح ✓");
     
-    toast("تم إنشاء المشروع بنجاح ✓"); 
+    // الأب سيتكفل بإعادة الجلب الآن بشكل آمن وعلمي
+    onCreated(); 
+    handleClose();
 
-      // --- الجزء الجديد والمعدل ---
-      const newProject = {
-        id: res.data?.id || Date.now(), 
-        // نستخدم رابط الصورة من السيرفر إذا وصل، وإلا نستخدم الرابط المحلي للمعاينة
-        imageUrl: res.data?.imageUrl || URL.createObjectURL(file), 
-        title: title || "مشروع جديد",
-        description: description || "",
-        subImages: [],
-        subImagesCount: 0
-      };
-
-      onCreated(newProject);
-      handleClose();
-      // --------------------------
-
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast("فشل إنشاء المشروع", "error"); 
-    } finally {
-      setLoading(false); 
-    }
-  };
+  } catch (error) {
+    console.error("Upload error:", error);
+    toast("فشل إنشاء المشروع، يرجى المحاولة لاحقاً", "error");
+  } finally {
+    setLoading(false); // يضمن تصفير الـ Loading حتماً [cite: 126]
+  }
+};
 
   return (
     <AnimatePresence>

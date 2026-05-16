@@ -32,7 +32,9 @@ const handleSubmit = async () => {
       results.push(res.data?.data || res.data); 
     } catch {
       toast("فشل رفع إحدى الصور", "error");
-    }
+    }finally {
+    setLoading(false); 
+  }
   }
 
   if (results.length) {

@@ -143,11 +143,15 @@ const PortfolioTabInner = ({ isOwner, workerId, workerData }) => {
       {/* مودالات التحكم (تظهر فقط للمالك) */}
       {isOwner && (
         <>
-          <CreateProjectModal
-            open={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onCreated={(newProject) => setProjects((prev) => [newProject, ...prev])}
-          />
+        <CreateProjectModal
+  open={showCreateModal}
+  onClose={() => setShowCreateModal(false)}
+  // ✅ عند النجاح، نعيد جلب البيانات من السيرفر فوراً لتتحدث الشاشة بالكامل بشكل سليم
+  onCreated={() => {
+    fetchProjects(); 
+  }}
+/>
+
           
           <ConfirmDialog
             open={confirm.open}
