@@ -318,14 +318,17 @@ function Workers() {
                             className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md"
                             alt={`${w.firstName} ${w.lastName}`}
                           />
-                          {/* Online status indicator for "Motah Now" */}
+                          {/* Online status indicator */}
                           {(w.isAvailable || w.status === "Available") && (
                             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <h3 className="font-bold text-gray-900 text-lg leading-tight truncate">{w.firstName} {w.lastName}</h3>
-                          <p className="text-xs font-bold mt-1 uppercase" style={{ color: ORANGE }}>{w.specialtyNames?.[0] || "فني متخصص"}</p>
+                          {/* ✅ FIX: show ALL specialties joined by · instead of only [0] */}
+                          <p className="text-xs font-bold mt-1 uppercase leading-relaxed" style={{ color: ORANGE }}>
+                            {w.specialtyNames?.length > 0 ? w.specialtyNames.join(" · ") : "فني متخصص"}
+                          </p>
                           {w.emailConfirmed && (
                             <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-lg border border-blue-100" style={{ backgroundColor: INFO_BG, color: NAVY }}>
                               <BadgeCheck className="w-3.5 h-3.5 text-blue-500" /> فني معتمد
@@ -349,13 +352,14 @@ function Workers() {
 
                       <div className="flex flex-col sm:flex-row gap-3 mt-6">
                         <motion.button onClick={() => navigate(`/worker-view/${w.id}`)} className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-600 font-bold text-xs">عرض الملف</motion.button>
-<motion.button
-  onClick={() => navigate(`/booking/${w.id}`)}
-  className="flex-[1.4] py-3 rounded-xl text-white font-bold text-xs shadow-lg"
-  style={{ backgroundColor: ORANGE }}
->
-  احجز موعد الآن
-</motion.button>                      </div>
+                        <motion.button
+                          onClick={() => navigate(`/booking/${w.id}`)}
+                          className="flex-[1.4] py-3 rounded-xl text-white font-bold text-xs shadow-lg"
+                          style={{ backgroundColor: ORANGE }}
+                        >
+                          احجز موعد الآن
+                        </motion.button>
+                      </div>
                     </motion.article>
                   ))}
                 </AnimatePresence>

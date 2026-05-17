@@ -183,7 +183,6 @@ const WorkerLayout = () => {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-medium text-white truncate">{displayName}</p>
-            <p className="text-[10px] text-gray-400 truncate">{displaySpecial}</p>
           </div>
         </div>
 
@@ -250,7 +249,6 @@ const WorkerLayout = () => {
             <div className="flex items-center gap-3">
               <div className="leading-tight text-left hidden lg:block">
                 <p className="text-xs font-medium text-gray-800">{displayName}</p>
-                <p className="text-[10px] text-gray-400">{displaySpecial}</p>
               </div>
               <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-gray-100 flex-shrink-0">
                 <Avatar name={displayName} src={user?.profileImage} />
