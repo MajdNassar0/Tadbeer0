@@ -21,22 +21,22 @@ const fullImg = (url, fallback) => {
   return url.startsWith("http") ? url : `${IMAGE_BASE}${url}`;
 };
 
-// NEW ReviewerAvatar
 function ReviewerAvatar({ userImage, userName }) {
   const [imgError, setImgError] = useState(false);
   const initial = (userName || "U").charAt(0).toUpperCase();
-  const src = userImage
-    ? (userImage.startsWith("http") ? userImage : getFullImageUrl(userImage))
-    : null;
 
   return (
     <div className="w-10 h-10 rounded-full bg-[#001e3c] flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0 border-2 border-amber-100">
-      {src && !imgError ? (
+      {userImage && !imgError ? (
         <img
-          src={src}
+          src={getFullImageUrl(userImage)}
           alt={userName}
           className="w-full h-full object-cover"
-          onError={() => setImgError(true)}
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = "";
+            setImgError(true);
+          }}
         />
       ) : (
         initial
@@ -292,33 +292,42 @@ const WorkerView = () => {
                       key={r.id}
                       className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
                     >
+                      {/* ── Fixed: single flex row, no duplicate badge ── */}
                       <div className="flex justify-between items-start">
-                        <div className="flex justify-between items-start">
-  <div className="flex items-center gap-3">
-<ReviewerAvatar
-  userImage={r.userImage || (r.userName === user?.name ? (user?.image || user?.profilePic) : null)}
-  userName={r.userName}
-/>    <div>
-      <p className="font-bold text-gray-900 text-sm">{r.userName || "مستخدم"}</p>
-      <div className="flex mt-1">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Star
-            key={i}
-            size={12}
-            className={i <= r.rate ? "text-amber-400 fill-amber-400" : "text-gray-200"}
-          />
-        ))}
-      </div>
-    </div>
-  </div>
-  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-    {r.rate}.0
-  </span>
-</div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-[#001e3c] flex items-center justify-center text-white text-xs font-bold shadow-inner overflow-hidden shrink-0 border-2 border-amber-100">
+                            {r.userImage || (r.userName === user?.name ? (user?.image || user?.profilePic) : null) ? (
+                              <img
+                                src={getFullImageUrl(r.userImage || (r.userName === user?.name ? (user?.image || user?.profilePic) : null))}
+                                alt={r.userName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = "";
+                                }}
+                              />
+                            ) : (
+                              (r.userName || "U").charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900 text-sm">{r.userName || "مستخدم"}</p>
+                            <div className="flex mt-1">
+                              {[1, 2, 3, 4, 5].map((i) => (
+                                <Star
+                                  key={i}
+                                  size={12}
+                                  className={i <= r.rate ? "text-amber-400 fill-amber-400" : "text-gray-200"}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                         <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
                           {r.rate}.0
                         </span>
                       </div>
+
                       <div className="mt-4">
                         <p className="text-sm text-gray-600 leading-relaxed italic pr-4 border-r-2 border-amber-100">
                           "{r.comment || "هذا العميل لم يترك تعليقاً نصياً، قام بالتقييم فقط."}"
