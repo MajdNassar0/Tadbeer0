@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, BookOpen, Wrench, Star, Settings } from "lucide-react";
@@ -41,11 +41,13 @@ const VISITOR_TABS = OWNER_TABS.filter((t) => t.id !== "settings");
 
 const WorkerProfileInner = () => {
   const { workerId } = useParams();
-  const { user: authUser, updateUser, logout } = useAuth(); // أضفنا logout هنا [cite: 72]
+  const { user: authUser, updateUser, logout } = useAuth();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
-  // ✅ تحديد المالك بناءً على الـ ID
+  // ✅ state لتأخير ظهور شاشة إعادة التفعيل
+  const [showReactivate, setShowReactivate] = useState(false);
+
   const effectiveId = authUser?.id && workerId === String(authUser.id)
     ? null
     : workerId ?? null;
@@ -54,37 +56,45 @@ const WorkerProfileInner = () => {
     worker, workImages, loading, saving, toggling, error,
     fetchWorker, updateWorker, toggleStatus,
     uploadProfileImage, uploadWorkImage, deleteWorkImage,
-    addWorkingHour,   setWorker,    
-    updateWorkingHour,   
+    addWorkingHour, setWorker,
+    updateWorkingHour,
     deleteWorkingHour,
   } = useWorkerProfile(effectiveId);
 
   const isOwner = effectiveId === null;
 
+  // ✅ لما الحساب يبقى "Deleted"، نستنى ثانيتين قبل شاشة إعادة التفعيل
+  // عشان المستخدم يشوف الـ toast والزرار يتحدث لـ "تم التعطيل ✓"
+  useEffect(() => {
+    if (!loading && isOwner && worker?.status === "Deleted") {
+      const timer = setTimeout(() => setShowReactivate(true), 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowReactivate(false);
+    }
+  }, [loading, isOwner, worker?.status]);
+
   // ── Handlers ────────────────────────────────────────────────
-  
-const handleToggleStatus = async () => {
-  const res = await toggleStatus();
-  
-  if (res.ok) {
-    // ✅ الهوك حدّث worker.status بشكل صحيح (محلياً أو من السيرفر)
-    // نحتاج فقط للـ toast — لا حاجة لـ fetchWorker() أو updateUser()
-    // نقرأ الحالة الجديدة من res.worker أو نحسبها من الحالة الحالية
-    const newStatus = res.worker?.status ?? 
-      (worker.status === "Active" ? "Inactive" : "Active");
-    
-    const msg = newStatus === "Inactive" ? "تم تعطيل الحساب" : "تم تفعيل الحساب";
-    toast(`${msg} بنجاح ✓`);
-    
-    // هذا اختياري — فقط لتحديث AuthContext إذا كنت تحتاجينه في أماكن أخرى
-    updateUser({ status: newStatus });
-    
-    return res;
-  } else {
-    toast(res.error || "فشل تغيير الحالة", "error");
-    return res;
-  }
-};
+
+  const handleToggleStatus = async () => {
+    const res = await toggleStatus();
+
+    if (res.ok) {
+      // ✅ الـ Backend بيستخدم "Existed" / "Deleted"
+      const newStatus = res.worker?.status ??
+        (worker.status === "Existed" ? "Deleted" : "Existed");
+
+      const msg = newStatus === "Deleted" ? "تم تعطيل الحساب" : "تم تفعيل الحساب";
+      toast(`${msg} بنجاح ✓`);
+
+      updateUser({ status: newStatus });
+
+      return res;
+    } else {
+      toast(res.error || "فشل تغيير الحالة", "error");
+      return res;
+    }
+  };
 
   const handleUploadProfile = async (file) => {
     const res = await uploadProfileImage(file, worker);
@@ -108,16 +118,16 @@ const handleToggleStatus = async () => {
     else toast(res.error || "فشل حذف الصورة", "error");
   };
 
-  // ✅ فحص حالة التعطيل: يتم الفحص بعد انتهاء التحميل لضمان دقة البيانات [cite: 85]
-  if (!loading && isOwner && worker?.status === "Inactive") {
+  // ✅ شاشة إعادة التفعيل تظهر بعد ثانيتين من التعطيل
+  if (showReactivate) {
     return (
-      <ReactivateScreen 
-        onReactivate={handleToggleStatus} 
-        loading={toggling} 
+      <ReactivateScreen
+        onReactivate={handleToggleStatus}
+        loading={toggling}
         onLogout={() => {
-          logout(); // استخدام دالة الخروج الرسمية [cite: 72]
+          logout();
           window.location.href = "/login";
-        }} 
+        }}
       />
     );
   }
@@ -126,11 +136,11 @@ const handleToggleStatus = async () => {
 
   const tabContent = {
     overview: <OverviewTab worker={worker} isOwner={isOwner} loading={loading} />,
-    portfolio: <PortfolioTab 
-      isOwner={isOwner} 
-      workerId={workerId} // معرف العامل المجلوب من useParams
-      workerData={worker} // ✅ مرري كائن الـ worker كاملاً هنا
-    /> ,
+    portfolio: <PortfolioTab
+      isOwner={isOwner}
+      workerId={workerId}
+      workerData={worker}
+    />,
     services: (
       <ServicesTab services={worker?.services || []} isOwner={isOwner} loading={loading} />
     ),
@@ -147,12 +157,12 @@ const handleToggleStatus = async () => {
         worker={worker}
         updateWorker={updateWorker}
         saving={saving}
-        onToggleStatus={handleToggleStatus} 
+        onToggleStatus={handleToggleStatus}
         toggling={toggling}
         updateUser={updateUser}
         addWorkingHour={addWorkingHour}
         updateWorkingHour={updateWorkingHour}
-        deleteWorkingHour={deleteWorkingHour} 
+        deleteWorkingHour={deleteWorkingHour}
       />
     ) : null,
   };
