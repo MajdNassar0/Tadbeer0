@@ -100,7 +100,7 @@ const ProfessionalInfoForm = ({
   <button 
     type="submit"
     disabled={saving}
-    className="h-[48px] px-10 bg-[#001F3F] text-white rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 hover:bg-[#002d5c] active:scale-[0.98] transition-all disabled:opacity-50 shadow-xl shadow-blue-900/10 min-w-[200px]"
+    className="h-12 px-10 bg-[#001F3F] text-white rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 hover:bg-[#002d5c] active:scale-[0.98] transition-all disabled:opacity-50 shadow-xl shadow-blue-900/10 min-w-[200px]"
   >
     {saving ? (
       <Loader2 size={16} className="animate-spin" />

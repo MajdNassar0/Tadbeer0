@@ -2,10 +2,11 @@ import React from "react";
 
 const MobileTabBar = ({ activeTab, setActiveTab, isOwner, tabs }) => { 
   return (
-    <div className="flex gap-1 mb-5 overflow-x-auto pb-1 lg:hidden">
+    <div className="flex gap-1 mb-5 overflow-x-auto pb-1 lg:hidden" dir="rtl">
       {tabs.map(tab => ( 
         <button 
           key={tab.id} 
+          // ✅ هان رح تستدعي الدالة handleTabChange اللي مررناها من الأب وتحدث الراوتر فوراً
           onClick={() => setActiveTab(tab.id)}
           className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold whitespace-nowrap transition
             ${activeTab === tab.id ? "bg-[#001e3c] text-white" : "bg-white border border-gray-100 text-gray-500"}`}

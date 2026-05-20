@@ -1,12 +1,12 @@
+import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useUserProfile } from "../../Hooks/useUserProfile";
 import { getFullImageUrl } from "../../Utils/imageHelper";
 import ActivityChart from "../../components/ActivityChart/ActivityChart";
 import { useAuth } from "../../context/AuthContext"; 
 import UserBookings from "./components/UserBookings";
 import SecurityTab from "../../components/Profile/Security/SecurityTab";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import React, { useState, useCallback, createContext, useContext } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   User, Mail, Phone, MapPin, Shield, Calendar,
   Edit3, Camera, ClipboardList, Lock, AlertTriangle,
@@ -27,13 +27,13 @@ const ROLE_MAP = {
 const STATUS_MAP = {
   Active: { 
     label: "نشط", 
-    icon: BadgeCheck, // أو أي أيقونة تفضلها
+    icon: BadgeCheck, 
     color: "#16a34a", 
     bg: "#dcfce7" 
   },
   Inactive: { 
     label: "معطل", 
-    icon: XCircle, // أيقونة تدل على التعطيل
+    icon: XCircle, 
     color: "#dc2626", 
     bg: "#fee2e2" 
   }
@@ -49,14 +49,13 @@ const PHONE_REGEX = /^\+?[0-9\s\-]{7,15}$/;
 
 const validateProfileForm = (data) => {
   const errors = {};
-  if (!data.firstName?.trim())  errors.firstName   = "الاسم الأول مطلوب";
-  if (!data.lastName?.trim())   errors.lastName    = "الاسم الأخير مطلوب";
-  if (!data.email?.trim())      errors.email       = "البريد الإلكتروني مطلوب";
+  if (!data.firstName?.trim())   errors.firstName   = "الاسم الأول مطلوب";
+  if (!data.lastName?.trim())    errors.lastName    = "الاسم الأخير مطلوب";
+  if (!data.email?.trim())       errors.email       = "البريد الإلكتروني مطلوب";
   if (data.phoneNumber && !PHONE_REGEX.test(data.phoneNumber))
     errors.phoneNumber = "رقم الهاتف غير صالح";
   return errors;
 };
-
 
 // ══════════════════════════════════════════════════════════════
 // TOAST CONTEXT
@@ -105,16 +104,14 @@ const ProfileField = ({ icon: Icon, label, value, loading }) => (
   </motion.div>
 );
 
-// التعديل في أول سطر: إضافة type و placeholder = ""
 const InputField = ({ icon: Icon, label, name, value, onChange, error, placeholder = "", type = "text" }) => (
   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-1.5">
     <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
       <Icon size={13} className="text-orange-400" />
       {label}
     </label>
-    
     <input 
-      type={type} // هيك صار المتغير type معروف للمكون
+      type={type} 
       name={name} 
       value={value} 
       onChange={onChange} 
@@ -122,7 +119,6 @@ const InputField = ({ icon: Icon, label, name, value, onChange, error, placehold
       className={`w-full rounded-xl border px-4 py-2.5 text-sm font-medium text-gray-800 outline-none transition-all duration-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-white hover:border-gray-300"}`} 
       dir="rtl" 
     />
-
     <AnimatePresence>
       {error && (
         <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-xs text-red-500">
@@ -134,9 +130,7 @@ const InputField = ({ icon: Icon, label, name, value, onChange, error, placehold
 );
 
 const EditForm = ({ user, saving, onSave, onCancel }) => {
-  const [form, setForm] = useState({ firstName: user?.firstName || "", lastName: user?.lastName || "", email: user?.email || "", phoneNumber: user?.phoneNumber || "", city: user?.city || "" ,dateOfBirth: user?.dateOfBirth
-    ? user.dateOfBirth.split('T')[0]
-    : "", });
+  const [form, setForm] = useState({ firstName: user?.firstName || "", lastName: user?.lastName || "", email: user?.email || "", phoneNumber: user?.phoneNumber || "", city: user?.city || "" ,dateOfBirth: user?.dateOfBirth ? user.dateOfBirth.split('T')[0] : "", });
   const [errors, setErrors] = useState({});
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -154,7 +148,6 @@ const EditForm = ({ user, saving, onSave, onCancel }) => {
     { icon: Mail, label: "البريد الإلكتروني", name: "email", placeholder: "example@email.com" },
     { icon: Phone, label: "رقم الهاتف", name: "phoneNumber", placeholder: "+970 5XX XXX XXX" },
     { icon: MapPin, label: "المدينة", name: "city", placeholder: "أدخل مدينتك" },
-    
     { icon: Calendar, label: "تاريخ الميلاد", name: "dateOfBirth", type: "date" },
   ];
   return (
@@ -179,19 +172,14 @@ const EditForm = ({ user, saving, onSave, onCancel }) => {
 // ══════════════════════════════════════════════════════════════
 // TABS COMPONENTS
 // ══════════════════════════════════════════════════════════════
-
 const PersonalInfoTab = ({ user, loading, saving, onSave }) => {
   const [editMode, setEditMode] = useState(false);
   const handleSave = async (payload) => {
-    
     const formattedPayload = {
       ...payload,
-      DateOfBirth: payload.dateOfBirth, // السيرفر يحتاج هذا الاسم
+      DateOfBirth: payload.dateOfBirth,
     };
-
-    // 2. إرسال البيانات المنسقة
     const res = await onSave(formattedPayload);
-
     if (res?.ok) {
       setEditMode(false);
     }
@@ -229,16 +217,6 @@ const PersonalInfoTab = ({ user, loading, saving, onSave }) => {
   );
 };
 
-
-
-const RequestsTab = () => (
-  <div className="flex flex-col items-center gap-4 py-12 text-center">
-    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-50"><ClipboardList size={36} className="text-orange-400" /></div>
-    <p className="text-lg font-bold text-gray-700">لا توجد طلبات بعد</p>
-    <button className="rounded-xl bg-orange-500 px-6 py-2.5 text-sm font-bold text-white">استعرض الخدمات</button>
-  </div>
-);
-
 // ══════════════════════════════════════════════════════════════
 // SIDEBAR & HEADER
 // ══════════════════════════════════════════════════════════════
@@ -251,12 +229,12 @@ const ProfileTabs = ({ activeTab, setActiveTab, user, loading }) => {
         <div className="border-b border-gray-50 p-5 text-center">
           {loading ? <Skeleton className="mx-auto mb-3 h-14 w-14 rounded-full" /> : (
             <>
-            <img 
-  src={getFullImageUrl(user?.profileImage || user?.ProfileImage) || avatarUrl(fullName)} 
-  alt="" 
-  className="mx-auto mb-2 h-14 w-14 rounded-full object-cover ring-2 ring-orange-200" 
-  onError={(e) => { e.target.src = avatarUrl(fullName); }}
-/>
+              <img 
+                src={getFullImageUrl(user?.profileImage || user?.ProfileImage) || avatarUrl(fullName)} 
+                alt="" 
+                className="mx-auto mb-2 h-14 w-14 rounded-full object-cover ring-2 ring-orange-200" 
+                onError={(e) => { e.target.src = avatarUrl(fullName); }}
+              />
               <p className="text-sm font-bold text-gray-800">{fullName}</p>
               <p className="truncate text-xs text-gray-400">{user?.email}</p>
             </>
@@ -291,17 +269,18 @@ const ProfileHeader = ({ user, loading, saving, onUploadImage }) => {
           <div className="h-24 w-24 overflow-hidden rounded-2xl ring-4 ring-orange-400/50 sm:h-28 sm:w-28 relative">
             {loading ? <Skeleton className="h-full w-full" /> : (
               <>
-<img 
-  src={getFullImageUrl(user?.profileImage || user?.ProfileImage) || avatarUrl(fullName)} 
-  alt={fullName} 
-  className={`h-full w-full object-cover transition-all duration-300 ${saving ? 'blur-sm opacity-50' : ''}`} 
-  style={{ transform: imageHover ? "scale(1.1)" : "scale(1)" }} 
-  onError={(e) => { e.target.src = avatarUrl(fullName); }}
-/>
+                <img 
+                  src={getFullImageUrl(user?.profileImage || user?.ProfileImage) || avatarUrl(fullName)} 
+                  alt={fullName} 
+                  className={`h-full w-full object-cover transition-all duration-300 ${saving ? 'blur-sm opacity-50' : ''}`} 
+                  style={{ transform: imageHover ? "scale(1.1)" : "scale(1)" }} 
+                  onError={(e) => { e.target.src = avatarUrl(fullName); }}
+                />
                 {saving && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin text-orange-400" /></div>}
               </>
             )}
           </div>
+          {/* تأكد من أن الأقواس صحيحة للـ AnimatePresence */}
           <AnimatePresence>{imageHover && !loading && !saving && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 backdrop-blur-sm"><Camera size={24} className="text-white" /></motion.div>
           )}</AnimatePresence>
@@ -324,30 +303,39 @@ const ProfileHeader = ({ user, loading, saving, onUploadImage }) => {
   );
 };
 
-
-
 // ══════════════════════════════════════════════════════════════
-// MAIN EXPORT
-// ══════════════════════════════════════════════════════════════
-// ... كل الـ imports والـ UI Components (ProfileHeader, EditForm, إلخ) بتضل زي ما هي فوق ...
-
-// ══════════════════════════════════════════════════════════════
-// المكون الداخلي: هون كل المنطق (Logic)
+// المكون الداخلي الرئيسي (Logic) ✅
 // ══════════════════════════════════════════════════════════════
 const UserProfileContent = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const toast = useToast(); 
+
   const { updateUser: updateAuthUser } = useAuth();
   const { user, loading, saving, updateUser } = useUserProfile();
+  
   const [userActivity, setUserActivity] = useState([]);
   const [activeTab, setActiveTab] = useState("personal");
-  const location = useLocation();
-  const toast = useToast(); // هسا رح يشتغل صح!
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    } else {
+      setActiveTab("personal");
+    }
+  }, [location.search]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    navigate(`/user-profile?tab=${tabId}`, { replace: true });
+  };
 
   const handleSave = async (payload) => {
     const res = await updateUser(payload);
     if (res.ok) {
       toast("تم حفظ التغييرات بنجاح ✓");
-      
-      // تحديث الناف بار
       const newName = `${payload.firstName} ${payload.lastName}`;
       updateAuthUser({ 
         name: newName,
@@ -360,7 +348,7 @@ const UserProfileContent = () => {
     return res;
   };
 
- const handleUploadImage = async (file) => {
+  const handleUploadImage = async (file) => {
     const formData = new FormData();
     formData.append("FirstName", user.firstName);
     formData.append("LastName", user.lastName);
@@ -369,44 +357,45 @@ const UserProfileContent = () => {
     formData.append("ProfileImage", file);
 
     const res = await updateUser(formData);
-    
-    // تفحص هذا السطر في المتصفح (F12 -> Console)
-    console.log("البيانات الراجعة من السيرفر بعد رفع الصورة:", res);
-
     if (res.ok) {
       toast("تم تحديث الصورة الشخصية بنجاح ✓");
-      
-      // نتحقق من وجود بيانات المستخدم في الرد
       const userData = res.user || res.data;
       if (userData) {
-        // تأكد أن أحد هذه الحقول هو الذي يحتوي على رابط الصورة الجديد
         const serverImageUrl = userData.profileImage || userData.ProfileImage || userData.profileImageUrl;
-        
         if (serverImageUrl) {
-          updateAuthUser({ 
-            image: serverImageUrl // نرسلها للناف بار
-          });
-          console.log("تم تحديث رابط الصورة في AuthContext:", serverImageUrl);
+          updateAuthUser({ image: serverImageUrl });
         }
       }
     } else {
       toast(res.error || "فشل الرفع", "error");
     }
-  }; // تأكد من وجود هذا القوس لإغلاق الدالة
+  };
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#f8f6f3] p-4 sm:p-6 lg:p-10">
       <div className="mx-auto max-w-5xl">
-        <ProfileHeader user={user} loading={loading} saving={saving} onUploadImage={handleUploadImage} />
+        
+        {/* إخفاء الهيدر الأزرق على الجوال في تبويب طلباتي */}
+        <div className={activeTab === "requests" ? "hidden lg:block" : "block"}>
+          <ProfileHeader user={user} loading={loading} saving={saving} onUploadImage={handleUploadImage} />
+        </div>
+
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-          <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} user={user} loading={loading} />
-          <main className="lg:col-span-3">
+          
+          {/* إخفاء السايد بار على الجوال في تبويب طلباتي */}
+          <div className={activeTab === "requests" ? "hidden lg:block" : "block"}>
+            <ProfileTabs activeTab={activeTab} setActiveTab={handleTabChange} user={user} loading={loading} />
+          </div>
+
+          <main className={activeTab === "requests" ? "lg:col-span-3 col-span-1" : "lg:col-span-3"}>
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <div className="mb-5 border-b border-gray-50 pb-4">
-                <h2 className="text-base font-black text-gray-800">
-                  {TABS.find(t => t.id === activeTab)?.label}
-                </h2>
-              </div>
+              
+              {activeTab === "requests" && (
+                <div className="block lg:hidden mb-4 border-b pb-2">
+                  <h2 className="text-base font-black text-gray-800">طلبات الحجوزات الحالية</h2>
+                </div>
+              )}
+              
               <AnimatePresence mode="wait">
                 <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                   {activeTab === "personal" && <PersonalInfoTab user={user} loading={loading} saving={saving} onSave={handleSave} />}
@@ -415,8 +404,12 @@ const UserProfileContent = () => {
                 </motion.div>
               </AnimatePresence>
             </div>
-            <ActivityChart data={userActivity} />
+            
+            <div className={activeTab === "requests" ? "hidden lg:block" : "block"}>
+              <ActivityChart data={userActivity} />
+            </div>
           </main>
+
         </div>
       </div>
     </div>
@@ -424,7 +417,7 @@ const UserProfileContent = () => {
 };
 
 // ══════════════════════════════════════════════════════════════
-// المكون الرئيسي: لتوفير الـ Context فقط
+// المكون الخارجي الرئيسي لتوفير الـ Provider
 // ══════════════════════════════════════════════════════════════
 const UserProfile = () => {
   return (
@@ -433,6 +426,5 @@ const UserProfile = () => {
     </ToastProvider>
   );
 };
-
 
 export default UserProfile;

@@ -46,19 +46,39 @@ function BottomNav() {
     },
   ];
 
-  const isActive = (item) => {
+const isActive = (item) => {
     if (item.exact) {
       return location.pathname === item.path && location.hash === "";
     }
+
+    // 💡 فحص ذكي لتبويبات المستخدم داخل البروفايل (الزبون)
+    if (location.pathname.startsWith("/user-profile")) {
+      // قراءة التبويب الحالي من حالة الراوتر، وإذا مش موجود بنعتبره التبويب الشخصي الافتراضي
+      const currentTab = location.state?.defaultTab || "personal";
+
+      if (item.label === "طلباتي") {
+        return currentTab === "requests";
+      }
+      if (item.label === "حسابي") {
+        return currentTab === "personal" || currentTab === "security";
+      }
+    }
+
+    // فحص حسابي للأدوار الأخرى (فني، أدمن...)
     if (item.label === "حسابي") {
       return (
-        location.pathname.startsWith("/user-profile") ||
         location.pathname.startsWith("/worker-profile") || 
         location.pathname.startsWith("/technical") ||
         location.pathname.startsWith("/admin")
       );
     }
-    return location.pathname.startsWith(item.path);
+
+    if (item.label === "طلباتي") {
+      return role === "worker" && location.pathname.startsWith("/technical");
+    }
+
+    // حماية للمسارات الطبيعية (الرئيسية والخدمات) عشان ما تضرب مع الـ ""
+    return item.path ? location.pathname.startsWith(item.path) : false;
   };
 
   // ✅ دالة التحكم الشاملة لجميع أزرار القائمة السفلية
@@ -77,7 +97,7 @@ function BottomNav() {
         navigate("/technical"); // العامل يرى لوحة التحكم الإدارية الخاصة به
       } else {
         // الزبون ينتقل لصفحة حسابي مع تمرير حالة لتفعيل تبويب طلباتي فوراً
-        navigate("/user-profile", { state: { defaultTab: "requests" } }); 
+        navigate("/user-profile?tab=requests", { state: { defaultTab: "requests" } }); 
       }
       return;
     }
