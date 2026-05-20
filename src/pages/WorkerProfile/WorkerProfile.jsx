@@ -44,13 +44,36 @@ const WorkerProfileInner = () => {
   const { user: authUser, updateUser, logout } = useAuth();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
-
-  // ✅ state لتأخير ظهور شاشة إعادة التفعيل
   const [showReactivate, setShowReactivate] = useState(false);
 
-  const effectiveId = authUser?.id && workerId === String(authUser.id)
-    ? null
-    : workerId ?? null;
+   const getSafeStoredUser = () => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw || raw === "undefined") return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+   const resolveIsOwner = () => {
+    // المصدر الأول: AuthContext (الأولوية دائماً)
+    const currentUser = authUser ?? getSafeStoredUser();
+
+    if (!currentUser) return false;
+
+    const userId   = String(currentUser.id || currentUser.userId || currentUser._id || "");
+    const userRole = (currentUser.role || currentUser.userType || currentUser.Role || "").toLowerCase();
+
+    // يجب أن يكون Role = "worker" وأن يطابق الـ ID في الرابط
+    const isWorkerRole = userRole === "worker";
+    const isIdMatch    = userId !== "" && userId === String(workerId);
+
+    return isWorkerRole && isIdMatch;
+  };
+
+  const isOwner = resolveIsOwner();
+
+   const effectiveId = isOwner ? null : workerId ?? null;
 
   const {
     worker, workImages, loading, saving, toggling, error,
@@ -61,7 +84,6 @@ const WorkerProfileInner = () => {
     deleteWorkingHour,
   } = useWorkerProfile(effectiveId);
 
-  const isOwner = effectiveId === null;
 
   // ✅ لما الحساب يبقى "Deleted"، نستنى ثانيتين قبل شاشة إعادة التفعيل
   // عشان المستخدم يشوف الـ toast والزرار يتحدث لـ "تم التعطيل ✓"

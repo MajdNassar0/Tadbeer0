@@ -8,9 +8,13 @@ import ConfirmDialog from "./ConfirmDialog";
 import AddSubImagesModal from "./AddSubImagesModal";
 import Lightbox from "./Lightbox";
 import { getFullImageUrl } from "../../../../Utils/imageHelper";
+import { useAuth } from "../../../../context/AuthContext";
+import { useParams } from "react-router-dom";
 
-const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
+const ProjectDetail = ({ project, onBack, onProjectDeleted , isOwner}) => {
   const toast = useToast();
+  const { user } = useAuth();
+  const { id: workerIdFromUrl } = useParams();
   const [subImages, setSubImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -20,18 +24,36 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
   const [confirmProject, setConfirmProject] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
 
+
   // جلب الصور الفرعية من السيرفر [cite: 215]
-  const fetchSubImages = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.get(`/Worker/Profile/me/work-images/${project.id}/sub-images`);
-      setSubImages(res.data || []);
-    } catch {
-      toast("فشل تحميل صور المشروع", "error");
-    } finally {
-      setLoading(false);
+// جلب الصور الفرعية بناءً على الصلاحيات
+const fetchSubImages = useCallback(async () => {
+  // 💡 إذا مش صاحب الحساب، الصور موجودة مسبقاً داخل كائن الـ project في الـ Schema العامة
+  if (!isOwner) {
+    if (project?.subImages) {
+      setSubImages(project.subImages);
+    } else if (project?.projectImages) {
+      setSubImages(project.projectImages);
     }
-  }, [project.id, toast]);
+    setLoading(false);
+    return;
+  }
+
+  // 🔒 إذا كان صاحب الحساب (العامل نفسه)، يجلبها من الـ /me المخصصة له كالعادة
+  setLoading(true);
+  try {
+    const res = await apiClient.get(`/Worker/Profile/me/work-images/${project.id}/sub-images`);
+    setSubImages(res.data || []);
+  } catch {
+    toast("فشل تحميل صور المشروع", "error");
+  } finally {
+    setLoading(false);
+  }
+}, [project, isOwner, toast]);
+
+useEffect(() => {
+  fetchSubImages();
+}, [fetchSubImages]);
 
   useEffect(() => { fetchSubImages(); }, [fetchSubImages]);
 
@@ -100,20 +122,23 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
             )}
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setConfirmProject(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-red-100 text-red-500 text-xs font-semibold hover:bg-red-50 transition"
-          >
-            <Trash2 size={13} /> حذف المشروع
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition shadow-md shadow-orange-100"
-          >
-            <ImagePlus size={13} /> إضافة صور
-          </button>
-        </div>
+        {isOwner && (
+  <div className="flex gap-2">
+    <button
+      onClick={() => setConfirmProject(true)}
+      className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-red-100 text-red-500 text-xs font-semibold hover:bg-red-50 transition"
+    >
+      <Trash2 size={13} /> حذف المشروع
+    </button>
+    <button
+      onClick={() => setShowAddModal(true)}
+      className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition shadow-md shadow-orange-100"
+    >
+      <ImagePlus size={13} /> إضافة صور
+    </button>
+  </div>
+)}
+
       </div>
 
       {/* Cover - تم تحديثه ليدعم imageUrl لعدم الاختفاء بعد الـ Refresh [cite: 127] */}
@@ -154,9 +179,11 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
           <div className="flex flex-col items-center justify-center py-10 rounded-3xl border-2 border-dashed border-gray-200">
             <FolderOpen size={32} className="text-gray-300 mb-2" />
             <p className="text-sm text-gray-400">لا توجد صور إضافية بعد</p>
-            <button onClick={() => setShowAddModal(true)} className="mt-3 text-orange-500 text-xs font-bold hover:underline">
-              + أضف صوراً الآن
-            </button>
+           {isOwner && (
+  <button onClick={() => setShowAddModal(true)} className="mt-3 text-orange-500 text-xs font-bold hover:underline">
+    + أضف صوراً الآن
+  </button>
+)}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -175,12 +202,14 @@ const ProjectDetail = ({ project, onBack, onProjectDeleted }) => {
                   className="w-full h-full object-cover" 
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition" />
-                <button
-                  onClick={(e) => { e.stopPropagation(); setConfirm({ open: true, subImageId: img.id }); }}
-                  className="absolute top-2 left-2 w-7 h-7 rounded-xl bg-white/90 flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition shadow-sm"
-                >
-                  <Trash2 size={12} />
-                </button>
+               {isOwner && (
+  <button
+    onClick={(e) => { e.stopPropagation(); setConfirm({ open: true, subImageId: img.id }); }}
+    className="absolute top-2 left-2 w-7 h-7 rounded-xl bg-white/90 flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition shadow-sm"
+  >
+    <Trash2 size={12} />
+  </button>
+)}
               </motion.div>
             ))}
           </div>

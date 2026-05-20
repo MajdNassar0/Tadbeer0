@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Briefcase, Trash2 } from "lucide-react";
 import { getFullImageUrl } from "../../../../Utils/imageHelper";
 
-const ProjectCard = ({ project, onClick, onDelete, index }) => {
+const ProjectCard = ({ project, onClick, onDelete, index ,isOwner }) => {
   const [hover, setHover] = useState(false);
 
   // 1. تحديد الرابط الصحيح (سواء كان محلي blob أو من السيرفر)
@@ -51,12 +51,14 @@ const ProjectCard = ({ project, onClick, onDelete, index }) => {
         )}
       </AnimatePresence>
 
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(project); }}
-        className="absolute top-3 left-3 w-8 h-8 rounded-xl bg-white/90 backdrop-blur-sm flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 shadow-sm"
-      >
-        <Trash2 size={14} />
-      </button>
+   {isOwner && (
+  <button
+    onClick={(e) => { e.stopPropagation(); onDelete(project); }}
+    className="absolute top-3 left-3 w-8 h-8 rounded-xl bg-white/90 backdrop-blur-sm flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 shadow-sm z-10"
+  >
+    <Trash2 size={14} />
+  </button>
+)}
 
       <div className="p-4">
         <h4 className="font-bold text-gray-900 text-sm truncate">

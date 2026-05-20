@@ -72,15 +72,16 @@ const PortfolioTabInner = ({ isOwner, workerId, workerData }) => {
     <div className="min-h-screen bg-gray-50/50 p-4 sm:p-6" dir="rtl">
       <AnimatePresence mode="wait">
         {selectedProject ? (
-          <ProjectDetail
-            key="detail"
-            project={selectedProject}
-            onBack={() => setSelectedProject(null)}
-            onProjectDeleted={(id) => {
-              setProjects((prev) => prev.filter((p) => p.id !== id));
-              setSelectedProject(null);
-            }}
-          />
+<ProjectDetail
+  key="detail"
+  project={selectedProject}
+  onBack={() => setSelectedProject(null)}
+  onProjectDeleted={(id) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setSelectedProject(null);
+  }}
+  isOwner={isOwner} // 👈 هنا مكانها الصحيح والنظيف كـ Prop للمكون!
+/>
         ) : (
           <motion.div
             key="grid"
