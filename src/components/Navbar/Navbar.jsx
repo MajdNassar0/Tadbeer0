@@ -158,6 +158,19 @@ function Navbar() {
 
           {/* Desktop User Area */}
           <div className="hidden lg:flex items-center gap-4">
+            {user && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/search")}
+                className="flex items-center gap-2 bg-gray-900 hover:bg-gray-900 text-white px-7 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-gray-100 transition-colors duration-200"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                ابحث الآن
+              </motion.button>
+            )}
             {user ? (
               <div className="relative group">
                 <button className="flex items-center gap-3 p-1.5 pr-4 bg-gray-50 hover:bg-white hover:shadow-md rounded-full border border-gray-100 transition-all duration-300">
@@ -277,6 +290,18 @@ function Navbar() {
                   {link.name}
                 </button>
               ))}
+
+              {user && (
+                <button
+                  onClick={() => { navigate("/search"); setOpen(false); }}
+                  className="flex items-center gap-2 w-full text-right text-lg font-bold text-yellow-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                  </svg>
+                  ابحث الآن
+                </button>
+              )}
 
               {user && dashboardRoutes[role] && (
                 <button

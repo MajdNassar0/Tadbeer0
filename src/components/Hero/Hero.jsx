@@ -1,8 +1,22 @@
 import React from "react";
 import { motion } from "framer-motion";
 import heroImg from "../../assets/img/hero.jpeg";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+
 const Hero = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
+
+  const handleSearch = () => {
+    if (isLoggedIn) {
+      navigate("/search");
+    } else {
+      navigate("/auth/login");
+    }
+  };
+
   return (
     <section
       className="relative overflow-hidden bg-[#f8f6f3] py-16 lg:py-24"
@@ -44,15 +58,23 @@ const Hero = () => {
 
             {/* الأزرار */}
             <div className="flex flex-wrap gap-4 justify-start">
-              <button className="group relative bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-4 rounded-2xl shadow-lg shadow-yellow-200 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 font-bold text-lg">
-                ابدأ الآن
+              {/* ── UPDATED: navigates to /search if logged in, else /auth/login ── */}
+              <button
+                onClick={handleSearch}
+                className="group relative flex items-center gap-3 bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-4 rounded-2xl shadow-lg shadow-yellow-200 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 font-bold text-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                ابحث الان
               </button>
+
               <NavLink
-  to="/services"
-  className="bg-white border-2 border-gray-100 hover:border-yellow-500 hover:text-yellow-600 text-gray-700 px-8 py-4 rounded-2xl transition-all duration-300 font-bold text-lg inline-block"
->
-  اكتشف الخدمات
-</NavLink>
+                to="/services"
+                className="bg-white border-2 border-gray-100 hover:border-yellow-500 hover:text-yellow-600 text-gray-700 px-8 py-4 rounded-2xl transition-all duration-300 font-bold text-lg inline-block"
+              >
+                اكتشف الخدمات
+              </NavLink>
             </div>
 
             {/* الإحصائيات */}
@@ -81,9 +103,7 @@ const Hero = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="lg:col-span-5 relative order-1 lg:order-2 hidden lg:block w-full"
           >
-            {/* حاوية نسبية للصورة تضمن بقاء العرض ثابت */}
             <div className="relative w-full h-full flex items-center">
-              {/* الخلفية المزخرفة للصورة */}
               <div className="absolute -bottom-6 -right-6 w-full h-full border-2 border-yellow-400 rounded-[2.5rem] -z-10" />
 
               <div className="relative w-full overflow-hidden rounded-[2.5rem] shadow-2xl transform hover:rotate-1 transition-transform duration-500">
