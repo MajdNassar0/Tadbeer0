@@ -288,6 +288,8 @@ const WorkerView = () => {
               ) : (
                 <div className="grid gap-4">
                   {paginated.map((r) => (
+                    
+                    
                     <div
                       key={r.id}
                       className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
@@ -299,12 +301,14 @@ const WorkerView = () => {
                             {r.userImage || (r.userName === user?.name ? (user?.image || user?.profilePic) : null) ? (
                               <img
                                 src={getFullImageUrl(r.userImage || (r.userName === user?.name ? (user?.image || user?.profilePic) : null))}
+                              
                                 alt={r.userName}
                                 className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.onerror = null;
-                                  e.target.src = "";
-                                }}
+                               onError={(e) => {
+  e.currentTarget.onerror = null;
+  e.currentTarget.src =
+    `https://ui-avatars.com/api/?name=${r.userName || "U"}`;
+}}
                               />
                             ) : (
                               (r.userName || "U").charAt(0).toUpperCase()
