@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 const API_BASE = "https://tadbeer0.runasp.net/api";
 const getImageUrl = (path) => {
@@ -381,7 +381,10 @@ const AiResultPanel = ({ result, onSelectWorker }) => {
 
 /* ─── Main Component ─── */
 export default function TadbeerSearch() {
-  const [query, setQuery] = useState("");
+  // 🌟 السطر الجديد والمطور:
+const [query, setQuery] = useState(() => {
+  return sessionStorage.getItem("tadbeer_search_query") || "";
+});
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -407,6 +410,11 @@ export default function TadbeerSearch() {
 
   // Silently read the token saved by Login.jsx — user never sees this
   const getToken = () => localStorage.getItem("token") || "";
+  // 🔒 حفظ نص البحث في الذاكرة فوراً عند كتابة أي حرف لمنع ضياعه عند الانتقال للبروفايل
+  useEffect(() => {
+    sessionStorage.setItem("tadbeer_search_query", query);
+  }, [query]);
+
 
   /* ── Search ── */
   const doSearch = useCallback(async (q, p = 1) => {
@@ -475,6 +483,14 @@ export default function TadbeerSearch() {
       setLoading(false);
     }
   }, []);
+  
+  // 🔄 تشغيل دالة البحث تلقائياً عند دخول الصفحة إذا كانت هناك كلمة بحث مخزنة مسبقاً
+  useEffect(() => {
+    const savedQuery = sessionStorage.getItem("tadbeer_search_query");
+    if (savedQuery && savedQuery.trim()) {
+      doSearch(savedQuery, 1);
+    }
+  }, [doSearch]);
 
   /* ── Live search (debounced 400ms) ── */
   const handleQueryChange = (e) => {
