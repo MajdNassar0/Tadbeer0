@@ -365,11 +365,15 @@ export default function TadbeerSearch() {
   const [locLoading, setLocLoading] = useState(false);
 
   const fileRef = useRef();
+  const debounceRef = useRef(null);
   const PAGE_SIZE = 8;
+
+  // Silently read the token saved by Login.jsx — user never sees this
+  const getToken = () => localStorage.getItem("token") || "";
 
   /* ── Search ── */
   const doSearch = useCallback(async (q, p = 1) => {
-    if (!q.trim()) return;
+    if (!q.trim()) { setResults(null); return; }
     setLoading(true);
     setError(null);
     try {
@@ -380,9 +384,54 @@ export default function TadbeerSearch() {
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setResults(data);
+
+      console.log("SEARCH RESULT:", data);
+
+      // ── Client-side filtering ──
+      // Works for: single word (first name OR last name OR service name),
+      // or full name with space (e.g. "أحمد محمود")
+      const q_lower = q.trim().toLowerCase();
+
+      const workerArr = data.workers || data.Workers || [];
+      const filteredWorkers = workerArr.filter((w) => {
+        const firstName = (w.firstName || "").toLowerCase();
+        const lastName  = (w.lastName  || "").toLowerCase();
+        const fullName  = `${firstName} ${lastName}`;
+        const job       = (w.jobDescription || "").toLowerCase();
+        const specs     = (w.specialtyNames || []).join(" ").toLowerCase();
+        return (
+          firstName.includes(q_lower) ||
+          lastName.includes(q_lower)  ||
+          fullName.includes(q_lower)  ||
+          job.includes(q_lower)       ||
+          specs.includes(q_lower)
+        );
+      });
+
+      const serviceArr = data.services || data.Services || [];
+      const filteredServices = serviceArr.filter((s) => {
+        const name = (s.name || "").toLowerCase();
+        const desc = (s.description || "").toLowerCase();
+        return name.includes(q_lower) || desc.includes(q_lower);
+      });
+
+      // Replace arrays with filtered versions, keep totals accurate
+      const patched = {
+        ...data,
+        workers:  filteredWorkers,
+        services: filteredServices,
+        workersTotalCount:  filteredWorkers.length,
+        servicesTotalCount: filteredServices.length,
+      };
+
+      setResults(patched);
       setPage(p);
-      setActiveTab("workers");
+      // Auto-switch tab to whichever has results
+      if (filteredWorkers.length === 0 && filteredServices.length > 0) {
+        setActiveTab("services");
+      } else {
+        setActiveTab("workers");
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -390,8 +439,20 @@ export default function TadbeerSearch() {
     }
   }, []);
 
+  /* ── Live search (debounced 400ms) ── */
+  const handleQueryChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!val.trim()) { setResults(null); setError(null); return; }
+    debounceRef.current = setTimeout(() => {
+      doSearch(val, 1);
+    }, 400);
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     doSearch(query, 1);
   };
 
@@ -448,8 +509,14 @@ export default function TadbeerSearch() {
       form.append("Latitude", userLat || "0");
       form.append("Longitude", userLng || "0");
       form.append("MaxDistanceKm", String(maxDist));
+
+      // Auto-attach token from Login — user never sees this
+      const token = getToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const res = await fetch(`${API_BASE}/General/AIDetection/predict`, {
         method: "POST",
+        headers,
         body: form,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
@@ -462,11 +529,11 @@ export default function TadbeerSearch() {
     }
   };
 
-  const workers = results?.workers || [];
-  const services = results?.services || [];
-  const totalWorkers = results?.workersTotalCount || 0;
-  const totalServices = results?.servicesTotalCount || 0;
-  const totalPages = Math.ceil(totalWorkers / PAGE_SIZE);
+  const workers       = results?.workers  || [];
+  const services      = results?.services || [];
+  const totalWorkers  = results?.workersTotalCount  ?? workers.length;
+  const totalServices = results?.servicesTotalCount ?? services.length;
+  const totalPages    = Math.ceil(totalWorkers / PAGE_SIZE);
 
   return (
     <div dir="rtl" style={{ fontFamily: "'Cairo', 'Segoe UI', sans-serif", minHeight: "100vh", background: THEME.bgCanvas, color: THEME.textMain }}>
@@ -529,7 +596,7 @@ export default function TadbeerSearch() {
             <input
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={handleQueryChange}
               placeholder="ابحث عن خدمة أو عامل... (مثال: كهربائي، سباك)"
               style={{
                 flex: 1, padding: "14px 18px", borderRadius: "10px",
