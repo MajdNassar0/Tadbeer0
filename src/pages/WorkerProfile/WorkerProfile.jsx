@@ -146,10 +146,7 @@ const WorkerProfileInner = () => {
       <ReactivateScreen
         onReactivate={handleToggleStatus}
         loading={toggling}
-        onLogout={() => {
-          logout();
-          window.location.href = "/login";
-        }}
+        onLogout={logout} // 👈 مرري دالة الـ logout الجاهزة مباشرة هنا وبس!
       />
     );
   }
