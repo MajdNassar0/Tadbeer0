@@ -56,86 +56,123 @@ const Spinner = ({ color = "#fff", size = 18 }) => (
   }} />
 );
 
-/* ─── Worker Card ─── */
-const WorkerCard = ({ worker, onSelect }) => {
-  const initials = `${worker.firstName?.[0] || ""}${worker.lastName?.[0] || ""}`.toUpperCase();
+/* ─── 🌟 كارد العمال المربوط بمسارات صفحة التفاصيل الصحيحة 🌟 ─── */
+const WorkerCard = ({ worker, onSelect, getImageUrl: passedGetImageUrl, THEME: passedTheme }) => {
   const [hovered, setHovered] = useState(false);
+  const specialtiesText = worker.specialtyNames?.join(" · ") || "خدمات عامة";
+
+  const currentTheme = passedTheme || THEME;
+  
+  const determineImageUrl = (path) => {
+    if (typeof passedGetImageUrl === "function") return passedGetImageUrl(path);
+    if (typeof getImageUrl === "function") return getImageUrl(path);
+    return `https://tadbeer0.runasp.net/${path}`;
+  };
 
   return (
     <div
-      onClick={() => onSelect(worker)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: THEME.bgCard,
-        border: `1.5px solid ${hovered ? THEME.primary : THEME.border}`,
-        borderRadius: "14px",
-        padding: "1rem",
-        cursor: "pointer",
-        transition: "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
-        transform: hovered ? "translateY(-3px)" : "none",
-        boxShadow: hovered
-          ? "0 8px 20px -4px rgba(249,115,22,0.15)"
-          : "0 1px 3px rgba(0,0,0,0.06)",
+        background: currentTheme.bgCard,
+        border: `1px solid ${hovered ? "#0B1E36" : currentTheme.border}`, // الهوفر الكحلي الراقي
+        borderRadius: "20px",
+        padding: "1.5rem",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: "1.25rem",
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow: hovered ? "0 12px 25px -5px rgba(11, 30, 54, 0.15)" : "0 2px 6px rgba(0,0,0,0.03)",
+        transform: hovered ? "translateY(-4px)" : "none",
+        direction: "rtl",
+        position: "relative",
+        overflow: "hidden"
       }}
     >
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        {worker.profileImage ? (
-          <img
-src={getImageUrl(worker.profileImage)}            alt={`${worker.firstName} ${worker.lastName}`}
-            style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: `2px solid ${THEME.primaryLight}` }}
-          />
-        ) : (
-          <div style={{
-            width: 52, height: 52, borderRadius: "50%",
-            background: THEME.primaryLight, display: "flex", alignItems: "center",
-            justifyContent: "center", fontWeight: 700, fontSize: 17,
-            color: THEME.primary, flexShrink: 0,
-          }}>
-            {initials || "?"}
-          </div>
-        )}
-        <div style={{ minWidth: 0 }}>
-          <p style={{ fontWeight: 700, fontSize: 15, margin: 0, color: THEME.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {worker.firstName} {worker.lastName}
-          </p>
-          {worker.city && (
-            <p style={{ fontSize: 12, color: THEME.textMuted, margin: "3px 0 0" }}>
-              📍 {worker.city}{worker.distanceKm != null && ` · ${worker.distanceKm.toFixed(1)} كم`}
-            </p>
+      {/* الجزء العلوي: الصورة والبيانات الشخصية */}
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <div style={{ width: "64px", height: "64px", borderRadius: "14px", overflow: "hidden", flexShrink: 0, background: currentTheme.bgCanvas, border: `1px solid ${currentTheme.border}` }}>
+          {worker.profileImage ? (
+            <img src={determineImageUrl(worker.profileImage)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "20px", color: currentTheme.primary, background: currentTheme.primaryLight }}>
+              {worker.firstName?.[0]}
+            </div>
           )}
         </div>
-      </div>
 
-      {worker.jobDescription && (
-        <p style={{ fontSize: 13, color: THEME.textMuted, margin: 0, lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {worker.jobDescription}
-        </p>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-        <StarRating rating={worker.avgRating} />
-        {worker.experienceYears != null && (
-          <span style={{ fontSize: 12, color: THEME.textMuted, background: THEME.bgCanvas, padding: "2px 8px", borderRadius: 20, border: `1px solid ${THEME.border}` }}>
-            {worker.experienceYears} سنوات خبرة
-          </span>
-        )}
-      </div>
-
-      {worker.specialtyNames?.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {worker.specialtyNames.slice(0, 3).map((s, i) => (
-            <span key={i} style={{
-              fontSize: 11, padding: "3px 9px",
-              background: THEME.primaryLight, color: THEME.primary,
-              borderRadius: 20, fontWeight: 600, border: `1px solid rgba(249,115,22,0.18)`
-            }}>{s}</span>
-          ))}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: currentTheme.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {worker.firstName} {worker.lastName}
+          </h3>
+          <p style={{ margin: "4px 0 6px", fontSize: "13px", color: hovered ? "#1E293B" : "#475569", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {specialtiesText}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <StarRating rating={worker.avgRating} />
+            <span style={{ fontSize: "12px", fontWeight: 700, color: currentTheme.textMuted, marginTop: "2px" }}>
+              ({worker.avgRating || 0})
+            </span>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* بوكسات تفاصيل الخبرة والموقع */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+        <div style={{ background: currentTheme.bgCanvas, border: `1px solid ${currentTheme.border}`, padding: "10px", borderRadius: "12px", display: "flex", flexDirection: "column", alignItems: "center", justifyWContent: "center" }}>
+          <span style={{ fontSize: "11px", color: currentTheme.textMuted, fontWeight: 500, marginBottom: "2px" }}>الخبرة</span>
+          <span style={{ fontSize: "13px", fontWeight: 700, color: currentTheme.textMain }}>{worker.experienceYears || 0} سنوات</span>
+        </div>
+        <div style={{ background: currentTheme.bgCanvas, border: `1px solid ${currentTheme.border}`, padding: "10px", borderRadius: "12px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: "11px", color: currentTheme.textMuted, fontWeight: 500, marginBottom: "2px" }}>الموقع</span>
+          <span style={{ fontSize: "13px", fontWeight: 700, color: currentTheme.textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%", textAlign: "center" }}>{worker.city || "غير محدد"}</span>
+        </div>
+      </div>
+
+      {/* الأزرار المربوطة بالـ Routes الشغالة بالملّي */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "auto" }}>
+        
+        {/* زر احجز موعد الآن -> يوجه إلى /booking/:id */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // منع التداخل نهائياً
+            window.location.href = `/booking/${worker.id}`;
+          }}
+          style={{
+            width: "100%", padding: "11px", background: currentTheme.primary, color: "#fff", border: "none",
+            borderRadius: "10px", fontWeight: 700, fontSize: "13px", cursor: "pointer",
+            fontFamily: "'Cairo', sans-serif", transition: "background 0.2s",
+            boxShadow: "0 2px 4px rgba(249,115,22,0.15)"
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = currentTheme.primaryHover}
+          onMouseLeave={(e) => e.currentTarget.style.background = currentTheme.primary}
+        >
+          احجز موعد الآن
+        </button>
+
+        {/* زر عرض الملف الشخصي -> يوجه إلى /worker-profile/:id */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // منع التداخل نهائياً
+            window.location.href = `/worker-profile/${worker.id}`;
+          }}
+          style={{
+            width: "100%", padding: "11px", background: "transparent", color: currentTheme.textMain,
+            border: `1px solid ${currentTheme.border}`, borderRadius: "10px", fontWeight: 600,
+            fontSize: "13px", cursor: "pointer", fontFamily: "'Cairo', sans-serif", transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = currentTheme.bgCanvas;
+            e.currentTarget.style.borderColor = "#0B1E36"; // الهوفر الكحلي الراقي
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.borderColor = currentTheme.border;
+          }}
+        >
+          عرض الملف الشخصي
+        </button>
+      </div>
     </div>
   );
 };
