@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import WorkerProfile from "./pages/WorkerProfile/WorkerProfile";
 import UserProfile from "./pages/UserProfile/UserProfile";
 import WorkerView from "./pages/WorkerView/WorkerView";
+import Search from "./pages/Search/Search"; // ← NEW
 
 // Admin
 import AdminLayout   from "./pages/Admin/AdminLayout";
@@ -33,27 +34,39 @@ import WorkerSettings  from "./pages/TechnicanDashboard/Settings";
 
 const router = createBrowserRouter([
   {
-    
     path: "/",
     element: <MainLayout />,
     children: [
-      { index: true,               element: <Home />           },
-      { path: "services",          element: <Services />       },
-      { path: "workers",           element: <Workers />        },
-      { path: "worker-view/:workerId",element: <WorkerView />  },
-      { path:"/worker-profile/:workerId", element:<WorkerProfile />},
+      { index: true,                      element: <Home />           },
+      { path: "services",                 element: <Services />       },
+      { path: "workers",                  element: <Workers />        },
+      { path: "worker-view/:workerId",    element: <WorkerView />     },
+      { path: "worker-profile/:workerId", element: <WorkerProfile />  },
       {
-        path: "user-profile",
-        element: <ProtectedRoute><UserProfile /></ProtectedRoute>,
+        // ← NEW: protected search page
+        path: "search",
+        element: (
+          <ProtectedRoute>
+            <Search />
+          </ProtectedRoute>
+        ),
       },
       {
-      path: "booking/:workerId",
-      element: (
-        <ProtectedRoute>
-          <Booking />
-        </ProtectedRoute>
-      ),
-    },  
+        path: "user-profile",
+        element: (
+          <ProtectedRoute>
+            <UserProfile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "booking/:workerId",
+        element: (
+          <ProtectedRoute>
+            <Booking />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
   {
@@ -66,7 +79,7 @@ const router = createBrowserRouter([
       { path: "ResetPassword",  element: <ResetPassword />  },
     ],
   },
-{
+  {
     path: "admin",
     element: (
       <ProtectedRoute role={["admin", "superadmin"]}>
@@ -74,12 +87,12 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true,           element: <Dashboard />     },
-      { path: "users",         element: <Users />         },
-      { path: "technicians",   element: <Technicians />   },
-      { path: "bookings",      element: <AdminBookings /> },
-      { path: "reports",       element: <Reports />       },
-      { path: "settings",      element: <Settings />      },
+      { index: true,         element: <Dashboard />     },
+      { path: "users",       element: <Users />         },
+      { path: "technicians", element: <Technicians />   },
+      { path: "bookings",    element: <AdminBookings /> },
+      { path: "reports",     element: <Reports />       },
+      { path: "settings",    element: <Settings />      },
     ],
   },
   {
@@ -90,11 +103,11 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true,        element: <WorkerDashboard /> },
-      { path: "bookings",   element: <WorkerBookings />  },
-      { path: "reviews",    element: <WorkerReviews />   },
-      { path: "reports",    element: <WorkerReports />   },
-      { path: "settings",   element: <WorkerSettings />  },
+      { index: true,      element: <WorkerDashboard /> },
+      { path: "bookings", element: <WorkerBookings />  },
+      { path: "reviews",  element: <WorkerReviews />   },
+      { path: "reports",  element: <WorkerReports />   },
+      { path: "settings", element: <WorkerSettings />  },
     ],
   },
 ]);
