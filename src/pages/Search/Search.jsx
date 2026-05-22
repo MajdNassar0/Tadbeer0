@@ -187,124 +187,57 @@ const WorkerCard = ({ worker, onSelect }) => {
 };
 
 /* ─── 🌟 كارد الخدمات العمودي (طويل، مرتب وممركز) 🌟 ─── */
-const ServiceCard = ({ service, onSelectService }) => {
+const ServiceCard = ({ service, onClick }) => {
   const [hovered, setHovered] = useState(false);
 
-  const handleClick = () => {
-    sessionStorage.setItem("tadbeer_search_query", service.name);
-    if (typeof onSelectService === "function") {
-      onSelectService(service.name);
-    } else {
-      window.location.href = "/search";
-    }
+  // دالة لتجهيز رابط الصورة للأيقونات من السيرفر
+  const getCardImageUrl = (url) => {
+    if (!url) return "https://tadbeer0.runasp.net/uploads/specialty-icons/default.png";
+    let cleanUrl = url.replace(/\\/g, "/").trim();
+    cleanUrl = cleanUrl.replace(/^\/+/, "");
+    if (cleanUrl.startsWith("http")) return cleanUrl;
+    if (cleanUrl.startsWith("uploads/")) return `https://tadbeer0.runasp.net/${cleanUrl}`;
+    return `https://tadbeer0.runasp.net/uploads/${cleanUrl}`;
   };
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={handleClick}
-      style={{
-        background: THEME.bgCard,
-        border: `1px solid ${hovered ? "#0B1E36" : "#E2E8F0"}`, 
-        borderRadius: "24px", // زوايا دائرية فخمة
-        padding: "2rem 1.5rem", // بادينج عمودي كبير ليعطي الكارد طولاً وراحة
-        display: "flex",
-        flexDirection: "column", // ترتيب العناصر عمودياً تحت بعضها
-        alignItems: "center", // ممركزة العناصر بالنص تماماً
-        justifyContent: "center",
-        textAlign: "center", // ممركزة النصوص بالنص
-        gap: "18px", // مسافة متناسقة بين الصورة والاسم والوصف
-        cursor: "pointer",
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        minHeight: "240px", // تحديد حد أدنى للارتفاع ليكون الكارد طويلاً وله هيبة بالتصميم
-        boxShadow: hovered 
-          ? "0 15px 30px -10px rgba(11, 30, 54, 0.15)" 
-          : "0 4px 6px -1px rgba(0, 0, 0, 0.02)",
-        transform: hovered ? "translateY(-6px)" : "none", // حركة ارتجاعية لطيفة عند الهوفر
-        direction: "rtl",
-      }}
+      onClick={onClick} // 🌟 هنا يتم تشغيل الـ Endpoint/Navigate الممرر من الـ map عند الضغط
+      className="bg-white p-6 rounded-[1.8rem] border border-gray-100 shadow-sm flex flex-col items-center text-center transition-all duration-300 hover:shadow-lg cursor-pointer group relative min-h-[240px] justify-center"
+      style={{ direction: "rtl" }}
     >
-      {/* 🖼️ 1. بوكس الصورة/الأيقونة بالنص */}
-      <div style={{
-        width: "72px", // تكبير حجم البوكس ليناسب التصميم العمودي
-        height: "72px",
-        borderRadius: "20px",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: hovered ? "#FFF7ED" : "#F8FAFC", 
-        border: `1px solid ${hovered ? "#FFE7D3" : "#F1F5F9"}`,
-        transition: "all 0.2s",
-        boxShadow: hovered ? "0 8px 16px rgba(249, 115, 22, 0.1)" : "none"
-      }}>
+      {/* حاوية الأيقونة */}
+      <div className="w-20 h-20 mb-4 flex items-center justify-center bg-gray-50 rounded-2xl overflow-hidden p-2 border border-gray-50">
         {service.iconUrl ? (
-          <img 
-            src={getImageUrl(service.iconUrl)} 
-            alt={service.name} 
-            style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+          <img
+            src={getCardImageUrl(service.iconUrl)}
+            alt={service.name}
+            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-110"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "https://tadbeer0.runasp.net/uploads/specialty-icons/default.png";
+            }}
           />
         ) : (
-          <div style={{ fontSize: "32px" }}>🔧</div>
+          <div className="w-full h-full bg-[#f3eee3] flex items-center justify-center text-3xl">🔧</div>
         )}
       </div>
 
-      {/* 📝 بوكس النصوص المرتبة تحت الصورة */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
-        
-        {/* 2. اسم الخدمة */}
-        <h4 style={{
-          fontWeight: 800,
-          fontSize: "16px",
-          margin: 0,
-          color: hovered ? "#F97316" : "#0B1E36", 
-          fontFamily: "'Cairo', sans-serif",
-          transition: "color 0.2s",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis"
-        }}>
+      {/* نصوص الكارد */}
+      <div className="flex flex-col gap-2 w-full flex-1 justify-center">
+        <h4 className="font-bold text-[#002b5b] text-base group-hover:text-yellow-600 transition-colors font-sans truncate px-2">
           {service.name}
         </h4>
         
-        {/* 3. وصف الخدمة */}
-        {service.description ? (
-          <p style={{
-            fontSize: "12.5px",
-            color: "#6B7280",
-            margin: 0,
-            fontFamily: "'Cairo', sans-serif",
-            lineHeight: "1.5",
-            // يسمح بظهور سطرين للوصف كحد أقصى لإعطاء مظهر مرتب ومتناسق لطول الكارد
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            padding: "0 4px"
-          }}>
-            {service.description}
-          </p>
-        ) : (
-          <p style={{ fontSize: "12px", color: "#9CA3AF", margin: 0, fontFamily: "'Cairo', sans-serif" }}>
-            استكشف الفنيين المتاحين
-          </p>
-        )}
+        <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 font-sans px-2">
+          {service.description || "استكشف الفنيين المتاحين لهذه الخدمة."}
+        </p>
       </div>
 
-      {/* 🧭 لمسة جمالية سفلية تظهر عند الهوفر فقط */}
-      <div style={{
-        position: "absolute",
-        bottom: "12px",
-        opacity: hovered ? 1 : 0,
-        transform: hovered ? "translateY(0)" : "translateY(5px)",
-        transition: "all 0.2s ease",
-        color: "#F97316",
-        fontSize: "12px",
-        fontWeight: 700,
-        fontFamily: "'Cairo', sans-serif"
-      }}>
+      {/* سهم التوجيه */}
+      <div className="absolute bottom-3 text-yellow-500 text-xs font-bold font-sans opacity-0 transform translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
         عرض الفنيين ←
       </div>
     </div>
