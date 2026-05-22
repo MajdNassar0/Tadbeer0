@@ -178,25 +178,130 @@ const WorkerCard = ({ worker, onSelect, getImageUrl: passedGetImageUrl, THEME: p
 };
 
 /* ─── Service Card ─── */
-const ServiceCard = ({ service }) => (
-  <div style={{
-    background: THEME.bgCard, border: `1px solid ${THEME.border}`, borderRadius: "12px",
-    padding: "0.875rem 1rem", display: "flex", alignItems: "center", gap: 12,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-  }}>
-    {service.iconUrl ? (
-      <img src={getImageUrl(service.iconUrl)} alt={service.name} style={{ width: 38, height: 38, borderRadius: 9, objectFit: "cover" }} />
-    ) : (
-      <div style={{ width: 38, height: 38, borderRadius: 9, background: THEME.primaryLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19 }}>
-        🔧
+/* ─── 🌟 كارد الخدمات العمودي (طويل، مرتب وممركز) 🌟 ─── */
+const ServiceCard = ({ service, onSelectService }) => {
+  const [hovered, setHovered] = useState(false);
+
+  const handleClick = () => {
+    sessionStorage.setItem("tadbeer_search_query", service.name);
+    if (typeof onSelectService === "function") {
+      onSelectService(service.name);
+    } else {
+      window.location.href = "/search";
+    }
+  };
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={handleClick}
+      style={{
+        background: THEME.bgCard,
+        border: `1px solid ${hovered ? "#0B1E36" : "#E2E8F0"}`, 
+        borderRadius: "24px", // زوايا دائرية فخمة
+        padding: "2rem 1.5rem", // بادينج عمودي كبير ليعطي الكارد طولاً وراحة
+        display: "flex",
+        flexDirection: "column", // ترتيب العناصر عمودياً تحت بعضها
+        alignItems: "center", // ممركزة العناصر بالنص تماماً
+        justifyContent: "center",
+        textAlign: "center", // ممركزة النصوص بالنص
+        gap: "18px", // مسافة متناسقة بين الصورة والاسم والوصف
+        cursor: "pointer",
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        minHeight: "240px", // تحديد حد أدنى للارتفاع ليكون الكارد طويلاً وله هيبة بالتصميم
+        boxShadow: hovered 
+          ? "0 15px 30px -10px rgba(11, 30, 54, 0.15)" 
+          : "0 4px 6px -1px rgba(0, 0, 0, 0.02)",
+        transform: hovered ? "translateY(-6px)" : "none", // حركة ارتجاعية لطيفة عند الهوفر
+        direction: "rtl",
+      }}
+    >
+      {/* 🖼️ 1. بوكس الصورة/الأيقونة بالنص */}
+      <div style={{
+        width: "72px", // تكبير حجم البوكس ليناسب التصميم العمودي
+        height: "72px",
+        borderRadius: "20px",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: hovered ? "#FFF7ED" : "#F8FAFC", 
+        border: `1px solid ${hovered ? "#FFE7D3" : "#F1F5F9"}`,
+        transition: "all 0.2s",
+        boxShadow: hovered ? "0 8px 16px rgba(249, 115, 22, 0.1)" : "none"
+      }}>
+        {service.iconUrl ? (
+          <img 
+            src={getImageUrl(service.iconUrl)} 
+            alt={service.name} 
+            style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+          />
+        ) : (
+          <div style={{ fontSize: "32px" }}>🔧</div>
+        )}
       </div>
-    )}
-    <div>
-      <p style={{ fontWeight: 700, fontSize: 14, margin: 0, color: THEME.textMain }}>{service.name}</p>
-      {service.description && <p style={{ fontSize: 12, color: THEME.textMuted, margin: "3px 0 0" }}>{service.description}</p>}
+
+      {/* 📝 بوكس النصوص المرتبة تحت الصورة */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+        
+        {/* 2. اسم الخدمة */}
+        <h4 style={{
+          fontWeight: 800,
+          fontSize: "16px",
+          margin: 0,
+          color: hovered ? "#F97316" : "#0B1E36", 
+          fontFamily: "'Cairo', sans-serif",
+          transition: "color 0.2s",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis"
+        }}>
+          {service.name}
+        </h4>
+        
+        {/* 3. وصف الخدمة */}
+        {service.description ? (
+          <p style={{
+            fontSize: "12.5px",
+            color: "#6B7280",
+            margin: 0,
+            fontFamily: "'Cairo', sans-serif",
+            lineHeight: "1.5",
+            // يسمح بظهور سطرين للوصف كحد أقصى لإعطاء مظهر مرتب ومتناسق لطول الكارد
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            padding: "0 4px"
+          }}>
+            {service.description}
+          </p>
+        ) : (
+          <p style={{ fontSize: "12px", color: "#9CA3AF", margin: 0, fontFamily: "'Cairo', sans-serif" }}>
+            استكشف الفنيين المتاحين
+          </p>
+        )}
+      </div>
+
+      {/* 🧭 لمسة جمالية سفلية تظهر عند الهوفر فقط */}
+      <div style={{
+        position: "absolute",
+        bottom: "12px",
+        opacity: hovered ? 1 : 0,
+        transform: hovered ? "translateY(0)" : "translateY(5px)",
+        transition: "all 0.2s ease",
+        color: "#F97316",
+        fontSize: "12px",
+        fontWeight: 700,
+        fontFamily: "'Cairo', sans-serif"
+      }}>
+        عرض الفنيين ←
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ─── Worker Detail Modal ─── */
 const WorkerModal = ({ worker, onClose }) => {
@@ -389,6 +494,8 @@ const [query, setQuery] = useState(() => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
+  const [servicesPage, setServicesPage] = useState(1);
+  const itemsPerPage = 6;
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [activeTab, setActiveTab] = useState("workers");
 
