@@ -491,7 +491,10 @@ const [query, setQuery] = useState(() => {
   const [activeTab, setActiveTab]       = useState("workers");
   const [servicePage, setServicePage]   = useState(1);
 
-  // AI state
+  // mode: "search" | "chat" | "image"
+  const [searchMode, setSearchMode] = useState("search");
+
+  // Image AI state
   const [aiMode, setAiMode]       = useState(false);
   const [aiImage, setAiImage]     = useState(null);
   const [aiPreview, setAiPreview] = useState(null);
@@ -499,8 +502,17 @@ const [query, setQuery] = useState(() => {
   const [aiResult, setAiResult]   = useState(null);
   const [aiError, setAiError]     = useState(null);
 
+  // Chat state
+  const [chatInput, setChatInput]       = useState("");
+  const [chatLoading, setChatLoading]   = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { role:"assistant", text:"مرحباً! 👋 صف لي مشكلتك وأنا أساعدك تلاقي الخدمة والعامل المناسب.\nمثال: \"عندي تسريب مياه في الحمام\" أو \"الكهرباء انقطعت في غرفتي\"" }
+  ]);
+  const [chatResult, setChatResult]     = useState(null);
+
   const fileRef     = useRef();
   const debounceRef = useRef(null);
+  const chatEndRef  = useRef(null);
   const PAGE_SIZE   = 6;
 
   const getToken = () => localStorage.getItem("token") || "";
@@ -602,6 +614,115 @@ const [query, setQuery] = useState(() => {
     }
   }, [doSearch]);
 
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior:"smooth" }); }, [chatMessages]);
+
+  /* ── Chatbot ── */
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg = chatInput.trim();
+    setChatInput("");
+    setChatMessages(prev => [...prev, { role:"user", text:userMsg }]);
+    setChatLoading(true);
+    setChatResult(null);
+    setResults(null);
+
+    try {
+      const workersCtx = allWorkers.slice(0,50).map(w =>
+        `- ${w.firstName} ${w.lastName} | تخصص: ${(w.specialtyNames||[]).join("،")} | مدينة: ${w.city||"?"} | تقييم: ${w.avgRating||0}`
+      ).join("\n");
+      const servicesCtx = allServices.slice(0,30).map(s => `- ${s.name}`).join("\n");
+
+      const systemPrompt = `أنت مساعد ذكي لمنصة تدبير لإيجاد العمال والخدمات المنزلية.
+المستخدم يصف مشكلته. مهمتك:
+1. افهم المشكلة وحدد التخصص المناسب
+2. اقترح العمال المناسبين من القائمة
+3. رد بالعربي بشكل ودي وموجز (3-4 جمل)
+4. في نهاية ردك اكتب سطراً: SEARCH: [كلمة البحث المناسبة]
+
+العمال المتاحون:
+${workersCtx || "لا يوجد"}
+
+الخدمات المتاحة:
+${servicesCtx || "لا يوجد"}`;
+
+      // Build Gemini history: roles must be "user"/"model", must NOT start with "model"
+      const geminiHistory = chatMessages
+        .filter(m => m.role === "user" || m.role === "assistant")
+        .slice(-6)
+        .map(m => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.text }],
+        }))
+        .filter((_, i, arr) => !(i === 0 && arr[0].role === "model"));
+
+      // Call Gemini API directly from the browser — no backend needed
+      const GEMINI_API_KEY = "AIzaSyA6dOdi42ltNuw-lY4Mv4k_WCuWv6FxqtU";
+      const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+      const res = await fetch(GEMINI_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [
+            ...geminiHistory,
+            { role: "user", parts: [{ text: userMsg }] },
+          ],
+          generationConfig: { maxOutputTokens: 1000 },
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Gemini API error:", res.status, errText);
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const fullText = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "عذراً، حدث خطأ.";
+      const searchMatch = fullText.match(/SEARCH:\s*(.+)/);
+      const cleanText = fullText.replace(/SEARCH:\s*.+/, "").trim();
+
+      setChatMessages(prev => [...prev, { role:"assistant", text:cleanText }]);
+
+      if (searchMatch) {
+        const kw = searchMatch[1].trim();
+        // filter locally and show results
+        const kw_lower = kw.toLowerCase();
+        const fw = allWorkers.filter(w => {
+          const fn=(w.firstName||"").toLowerCase(), ln=(w.lastName||"").toLowerCase();
+          const specs=(w.specialtyNames||[]).join(" ").toLowerCase();
+          const job=(w.jobDescription||"").toLowerCase();
+          return fn.includes(kw_lower)||ln.includes(kw_lower)||specs.includes(kw_lower)||job.includes(kw_lower);
+        });
+        const fs = allServices.filter(s =>
+          (s.name||"").toLowerCase().includes(kw_lower)||(s.description||"").toLowerCase().includes(kw_lower)
+        );
+        setChatResult({ workers: fw, services: fs });
+        setResults({ workers: fw, services: fs });
+        setPage(1); setServicePage(1);
+        setActiveTab(fw.length===0 && fs.length>0 ? "services" : "workers");
+      }
+    } catch(e) {
+      console.error("Chat error:", e);
+      const errMsg = e?.message ? `خطأ: ${e.message}` : "عذراً، حدث خطأ في الاتصال. حاول مرة أخرى.";
+      setChatMessages(prev => [...prev, { role:"assistant", text:errMsg }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleChatKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleChatSend(); }
+  };
+
+  const handleChatModeSwitch = (m) => {
+    setSearchMode(m);
+    if (m !== "chat") { setChatResult(null); }
+    if (m !== "image") { setAiResult(null); setAiError(null); }
+    if (m === "image") { setAiMode(true); } else { setAiMode(false); }
+    if (m !== "search") { setResults(null); setQuery(""); }
+  };
+
   const handleQueryChange = (e) => {
     const val = e.target.value;
     setQuery(val);
@@ -690,22 +811,27 @@ const [query, setQuery] = useState(() => {
           آلاف العمال المحترفين في خدمتك — نصًا أو صورة
         </p>
 
-        {/* Mode Toggle */}
-        <div style={{ display:"flex", justifyContent:"center", marginBottom:22, position:"relative" }}>
-          <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.1)", borderRadius:32, padding:4, backdropFilter:"blur(6px)", border:"1px solid rgba(255,255,255,0.12)" }}>
-            {[{ id: false, label: "🔍 بحث نصي" }, { id: true, label: "🤖 كشف بالذكاء الاصطناعي" }].map(({ id, label }) => (
-              <button key={String(id)} onClick={() => switchMode(id)} style={{
-                padding:"9px 22px", borderRadius:28, border:"none", cursor:"pointer",
-                fontFamily:"'Cairo',sans-serif", fontWeight:700, fontSize:14,
-                background: aiMode===id ? THEME.primary : "transparent", color:"#fff",
-                transition:"all 0.2s", boxShadow: aiMode===id ? "0 2px 8px rgba(249,115,22,0.4)" : "none",
+        {/* 3-Mode Toggle */}
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:20, position:"relative" }}>
+          <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.08)", borderRadius:36, padding:4, backdropFilter:"blur(6px)", border:"1px solid rgba(255,255,255,0.12)", gap:2 }}>
+            {[
+              { id:"search", label:"🔍 بحث" },
+              { id:"chat",   label:"💬 شات بوت" },
+              { id:"image",  label:"📷 صورة" },
+            ].map(({id,label})=>(
+              <button key={id} onClick={()=>handleChatModeSwitch(id)} style={{
+                padding:"9px 18px", borderRadius:28, border:"none", cursor:"pointer",
+                fontFamily:"'Cairo',sans-serif", fontWeight:700, fontSize:13,
+                background: searchMode===id ? THEME.primary : "transparent", color:"#fff",
+                transition:"all 0.2s", boxShadow: searchMode===id ? "0 2px 10px rgba(249,115,22,0.5)" : "none",
+                whiteSpace:"nowrap",
               }}>{label}</button>
             ))}
           </div>
         </div>
 
-        {/* Text Search input */}
-        {!aiMode && (
+        {/* ── Search Mode ── */}
+        {searchMode==="search" && (
           <form onSubmit={handleSearch} style={{ display:"flex", maxWidth:620, margin:"0 auto", gap:8 }}>
             <input
               type="text" value={query} onChange={handleQueryChange}
@@ -727,8 +853,56 @@ const [query, setQuery] = useState(() => {
           </form>
         )}
 
-        {/* AI upload */}
-        {aiMode && (
+        {/* ── Chat Mode ── */}
+        {searchMode==="chat" && (
+          <div style={{ maxWidth:640, margin:"0 auto" }}>
+            <div style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:16, padding:"14px", marginBottom:10, maxHeight:240, overflowY:"auto", display:"flex", flexDirection:"column", gap:10 }}>
+              {chatMessages.map((msg,i) => (
+                <div key={i} style={{ display:"flex", justifyContent:msg.role==="user"?"flex-start":"flex-end", animation:"fadeIn 0.25s ease" }}>
+                  <div style={{
+                    maxWidth:"82%", padding:"10px 14px",
+                    borderRadius: msg.role==="user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                    background: msg.role==="user" ? "rgba(255,255,255,0.13)" : "rgba(249,115,22,0.88)",
+                    color:"#fff", fontSize:14, lineHeight:1.55, fontWeight: msg.role==="user" ? 400 : 500,
+                    boxShadow:"0 2px 8px rgba(0,0,0,0.15)", whiteSpace:"pre-wrap", textAlign:"right",
+                  }}>{msg.text}</div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                  <div style={{ background:"rgba(249,115,22,0.7)", borderRadius:"16px 16px 16px 4px", padding:"12px 16px", display:"flex", gap:5, alignItems:"center" }}>
+                    {[0,1,2].map(i=>(
+                      <span key={i} style={{ width:7, height:7, borderRadius:"50%", background:"#fff", display:"inline-block", opacity:0.85,
+                        animation:`bounce${i} 1.1s ease-in-out infinite`, animationDelay:`${i*0.2}s` }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <style>{`
+              @keyframes bounce0 { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+              @keyframes bounce1 { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+              @keyframes bounce2 { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+            `}</style>
+            <div style={{ display:"flex", gap:8 }}>
+              <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={handleChatKey}
+                placeholder="صف مشكلتك... مثال: عندي تسريب مياه في المطبخ"
+                style={{ flex:1, padding:"13px 16px", borderRadius:10, border:"1.5px solid transparent", fontSize:14, fontFamily:"'Cairo',sans-serif", background:"#fff", color:"#111", outline:"none", boxShadow:"0 4px 10px rgba(0,0,0,0.12)" }}
+                onFocus={e=>e.currentTarget.style.borderColor=THEME.primary}
+                onBlur={e=>e.currentTarget.style.borderColor="transparent"}
+              />
+              <button onClick={handleChatSend} disabled={!chatInput.trim()||chatLoading}
+                style={{ padding:"13px 20px", background:chatInput.trim()?THEME.primary:"rgba(255,255,255,0.15)", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:18, cursor:chatInput.trim()?"pointer":"not-allowed", fontFamily:"'Cairo',sans-serif", minWidth:52, display:"flex", alignItems:"center", justifyContent:"center", transition:"background 0.2s" }}
+                onMouseEnter={e=>chatInput.trim()&&(e.currentTarget.style.background=THEME.primaryHover)}
+                onMouseLeave={e=>(e.currentTarget.style.background=chatInput.trim()?THEME.primary:"rgba(255,255,255,0.15)")}
+              >{chatLoading?<Spinner size={16}/>:"↑"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Image AI Mode ── */}
+        {searchMode==="image" && (
           <div style={{ maxWidth:520, margin:"0 auto" }}>
             <div
               onClick={() => fileRef.current.click()}
@@ -769,7 +943,7 @@ const [query, setQuery] = useState(() => {
       </div>
 
       {/* AI Error */}
-      {aiError && (
+      {searchMode==="image" && aiError && (
         <div style={{ maxWidth:900, margin:"1rem auto", padding:"0 1.5rem" }}>
           <div style={{ background:THEME.errorBg, border:`1px solid ${THEME.errorBorder}`, borderRadius:10, padding:"12px 16px", color:THEME.errorText, fontSize:14 }}>
             ❌ خطأ في التحليل: {aiError}
@@ -780,15 +954,23 @@ const [query, setQuery] = useState(() => {
       
 
       {/* AI Result */}
-      {aiMode && aiResult && (
+      {searchMode==="image" && aiResult && (
         <AiResultPanel result={aiResult} onSelectWorker={setSelectedWorker} onNavigate={navigate} />
       )}
 
-      {/* ── Browse / Search Results (search mode only) ── */}
-      {!aiMode && (
+      {/* ── Browse / Search Results ── */}
+      {(searchMode==="search" || (searchMode==="chat" && chatResult)) && (
         <div style={{ maxWidth:960, margin:"1.5rem auto", padding:"0 1.5rem", animation:"fadeIn 0.3s ease" }}>
 
-          {/* Status bar */}
+          {/* Chat result banner */}
+        {searchMode==="chat" && chatResult && (
+          <div style={{ background:"linear-gradient(90deg,rgba(249,115,22,0.08),rgba(249,115,22,0.02))", border:`1px solid rgba(249,115,22,0.22)`, borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:10, fontSize:13, color:THEME.textMain, marginBottom:16 }}>
+            <span style={{ fontSize:18 }}>✅</span>
+            <span>وجدنا <strong style={{ color:THEME.primary }}>{chatResult.workers.length} عامل</strong> و<strong style={{ color:THEME.primary }}>{chatResult.services.length} خدمة</strong> مناسبين لمشكلتك 👇</span>
+          </div>
+        )}
+
+        {/* Status bar */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:8 }}>
             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
               {/* Tabs */}
