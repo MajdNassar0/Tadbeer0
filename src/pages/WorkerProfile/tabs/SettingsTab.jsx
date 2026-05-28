@@ -5,6 +5,9 @@ import { useToast } from "../../../context/ToastContext";
 import PersonalInfoForm from "../components/sub-settings/PersonalInfoForm";
 import ProfessionalInfoForm from "../components/sub-settings/ProfessionalInfoForm";
 import DeactivateModal from "../../../components/Profile/Security/modals/DeactivateModal";
+// 1️⃣ استيراد مكوّن توثيق الهوية الجديد من المجلد الفرعي sub-settings
+import IdentityVerificationModal from "../components/sub-settings/IdentityVerificationModal"; 
+
 import {
   User, Briefcase, ShieldCheck, Key, Shield, UserX, CheckCircle2
 } from "lucide-react";
@@ -15,6 +18,8 @@ const SettingsTab = ({
 }) => {
   const [activeTab, setActiveTab] = useState("profile");
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+  // 2️⃣ إضافة State للتحكم بفتح وإغلاق مودال توثيق الهوية
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false); 
   const [activeModal, setActiveModal] = useState(null);
   const toast = useToast();
 
@@ -139,11 +144,13 @@ const SettingsTab = ({
                 onClick={() => setIsPassModalOpen(true)}
               />
 
+              {/* 3️⃣ هنا قمنا بربط زر الـ onClick ليقوم بفتح مودال التوثيق عند الضغط عليه */}
               <SettingsRow
                 icon={Shield}
                 title="توثيق الهوية"
                 description="ارفع هويتك للحصول على شارة موثوق"
                 actionText="توثيق"
+                onClick={() => setIsVerifyModalOpen(true)} 
               />
 
               {/* ✅ زرار التعطيل - بيقرأ من worker.status (Existed / Deleted) */}
@@ -175,6 +182,12 @@ const SettingsTab = ({
         isOpen={isPassModalOpen}
         onClose={() => setIsPassModalOpen(false)}
         toast={toast}
+      />
+
+      {/* 4️⃣ إضافة المكوّن هنا في الأسفل ليعمل مع بقية الـ Modals بسلاسة */}
+      <IdentityVerificationModal
+        isOpen={isVerifyModalOpen}
+        onClose={() => setIsVerifyModalOpen(false)}
       />
 
       <DeactivateModal
