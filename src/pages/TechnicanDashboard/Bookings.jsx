@@ -31,13 +31,12 @@ const DAYS_AR = {
 
 const getKey = (s) => s?.toString().toLowerCase().trim().replace(/\s/g, "") ?? "";
 
-// ✅ Helper to group similar statuses together
 const normalizeStatus = (status) => {
   const key = getKey(status);
-  if (["pending", "waiting"].includes(key)) return "pending";
-  if (["confirmed", "accepted"].includes(key)) return "confirmed";
-  if (["completed", "done", "finished"].includes(key)) return "completed";
-  if (["cancelled", "canceled", "rejected"].includes(key)) return "cancelled";
+  if (["pending", "waiting"].includes(key))                      return "pending";
+  if (["confirmed", "accepted"].includes(key))                   return "confirmed";
+  if (["completed", "done", "finished"].includes(key))           return "completed";
+  if (["cancelled", "canceled", "rejected"].includes(key))       return "cancelled";
   return key;
 };
 
@@ -58,11 +57,11 @@ function Spinner() {
 }
 
 const Bookings = () => {
-  const navigate   = useNavigate();
-  const [bookings, setBookings ] = useState(undefined);
-  const [actioning,setActioning] = useState({});
-  const [search,   setSearch   ] = useState("");
-  const [filter,   setFilter   ] = useState("all");
+  const navigate    = useNavigate();
+  const [bookings,  setBookings ] = useState(undefined);
+  const [actioning, setActioning] = useState({});
+  const [search,    setSearch   ] = useState("");
+  const [filter,    setFilter   ] = useState("all");
 
   const load = useCallback(async () => {
     const token = localStorage.getItem("token");
@@ -81,6 +80,7 @@ const Bookings = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  // ✅ Poll every 8s for new bookings
   useEffect(() => {
     const id = setInterval(load, 8000);
     return () => clearInterval(id);
@@ -95,9 +95,7 @@ const Bookings = () => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       const newStatus = res.data?.status ?? ACTION_TO_STATUS[action];
-
       setBookings(prev => prev.map(b =>
         b.id === bookingId ? { ...b, status: newStatus } : b
       ));
@@ -110,14 +108,12 @@ const Bookings = () => {
     }
   };
 
-  // ✅ Updated counts using normalized status
   const counts = (bookings ?? []).reduce((acc, b) => {
     const k = normalizeStatus(b.status);
     acc[k] = (acc[k] || 0) + 1;
     return acc;
   }, {});
 
-  // ✅ Updated filtering using normalized status
   const filtered = (bookings ?? []).filter(b => {
     const matchSearch = !search ||
       b.userName?.toLowerCase().includes(search.toLowerCase());
@@ -190,6 +186,7 @@ const Bookings = () => {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr className="text-[10px] text-gray-400">
                   <th className="py-4 px-6 text-right font-medium">العميل</th>
+                  <th className="py-4 px-4 text-right font-medium">التخصص</th>{/* ✅ added specialtyName */}
                   <th className="py-4 px-4 text-right font-medium">الموعد</th>
                   <th className="py-4 px-4 text-right font-medium">المدة</th>
                   <th className="py-4 px-4 text-center font-medium">الحالة</th>
@@ -203,9 +200,18 @@ const Bookings = () => {
                   const isAct = actioning[b.id];
                   return (
                     <tr key={b.id} className="hover:bg-gray-50/50 transition-colors">
+
+                      {/* Client */}
                       <td className="py-4 px-6 font-medium text-gray-800">
                         {b.userName || "—"}
                       </td>
+
+                      {/* ✅ Specialty */}
+                      <td className="py-4 px-4 text-gray-400">
+                        {b.specialtyName || "—"}
+                      </td>
+
+                      {/* Appointment */}
                       <td className="py-4 px-4">
                         <p className="text-gray-700 font-medium">
                           {DAYS_AR[b.workingDay?.toLowerCase()] ?? b.workingDay ?? "—"}
@@ -217,14 +223,20 @@ const Bookings = () => {
                           {b.startTime?.slice(0,5)} – {b.endTime?.slice(0,5)}
                         </p>
                       </td>
+
+                      {/* Duration */}
                       <td className="py-4 px-4 text-gray-400">
                         {b.durationMinutes ? `${b.durationMinutes} د` : "—"}
                       </td>
+
+                      {/* Status */}
                       <td className="py-4 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-medium ${info.cls}`}>
                           {info.label}
                         </span>
                       </td>
+
+                      {/* Actions */}
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-center gap-2">
                           {sKey === "pending" && (
@@ -232,32 +244,40 @@ const Bookings = () => {
                               <button
                                 onClick={() => updateStatus(b.id, "accept")}
                                 disabled={!!isAct}
-                                className="bg-green-50 text-green-600 px-3 py-1.5 rounded-xl text-[10px]"
+                                className="flex items-center gap-1 bg-green-50 text-green-600 px-3 py-1.5 rounded-xl text-[10px] hover:bg-green-100 transition-colors disabled:opacity-50"
                               >
-                                {isAct === "accept" ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                {isAct === "accept"
+                                  ? <Loader2 size={12} className="animate-spin" />
+                                  : <Check size={12} />}
                                 قبول
                               </button>
                               <button
                                 onClick={() => updateStatus(b.id, "cancel")}
                                 disabled={!!isAct}
-                                className="bg-red-50 text-red-500 px-3 py-1.5 rounded-xl text-[10px]"
+                                className="flex items-center gap-1 bg-red-50 text-red-500 px-3 py-1.5 rounded-xl text-[10px] hover:bg-red-100 transition-colors disabled:opacity-50"
                               >
-                                {isAct === "cancel" ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                                {isAct === "cancel"
+                                  ? <Loader2 size={12} className="animate-spin" />
+                                  : <X size={12} />}
                                 رفض
                               </button>
                             </>
                           )}
                           {(sKey === "confirmed" || sKey === "inprogress") && (
-                           <button
-  onClick={() => updateStatus(b.id, "complete")}
-  disabled={!!isAct}
-  className="bg-[#001F3F] text-white px-4 py-2 rounded-xl text-[10px]"
->
-  {isAct === "complete" ? (
-    <Loader2 size={12} className="animate-spin" />
-  ) : null}
-  إتمام الخدمة
-</button>
+                            <button
+                              onClick={() => updateStatus(b.id, "complete")}
+                              disabled={!!isAct}
+                              className="flex items-center gap-1 bg-[#001F3F] text-white px-4 py-2 rounded-xl text-[10px] hover:bg-[#002a52] transition-colors disabled:opacity-50"
+                            >
+                              {isAct === "complete"
+                                ? <Loader2 size={12} className="animate-spin" />
+                                : null}
+                              إتمام الخدمة
+                            </button>
+                          )}
+                          {/* ✅ Show nothing (read-only) for completed/cancelled */}
+                          {(sKey === "completed" || sKey === "cancelled") && (
+                            <span className="text-gray-300 text-[10px]">—</span>
                           )}
                         </div>
                       </td>

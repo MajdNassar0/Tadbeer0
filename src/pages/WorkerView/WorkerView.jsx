@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
 import { getFullImageUrl } from "../../Utils/imageHelper";
 import axios from 'axios';
@@ -47,7 +47,9 @@ function ReviewerAvatar({ userImage, userName }) {
 
 const WorkerView = () => {
   const { workerId: id } = useParams();
-  const navigate    = useNavigate();
+  const navigate         = useNavigate();
+  const [searchParams]   = useSearchParams();
+  const specialtyIdParam = searchParams.get('specialtyId');
   const { user } = useAuth();
 
   const [worker,  setWorker ] = useState(null);
@@ -56,15 +58,42 @@ const WorkerView = () => {
   const [page,    setPage   ] = useState(1);
   const reviewsPerPage = 4;
 
+  // Specialty name for the current context (string vs int safe)
+  const activeSpecialtyName = useMemo(() => {
+    if (!specialtyIdParam || !worker) return null;
+    const idx = worker.specialtyIds?.findIndex(id => String(id) === String(specialtyIdParam));
+    if (idx == null || idx === -1) return null;
+    return worker.specialtyNames?.[idx] ?? null;
+  }, [worker, specialtyIdParam]);
+
+  // Compute avg rating from the currently-loaded (already filtered) reviews
+  const serviceAvgRating = useMemo(() => {
+    if (reviews.length === 0) return null;
+    const avg = reviews.reduce((sum, r) => sum + (r.rate || 0), 0) / reviews.length;
+    return parseFloat(avg.toFixed(1));
+  }, [reviews]);
+
   const paginated  = reviews.slice((page - 1) * reviewsPerPage, page * reviewsPerPage);
   const totalPages = Math.ceil(reviews.length / reviewsPerPage);
 
   // ── Fetch reviews ──────────────────────────────────────────────────────────
   useEffect(() => {
-    axios.get(`${API_BASE}/General/Reviews`, { params: { workerId: id } })
-      .then(res => setReviews(res.data?.items ?? res.data ?? []))
+    const params = { workerId: id };
+    if (specialtyIdParam) params.specialtyId = specialtyIdParam;
+    axios.get(`${API_BASE}/General/Reviews`, { params })
+      .then(res => {
+        let items = res.data?.items ?? res.data ?? [];
+        // Client-side safety filter: if we're on a specific service,
+        // only show reviews that belong to that service
+        if (specialtyIdParam) {
+          items = items.filter(r =>
+            r.specialtyId == null || String(r.specialtyId) === String(specialtyIdParam)
+          );
+        }
+        setReviews(items);
+      })
       .catch(() => setReviews([]));
-  }, [id]);
+  }, [id, specialtyIdParam]);
 
   // ── Fetch worker (both endpoints in parallel) ──────────────────────────────
   useEffect(() => {
@@ -152,14 +181,24 @@ const WorkerView = () => {
                   <div className="space-y-1">
                     <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
                       <h1 className="text-4xl font-black text-[#001F3F]">{fullName}</h1>
-                      <div className="flex items-center gap-1 bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-sm font-black border border-amber-100">
-                        <Star className="w-3.5 h-3.5 fill-amber-500" />
-                        {worker.avgRating?.toFixed(1) || "5.0"}
+                      {/* Show service avg when coming from a service, else overall avg */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <div className="flex items-center gap-1 bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-sm font-black border border-amber-100">
+                          <Star className="w-3.5 h-3.5 fill-amber-500" />
+                          {serviceAvgRating != null
+                            ? serviceAvgRating.toFixed(1)
+                            : (worker.avgRating?.toFixed(1) ?? "—")}
+                        </div>
+                        {specialtyIdParam && activeSpecialtyName && (
+                          <span className="text-[9px] text-amber-500 font-bold whitespace-nowrap">
+                            {activeSpecialtyName}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <p className="text-[#F7A823] font-bold text-lg flex items-center justify-center md:justify-start gap-2">
                       <Award size={20} />
-                      {worker.specialtyNames?.[0] || "فني معتمد"}
+                      {activeSpecialtyName || worker.specialtyNames?.[0] || "فني معتمد"}
                     </p>
                   </div>
 
@@ -182,7 +221,7 @@ const WorkerView = () => {
 
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-2">
                     <button
-                      onClick={() => navigate(`/booking/${worker.id}`)}
+                      onClick={() => navigate(`/booking/${worker.id}${specialtyIdParam ? `?specialtyId=${specialtyIdParam}` : ''}`)}
                       className="flex-1 md:flex-none bg-[#F7A823] hover:bg-[#e59a1d] text-white px-12 py-4 rounded-2xl font-black shadow-lg shadow-orange-200 transition-all active:scale-95"
                     >
                       احجز الموعد الآن
@@ -273,18 +312,26 @@ const WorkerView = () => {
               className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm mt-8"
             >
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-black text-[#001F3F] flex items-center gap-2">
-                  <div className="w-2 h-8 bg-[#F7A823] rounded-full" />
-                  تقييمات العملاء
-                </h2>
+                <div>
+                  <h2 className="text-xl font-black text-[#001F3F] flex items-center gap-2">
+                    <div className="w-2 h-8 bg-[#F7A823] rounded-full" />
+                    تقييمات العملاء
+                  </h2>
+                  {activeSpecialtyName && (
+                    <p className="text-xs text-amber-600 font-bold mt-1 flex items-center gap-1">
+                      <Star size={11} className="fill-amber-500 text-amber-500" />
+                      تقييمات خدمة: {activeSpecialtyName}
+                    </p>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-2 rounded-xl border border-amber-100">
                   <Star className="w-5 h-5 fill-amber-500" />
-                  <span className="text-lg font-black">{worker.avgRating?.toFixed(1) || "5.0"}</span>
+                  <span className="text-lg font-black">{worker.avgRating?.toFixed(1)}</span>
                 </div>
               </div>
 
               {reviews.length === 0 ? (
-                <p className="text-center text-slate-400 py-8">لا توجد تقييمات بعد</p>
+                <p className="text-center text-slate-400 py-8">{specialtyIdParam ? "لا توجد تقييمات لهذه الخدمة بعد" : "لا توجد تقييمات بعد"}</p>
               ) : (
                 <div className="grid gap-4">
                   {paginated.map((r) => (
@@ -328,7 +375,7 @@ const WorkerView = () => {
                           </div>
                         </div>
                         <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-                          {r.rate}.0
+                          {Number(r.rate).toFixed(1)}
                         </span>
                       </div>
 

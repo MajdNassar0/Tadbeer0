@@ -8,6 +8,15 @@ import {
 import { toast, Toaster } from "sonner";
 
 const API_BASE = "https://tadbeer0.runasp.net/api";
+const IMAGE_BASE = "https://tadbeer0.runasp.net/";
+
+const avatarUrl = (name) =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "W")}&background=001F3F&color=F7A823&size=200&bold=true`;
+
+const fullImg = (url, fallback) => {
+  if (!url) return fallback;
+  return url.startsWith("http") ? url : `${IMAGE_BASE}${url}`;
+};
 
 const STATUS_MAP = {
   completed:  { label: "مكتمل",        cls: "bg-green-100  text-green-600"  },
@@ -68,7 +77,6 @@ function WorkerAvatar({ src, name }) {
   );
 }
 
-// ── Mini review card (same style as Reviews page) ────────────────────────────
 function MiniReviewCard({ review }) {
   return (
     <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
@@ -108,13 +116,10 @@ function MiniReviewCard({ review }) {
   );
 }
 
-
-// ── Collapsible worker row ────────────────────────────────────────────────────
 function WorkerRow({ worker, wAvatar, wCompleted, wPending, statusInfo, getKey, actioning, updateStatus }) {
   const [open, setOpen] = React.useState(false);
   return (
     <div>
-      {/* Summary row — click to expand */}
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50/60 transition-colors text-right"
@@ -137,7 +142,6 @@ function WorkerRow({ worker, wAvatar, wCompleted, wPending, statusInfo, getKey, 
         </div>
       </button>
 
-      {/* Expanded bookings */}
       {open && (
         <div className="overflow-x-auto border-t border-gray-50 bg-gray-50/40">
           <table className="w-full min-w-[560px]">
@@ -205,15 +209,14 @@ function WorkerRow({ worker, wAvatar, wCompleted, wPending, statusInfo, getKey, 
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate();
   const [bookings,  setBookings ] = useState(undefined);
   const [reviews,   setReviews  ] = useState(null);
   const [actioning, setActioning] = useState({});
-  const [workerImages, setWorkerImages] = useState({}); // workerId → full image URL
+  // ✅ التعديل ١: خزّن الصور كـ Map<workerId, resolvedUrl> باستخدام fullImg زي الوركر فيو
+  const [workerImages, setWorkerImages] = useState({});
 
-  // Get worker ID from saved user
   const workerUser = (() => {
     try { return JSON.parse(localStorage.getItem("user") ?? "null"); }
     catch { return null; }
@@ -225,7 +228,6 @@ const Dashboard = () => {
     if (!token) { navigate("/auth/login"); return; }
     const h = { headers: { Authorization: `Bearer ${token}` } };
 
-    // Fetch bookings
     try {
       const bkRes = await axios.get(`${API_BASE}/Admin/Bookings`, h);
       const bkRaw = bkRes.data.items ?? bkRes.data ?? [];
@@ -235,9 +237,11 @@ const Dashboard = () => {
       if (err.response?.status === 401) { localStorage.clear(); navigate("/auth/login"); }
     }
 
-    // Fetch reviews WITH auth and filter to this worker
     try {
-      const revRes = await axios.get(`${API_BASE}/General/Reviews`, h);
+      const revRes = await axios.get(`${API_BASE}/General/Reviews`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { workerId }
+      });
       const revRaw = revRes.data.items ?? revRes.data ?? [];
       const myReviews = Array.isArray(revRaw)
         ? revRaw.filter(r => !workerId || r.workerId === workerId)
@@ -250,35 +254,53 @@ const Dashboard = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // Fetch worker images once on mount — separate from load() so polling doesn't reset them
+  // ✅ التعديل ٢: جيب صور الفنيين من نفس الـ endpoint اللي الوركر فيو بيستخدمه
+  // لما الـ bookings تت loaded، نجيب صورة كل فني من /General/Workers/${id}
+  // ونستخدم fullImg() بالظبط زي الوركر فيو
   useEffect(() => {
+    if (!bookings || bookings.length === 0) return;
+
     const fetchWorkerImages = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       const h = { headers: { Authorization: `Bearer ${token}` } };
-      try {
-        const wRes = await axios.get(`${API_BASE}/General/Workers`, h);
-        const wRaw = wRes.data?.items ?? wRes.data?.data ?? wRes.data ?? [];
-        const wList = Array.isArray(wRaw) ? wRaw : [];
-        const imgMap = {};
-        await Promise.allSettled(
-          wList.map(async (w) => {
-            if (!w.id) return;
-            try {
-              const wr = await axios.get(`${API_BASE}/General/Workers/${w.id}`, h);
-              const p = wr.data?.data ?? wr.data ?? {};
-              const raw = p.profileImage || p.ProfileImage || null;
-              if (!raw || raw === "string") return;
-              const url = raw.startsWith("http") ? raw : `https://tadbeer0.runasp.net/${raw}`;
-              imgMap[String(w.id)] = url;
-            } catch { /* skip */ }
-          })
-        );
-        setWorkerImages(imgMap);
-      } catch { /* skip */ }
+
+      // استخرج الـ worker IDs من الحجوزات
+      const workerIds = [...new Set(
+        bookings
+          .map(b => b.workerId || b.worker?.id)
+          .filter(Boolean)
+          .map(String)
+      )];
+
+      const imgMap = {};
+      await Promise.allSettled(
+        workerIds.map(async (wid) => {
+          try {
+            // نفس الـ endpoint اللي الوركر فيو بيستخدمه
+            const wr = await axios.get(`${API_BASE}/General/Workers/${wid}`, h);
+            const data = wr.data?.data ?? wr.data ?? {};
+
+            // نفس لوجيك الوركر فيو بالظبط:
+            // const fullName = `${worker.firstName ?? ""} ${worker.lastName ?? ""}`.trim();
+            // const workerPhoto = fullImg(worker.profileImage, avatarUrl(fullName));
+            const fullName = `${data.firstName ?? ""} ${data.lastName ?? ""}`.trim();
+            const profileImg = data.profileImage || data.ProfileImage || null;
+
+            // استخدم fullImg() زي الوركر فيو بالظبط - دي الصح
+            const url = fullImg(profileImg, avatarUrl(fullName));
+            imgMap[wid] = url;
+          } catch {
+            // لو فشل، هيفضل ui-avatars كـ fallback (من fullImg)
+          }
+        })
+      );
+
+      setWorkerImages(prev => ({ ...prev, ...imgMap }));
     };
+
     fetchWorkerImages();
-  }, []); // runs once only
+  }, [bookings]);
 
   useEffect(() => {
     const id = setInterval(load, 8000);
@@ -299,7 +321,6 @@ const Dashboard = () => {
         b.id === bookingId ? { ...b, status: newStatus } : b
       ));
 
-      // 🔔 If accepted, store notification for the user to see on login
       if (action === "accept") {
         const booking = bookings.find(b => b.id === bookingId);
         if (booking) {
@@ -323,11 +344,10 @@ const Dashboard = () => {
     }
   };
 
-  // Stats
   const total     = bookings?.length ?? 0;
   const completed = bookings?.filter(b => getKey(b.status) === "completed").length ?? 0;
   const pending   = bookings?.filter(b => getKey(b.status) === "pending").length   ?? 0;
-  const pendingCount = pending; // used for bell badge
+  const pendingCount = pending;
   const hours     = Math.round(
     (bookings?.reduce((s, b) => s + (b.durationMinutes ?? 0), 0) ?? 0) / 60
   );
@@ -335,8 +355,6 @@ const Dashboard = () => {
     ? (reviews.reduce((s, r) => s + (r.rate ?? 0), 0) / reviews.length).toFixed(1)
     : null;
 
-  
-  // Upcoming bookings
   const upcoming = (bookings ?? [])
     .filter(b => ["pending","confirmed"].includes(getKey(b.status)))
     .sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate))
@@ -346,10 +364,8 @@ const Dashboard = () => {
     <div className="flex flex-col lg:flex-row gap-6" dir="rtl">
       <Toaster position="top-center" richColors />
 
-      {/* ── Left: main content ── */}
       <div className="flex-1 space-y-6 min-w-0">
 
-        {/* Header row with bell */}
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-800">لوحة التحكم</h2>
           <div className="relative">
@@ -384,17 +400,12 @@ const Dashboard = () => {
           ))}
         </div>
 
-      
-
-        
-
         {/* ── Per-Worker Breakdown ── */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-50">
             <h3 className="text-sm font-medium text-gray-800">ملخص الفنيين</h3>
           </div>
           {bookings === undefined ? <Spinner /> : (() => {
-            // Group bookings by worker
             const workerMap = {};
             (bookings ?? []).forEach(b => {
               const wid  = String(b.workerId || b.worker?.id || "unknown");
@@ -415,9 +426,13 @@ const Dashboard = () => {
                 {workers.map(w => {
                   const wCompleted = w.bookings.filter(b => getKey(b.status) === "completed").length;
                   const wPending   = w.bookings.filter(b => getKey(b.status) === "pending").length;
-                  const wImg = workerImages[String(w.id)] || null;
-                  const wAvatar = wImg
-                    || `https://ui-avatars.com/api/?name=${encodeURIComponent(w.name)}&background=001F3F&color=F7A823&size=64&bold=true`;
+
+                  // ✅ التعديل ٣: نفس لوجيك الوركر فيو بالظبط
+                  // workerImages[w.id] = fullImg(profileImage, avatarUrl(fullName))
+                  // لو الصورة لسه محملتش من الـ API، استخدم avatarUrl كـ fallback مؤقت
+                  // وبمجرد ما workerImages يتحدث، الـ component هي re-render ويظهر الصورة الحقيقية
+                  const wAvatar = workerImages[w.id] || avatarUrl(w.name);
+
                   return (
                     <WorkerRow
                       key={w.id}
@@ -442,7 +457,6 @@ const Dashboard = () => {
       {/* ── Right sidebar ── */}
       <div className="w-full lg:w-72 space-y-5 flex-shrink-0">
 
-        {/* Upcoming bookings */}
         <div className="bg-white p-5 rounded-2xl border border-gray-100">
           <h4 className="text-sm font-medium text-gray-800 mb-4">الحجوزات القادمة</h4>
           {bookings === undefined ? <Spinner /> :
@@ -479,7 +493,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Recent activity */}
         <div className="bg-white p-5 rounded-2xl border border-gray-100">
           <h4 className="text-sm font-medium text-gray-800 mb-4">النشاط الأخير</h4>
           <div className="relative space-y-5 before:absolute before:right-4 before:top-2

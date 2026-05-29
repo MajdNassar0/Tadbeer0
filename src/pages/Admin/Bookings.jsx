@@ -17,6 +17,7 @@ const STATUS_MAP = {
   inprogress: { label: "جارٍ التنفيذ", cls: "bg-blue-50   text-blue-700"   },
   cancelled : { label: "ملغى",          cls: "bg-red-50    text-red-700"    },
   confirmed : { label: "مؤكد",          cls: "bg-purple-50 text-purple-700" },
+  accepted  : { label: "مقبول",         cls: "bg-purple-50 text-purple-700" }, // ✅ Fix 1: added accepted
 };
 
 function StatusBadge({ status = "" }) {
@@ -43,6 +44,7 @@ const Bookings = () => {
   const navigate   = useNavigate();
   const [bookings, setBookings] = useState(undefined);
   const [search,   setSearch  ] = useState("");
+  const [filter,   setFilter  ] = useState("all"); // ✅ Fix 2: added status filter
 
   useEffect(() => {
     const load = async () => {
@@ -61,26 +63,41 @@ const Bookings = () => {
     load();
   }, [navigate]);
 
-  const filtered = bookings?.filter(b => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      b.userName?.toLowerCase().includes(q) ||
-      b.workerName?.toLowerCase().includes(q) ||
-      b.status?.toLowerCase().includes(q)
+  // ✅ Fix 2: normalize status for consistent filtering
+  const normalizeStatus = (s) => {
+    const key = s?.toLowerCase().trim().replace(/\s/g, "") ?? "";
+    if (["accepted", "confirmed"].includes(key)) return "confirmed";
+    return key;
+  };
+
+  const FILTERS = [
+    { key: "all",       label: "الكل"          },
+    { key: "pending",   label: "قيد الانتظار"  },
+    { key: "confirmed", label: "مقبول"          },
+    { key: "completed", label: "مكتمل"          },
+    { key: "cancelled", label: "ملغى"           },
+  ];
+
+  const filtered = (bookings ?? []).filter(b => {
+    const matchSearch = !search || (
+      b.userName?.toLowerCase().includes(search.toLowerCase()) ||
+      b.workerName?.toLowerCase().includes(search.toLowerCase()) ||
+      b.status?.toLowerCase().includes(search.toLowerCase())
     );
-  }) ?? [];
+    // ✅ Fix 2: apply status filter
+    const matchFilter = filter === "all" || normalizeStatus(b.status) === filter;
+    return matchSearch && matchFilter;
+  });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100">
         <h2 className="text-base font-medium text-gray-700">
           الحجوزات
           <span className="mr-2 text-xs font-normal text-gray-400">
             ({bookings?.length ?? 0})
           </span>
         </h2>
-        {/* Search */}
         <input
           type="text"
           value={search}
@@ -89,6 +106,22 @@ const Bookings = () => {
           className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2
                      text-xs outline-none focus:ring-2 focus:ring-yellow-400/30 w-56"
         />
+      </div>
+
+      {/* ✅ Fix 2: status filter tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`px-4 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex-shrink-0
+              ${filter === f.key
+                ? "bg-[#001F3F] text-white"
+                : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {bookings === undefined ? <Spinner /> : bookings.length === 0 ? (
@@ -106,6 +139,7 @@ const Bookings = () => {
               <tr className="text-[10px] text-gray-400 border-b border-gray-100">
                 <th className="py-3 px-6 text-right font-medium">العميل</th>
                 <th className="py-3 px-4 text-right font-medium">الفني</th>
+                <th className="py-3 px-4 text-right font-medium">التخصص</th>{/* ✅ Fix 3: show specialtyName */}
                 <th className="py-3 px-4 text-right font-medium">تاريخ الحجز</th>
                 <th className="py-3 px-4 text-right font-medium">اليوم</th>
                 <th className="py-3 px-4 text-right font-medium">الوقت</th>
@@ -117,7 +151,7 @@ const Bookings = () => {
             <tbody className="text-xs divide-y divide-gray-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-gray-300">
+                  <td colSpan={9} className="py-10 text-center text-gray-300">
                     لا توجد نتائج مطابقة للبحث
                   </td>
                 </tr>
@@ -134,6 +168,11 @@ const Bookings = () => {
                     {/* Worker */}
                     <td className="py-4 px-4 text-gray-500">
                       {b.workerName || "لم يحدد"}
+                    </td>
+
+                    {/* ✅ Fix 3: Specialty */}
+                    <td className="py-4 px-4 text-gray-400">
+                      {b.specialtyName || "—"}
                     </td>
 
                     {/* Booking date */}

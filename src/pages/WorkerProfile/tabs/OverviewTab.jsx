@@ -8,36 +8,43 @@ import Skeleton from "../../../components/UI/Skeleton";
 
 const API_BASE = "https://tadbeer0.runasp.net/api";
 
-const OverviewTab = ({ worker, loading }) => {
+const OverviewTab = ({ worker, loading, isOwner }) => {
   const [completedCount, setCompletedCount] = useState(0);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [isWorkerRole, setIsWorkerRole] = useState(false);
 
-  // إعدادات الحسبة المنطقية (Milestone Logic)
-  const GOAL_TARGET = 50; 
+  const GOAL_TARGET = 50;
 
-  // منطق توحيد الحالات المكتملة بناءً على ملف Bookings.jsx
   const normalizeStatus = (status) => {
     const s = status?.toString().toLowerCase().trim().replace(/\s/g, "") ?? "";
     if (["completed", "done", "finished"].includes(s)) return "completed";
     return s;
   };
 
-  // جلب الحجوزات وحساب النسبة الحقيقية (الحل الجذري)
   useEffect(() => {
     const fetchStats = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) { setStatsLoading(false); return; }
+
+      let decodedRole = null;
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        decodedRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ?? null;
+      } catch {}
+
+      const isWorker = decodedRole === "Worker";
+      setIsWorkerRole(isWorker);
+
+      // Only workers fetch their completed bookings
+      if (!isWorker) { setStatsLoading(false); return; }
 
       try {
         const res = await axios.get(`${API_BASE}/Worker/Bookings`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         const items = res.data.items ?? res.data ?? [];
-        const count = items.reduce((acc, b) => {
-          return normalizeStatus(b.status) === "completed" ? acc + 1 : acc;
-        }, 0);
-
+        const count = items.reduce((acc, b) =>
+          normalizeStatus(b.status) === "completed" ? acc + 1 : acc, 0);
         setCompletedCount(count);
       } catch (err) {
         console.error("Error fetching stats:", err);
@@ -46,11 +53,11 @@ const OverviewTab = ({ worker, loading }) => {
       }
     };
 
-    fetchStats();
-  }, []);
+    if (!loading) fetchStats();
+  }, [loading]);
 
-  // حساب النسبة المئوية من الهدف (مثلاً 6 من 50 تعطي 12%)
   const progressPercentage = completedCount > 0 ? (completedCount / GOAL_TARGET) * 100 : 0;
+  const avgRating = worker?.avgRating ? Number(worker.avgRating).toFixed(1) : 0;
 
   const infoItems = [
     { 
@@ -148,7 +155,7 @@ const OverviewTab = ({ worker, loading }) => {
         </div>
       )}
 
-      {/* مؤشرات الأداء والخدمة - الحسبة المنطقية الجديدة */}
+      {/* مؤشرات الأداء والخدمة */}
       {!loading && (
         <div className="mt-4 space-y-4">
           <h3 className="text-sm font-black text-gray-800 flex items-center gap-2 px-1">
@@ -156,54 +163,57 @@ const OverviewTab = ({ worker, loading }) => {
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* معدل إتمام المهام (نسبة مئوية واقعية) */}
-            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-700">معدل إتمام المهام</span>
-                <span className={`text-xs font-black ${completedCount > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                  {statsLoading ? "..." : `%${progressPercentage.toFixed(0)}`}
-                </span>
-              </div>
-              <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden bg-gray-50">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: statsLoading ? 0 : `${Math.min(progressPercentage, 100)}%` }}
-                  transition={{ duration: 1.5, ease: "easeOut" }}
-                  className="h-full bg-green-500 rounded-full"
-                />
-              </div>
-              <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
-                {statsLoading ? "جاري جلب سجل العمل..." : completedCount > 0 
-                  ? `أنجز العامل ${completedCount} مهمة بنجاح من أصل هدف المنصة الأول (${GOAL_TARGET} مهمة).` 
-                  : "ابدأ بتنفيذ المهام لتفعيل مؤشر الأداء الخاص بك."}
-              </p>
-            </div>
 
-            {/* سرعة الاستجابة (ديناميكية بناءً على التقييم) */}
+            {/* معدل إتمام المهام — Workers only */}
+            {isWorkerRole && (
+              <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-700">معدل إتمام المهام</span>
+                  <span className={`text-xs font-black ${completedCount > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                    {statsLoading ? "..." : `%${progressPercentage.toFixed(0)}`}
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: statsLoading ? 0 : `${Math.min(progressPercentage, 100)}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="h-full bg-green-500 rounded-full"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
+                  {statsLoading ? "جاري جلب سجل العمل..." : completedCount > 0 
+                    ? `أنجز العامل ${completedCount} مهمة بنجاح من أصل هدف المنصة الأول (${GOAL_TARGET} مهمة).` 
+                    : "ابدأ بتنفيذ المهام لتفعيل مؤشر الأداء الخاص بك."}
+                </p>
+              </div>
+            )}
+
+            {/* سرعة الاستجابة — all roles */}
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-gray-700">سرعة الاستجابة</span>
-                <span className={`text-xs font-black ${worker?.avgRating > 0 ? 'text-orange-500' : 'text-gray-400'}`}>
-                  {worker?.avgRating >= 4.5 ? "ممتاز" : 
-                   worker?.avgRating >= 3.5 ? "جيد جداً" : 
-                   worker?.avgRating > 0 ? "نشط" : "لا يوجد تقييم"}
+                <span className={`text-xs font-black ${avgRating > 0 ? 'text-orange-500' : 'text-gray-400'}`}>
+                  {avgRating >= 4.5 ? "ممتاز" : 
+                   avgRating >= 3.5 ? "جيد جداً" : 
+                   avgRating > 0    ? "نشط" : "لا يوجد تقييم"}
                 </span>
               </div>
               <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: worker?.avgRating > 0 ? `${(worker.avgRating / 5) * 100}%` : "0%" }}
+                  animate={{ width: avgRating > 0 ? `${(avgRating / 5) * 100}%` : "0%" }}
                   transition={{ duration: 1.5, delay: 0.2, ease: "easeOut" }}
                   className="h-full bg-orange-500 rounded-full"
                 />
               </div>
               <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
-                {worker?.avgRating > 0 
-                  ? `بناءً على تقييم العملاء البالغ ${worker.avgRating} نجوم.` 
+                {avgRating > 0 
+                  ? `بناءً على تقييم العملاء البالغ ${avgRating} نجوم.` 
                   : "بانتظار التقييمات الأولى لتحديد مستوى السرعة."}
               </p>
             </div>
+
           </div>
         </div>
       )}

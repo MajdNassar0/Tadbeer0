@@ -12,16 +12,13 @@ const Reviews = () => {
 
   useEffect(() => {
     const load = async () => {
-      const token = localStorage.getItem("token");
-      if (!token || !workerId) return;
-
+      if (!workerId) return;
       try {
         const res = await axios.get(`${API}/General/Reviews`, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { workerId: workerId }
+          params: { workerId, pageNumber: 1, pageSize: 100 },
         });
         setReviews(res.data.items ?? []);
-      } catch (err) {
+      } catch {
         setReviews([]);
       }
     };
@@ -86,14 +83,25 @@ const Reviews = () => {
                   </div>
                 </div>
                 <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-                  {r.rate}.0
+                  {Number(r.rate).toFixed(1)}
                 </span>
               </div>
 
               <div className="mt-4 relative">
-                <p className="text-sm text-gray-600 leading-relaxed italic pr-4 border-r-2 border-amber-100">
-                  "{r.comment || "هذا العميل لم يترك تعليقاً نصياً، قام بالتقييم فقط."}"
-                </p>
+                {r.comment ? (
+                  <p className="text-sm text-gray-600 leading-relaxed italic pr-4 border-r-2 border-amber-100">
+                    "{r.comment}"
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-300 italic pr-4 border-r-2 border-gray-100">
+                    لم يترك العميل تعليقاً
+                  </p>
+                )}
+                {r.createdAt && (
+                  <p className="text-[10px] text-gray-400 mt-2">
+                    {new Date(r.createdAt).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                )}
               </div>
             </div>
           ))}

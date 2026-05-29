@@ -3,6 +3,9 @@ import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, BookOpen, Wrench, Star, Settings } from "lucide-react";
 import ReactivateScreen from "../../components/UI/ReactivateScreen";
+import axios from "axios";
+
+const API_BASE = "https://tadbeer0.runasp.net/api";
 
 // Context & Hooks
 import { useAuth } from "../../context/AuthContext";
@@ -45,6 +48,21 @@ const WorkerProfileInner = () => {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showReactivate, setShowReactivate] = useState(false);
+
+  // ── Reviews from API ─────────────────────────────────────────────────────
+  const [reviews,       setReviews      ] = useState([]);
+  const [reviewsLoading,setReviewsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!workerId) return;
+    setReviewsLoading(true);
+    axios.get(`${API_BASE}/General/Reviews`, {
+      params: { workerId, pageNumber: 1, pageSize: 100 },
+    })
+      .then(res => setReviews(res.data?.items ?? res.data ?? []))
+      .catch(() => setReviews([]))
+      .finally(() => setReviewsLoading(false));
+  }, [workerId]);
 
    const getSafeStoredUser = () => {
     try {
@@ -165,10 +183,14 @@ const WorkerProfileInner = () => {
     ),
     reviews: (
       <ReviewsTab
-        reviews={worker?.reviews || []}
-        rating={worker?.rating || 0}
-        reviewsCount={worker?.reviewsCount || 0}
-        loading={loading}
+        workerId={workerId}
+        rating={worker?.avgRating ?? 0}
+        reviewsCount={worker?.reviewsCount ?? 0}
+        loading={reviewsLoading}
+        specialtyTabs={(worker?.specialtyIds ?? []).map((sid, i) => ({
+          id: sid,
+          name: worker?.specialtyNames?.[i] ?? `خدمة ${i + 1}`,
+        }))}
       />
     ),
     settings: isOwner ? (

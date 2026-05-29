@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  Calendar,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
@@ -25,6 +26,7 @@ const Signup = () => {
   const nameRef = useRef(null);
   const emailRef = useRef(null);
   const phoneRef = useRef(null);
+  const dateOfBirthRef = useRef(null);
   const passwordRef = useRef(null);
   const confirmPasswordRef = useRef(null);
   const agreeRef = useRef(null);
@@ -50,6 +52,8 @@ const Signup = () => {
         .regex(/[0-9]/, "يجب أن تحتوي على رقم واحد على الأقل")
         .regex(/[^A-Za-z0-9]/, "يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$...)"),
       confirmPassword: z.string().min(1, "يرجى تأكيد كلمة المرور"),
+      role: z.string(),
+      dateOfBirth: z.string().optional(),
       agree: z.boolean().refine((val) => val === true, {
         message: "يجب الموافقة على الشروط للمتابعة",
       }),
@@ -57,6 +61,17 @@ const Signup = () => {
     .refine((data) => data.password === data.confirmPassword, {
       message: "كلمة المرور غير متطابقة",
       path: ["confirmPassword"],
+    })
+    .superRefine((data, ctx) => {
+      if (data.role === "Worker") {
+        if (!data.dateOfBirth) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "تاريخ الميلاد مطلوب للفنيين", path: ["dateOfBirth"] });
+          return;
+        }
+        const age = Math.floor((Date.now() - new Date(data.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000));
+        if (age < 18) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "يجب أن يكون عمرك 18 سنة على الأقل", path: ["dateOfBirth"] });
+        if (age > 70) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "تاريخ الميلاد غير صحيح", path: ["dateOfBirth"] });
+      }
     });
 
   const validate = (values) => {
@@ -78,6 +93,7 @@ const Signup = () => {
       password: "",
       confirmPassword: "",
       role: "User",
+      dateOfBirth: "",
       agree: false,
     },
     validate,
@@ -91,6 +107,9 @@ const Signup = () => {
         confirmPassword: values.confirmPassword,
         phoneNumber: values.phone,
         role: values.role,
+        ...(values.role === "Worker" && values.dateOfBirth
+          ? { dateOfBirth: values.dateOfBirth }
+          : {}),
       };
 
       try {
@@ -138,6 +157,7 @@ const Signup = () => {
         name: nameRef,
         email: emailRef,
         phone: phoneRef,
+        dateOfBirth: dateOfBirthRef,
         password: passwordRef,
         confirmPassword: confirmPasswordRef,
         agree: agreeRef
@@ -216,6 +236,42 @@ const Signup = () => {
               <input type="tel" {...formik.getFieldProps("phone")} placeholder="رقم الجوال (مثال: 05xxxxxxxx)" className={`w-full border-2 rounded-xl py-3 pr-11 pl-4 bg-gray-50/50 outline-none transition-all text-right ${formik.touched.phone && formik.errors.phone ? "border-red-400" : "border-gray-100 focus:border-blue-900"}`} />
               {formik.touched.phone && formik.errors.phone && <p className="text-red-500 text-[11px] mt-1 font-medium">{formik.errors.phone}</p>}
             </motion.div>
+
+            {/* DATE OF BIRTH — workers only */}
+            {formik.values.role === "Worker" && (
+              <motion.div
+                className="relative"
+                ref={dateOfBirthRef}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                {/* Gray placeholder shown when empty */}
+                <Calendar className="absolute right-3 top-3.5 text-gray-400 pointer-events-none z-10" size={20} />
+                {!formik.values.dateOfBirth && (
+                  <span className="absolute right-11 top-3.5 text-gray-400 text-sm pointer-events-none select-none z-10">
+                    تاريخ الميلاد
+                  </span>
+                )}
+                <input
+                  type="date"
+                  {...formik.getFieldProps("dateOfBirth")}
+                  max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+                  className={`w-full border-2 rounded-xl py-3 pr-11 pl-4 bg-gray-50/50 outline-none transition-all text-right
+                    [&::-webkit-calendar-picker-indicator]:hidden
+                    [&::-webkit-inner-spin-button]:hidden
+                    ${formik.values.dateOfBirth ? "text-gray-800" : "text-transparent focus:text-gray-800"}
+                    ${formik.touched.dateOfBirth && formik.errors.dateOfBirth
+                      ? "border-red-400"
+                      : "border-gray-100 focus:border-blue-900"
+                    }`}
+                />
+                {formik.touched.dateOfBirth && formik.errors.dateOfBirth && (
+                  <p className="text-red-500 text-[11px] mt-1 font-medium">{formik.errors.dateOfBirth}</p>
+                )}
+              </motion.div>
+            )}
 
             {/* PASSWORD */}
             <motion.div className="relative" ref={passwordRef}>

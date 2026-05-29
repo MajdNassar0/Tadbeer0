@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSearchParams, useNavigate,useParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import {
@@ -9,36 +9,44 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
-  User,
-  MapPin,
-  Briefcase,
-  CalendarCheck,
   Search,
   Clock
 } from "lucide-react";
 
-// Color Palette
-const NAVY = "#001F3F";
-const ORANGE = "#F7A823";
-const INFO_BG = "#F0F7FF"; 
+const NAVY     = "#001F3F";
+const ORANGE   = "#F7A823";
+const INFO_BG  = "#F0F7FF";
 const API_BASE = "https://tadbeer0.runasp.net/api";
 const IMAGE_BASE = "https://tadbeer0.runasp.net/";
 
-
-function StarRatingRow({ value }) {
+function StarRatingRow({ value, count, serviceLabel, isGeneral }) {
   const rounded = Math.min(5, Math.max(0, Math.round(value * 2) / 2));
   return (
-    <div className="flex items-center gap-1 justify-end mt-2" dir="ltr">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          className={`w-3.5 h-3.5 ${rounded >= i ? "fill-amber-400 text-amber-400" : "text-gray-200"}`}
-          strokeWidth={rounded >= i ? 0 : 1.2}
-        />
-      ))}
-      <span className="text-xs font-bold text-gray-600 mr-1.5 tabular-nums">
-        {(value || 5.0).toFixed(1)}
-      </span>
+    <div className="mt-2" dir="rtl">
+      <div className="flex items-center gap-1.5 justify-end" dir="ltr">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Star
+            key={i}
+            className={`w-3.5 h-3.5 ${rounded >= i ? "fill-amber-400 text-amber-400" : "text-gray-200"}`}
+            strokeWidth={rounded >= i ? 0 : 1.2}
+          />
+        ))}
+        <span className="text-xs font-bold text-gray-700 mr-1 tabular-nums">
+          {(value || 0).toFixed(1)}
+        </span>
+        {count != null && (
+          <span className="text-[10px] text-gray-400">({count})</span>
+        )}
+      </div>
+      {serviceLabel && (
+        <p className="text-[10px] font-bold text-amber-600 text-right mt-0.5 flex items-center justify-end gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+          تقييم خدمة: {serviceLabel}
+        </p>
+      )}
+      {isGeneral && !serviceLabel && (
+        <p className="text-[10px] text-gray-400 text-right mt-0.5">التقييم العام</p>
+      )}
     </div>
   );
 }
@@ -47,25 +55,27 @@ function Workers() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [workers, setWorkers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [workers,     setWorkers    ] = useState([]);
+  const [loading,     setLoading    ] = useState(true);
+  const [page,        setPage       ] = useState(1);
+  // map of workerId -> { avg, count } for the selected specialty
+  const [specialtyRatings, setSpecialtyRatings] = useState({});
+  const [ratingsLoading,   setRatingsLoading  ] = useState(false);
 
-  // Sidebar States
-  const [ratingFilter, setRatingFilter]     = useState(null);
-  const [pendingRating, setPendingRating]   = useState(null);
-  const [availability, setAvailability]     = useState("all");
-  const [pendingAvail, setPendingAvail]     = useState("all");
+  const [ratingFilter,  setRatingFilter ] = useState(null);
+  const [pendingRating, setPendingRating] = useState(null);
+  const [availability,  setAvailability ] = useState("all");
+  const [pendingAvail,  setPendingAvail ] = useState("all");
 
   const specialtyIdFromUrl = searchParams.get("specialtyId");
 
+  // ── Fetch workers ──────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchWorkers = async () => {
       setLoading(true);
       try {
         const params = {};
         if (specialtyIdFromUrl) params.specialtyId = specialtyIdFromUrl;
-
         const res = await axios.get(`${API_BASE}/General/Workers`, { params });
         const rawData = Array.isArray(res.data)
           ? res.data
@@ -78,19 +88,51 @@ function Workers() {
       }
     };
     fetchWorkers();
-  }, [specialtyIdFromUrl]); // re-fetch when specialty changes
+  }, [specialtyIdFromUrl]);
+
+  // ── Fetch reviews for all workers in parallel ──────────────────────────────
+  useEffect(() => {
+    if (workers.length === 0) return;
+    const fetchAllReviews = async () => {
+      setRatingsLoading(true);
+      try {
+        const results = await Promise.allSettled(
+          workers.map(w => {
+            const params = { workerId: w.id, pageNumber: 1, pageSize: 100 };
+            if (specialtyIdFromUrl) params.specialtyId = specialtyIdFromUrl;
+            return axios.get(`${API_BASE}/General/Reviews`, { params });
+          })
+        );
+
+        const map = {};
+        results.forEach((res, idx) => {
+          const workerId = workers[idx].id;
+          if (res.status !== "fulfilled") { map[workerId] = null; return; }
+          const reviews = res.value.data?.items ?? res.value.data ?? [];
+          if (reviews.length === 0) { map[workerId] = null; return; }
+          const avg = reviews.reduce((s, r) => s + (r.rate || 0), 0) / reviews.length;
+          map[workerId] = { avg: parseFloat(avg.toFixed(1)), count: reviews.length };
+        });
+
+        setSpecialtyRatings(map);
+      } catch (err) {
+        console.error("Error fetching reviews:", err);
+      } finally {
+        setRatingsLoading(false);
+      }
+    };
+    fetchAllReviews();
+  }, [workers, specialtyIdFromUrl]);
 
   const selectedSpecialtyName = useMemo(() => {
     if (!specialtyIdFromUrl || workers.length === 0) return null;
-    const workerWithSpecialty = workers.find(w => w.specialtyIds?.includes(specialtyIdFromUrl));
-    if (workerWithSpecialty) {
-      const index = workerWithSpecialty.specialtyIds.indexOf(specialtyIdFromUrl);
-      return workerWithSpecialty.specialtyNames?.[index];
-    }
-    return null;
+    const w = workers.find(w => w.specialtyIds?.some(id => String(id) === String(specialtyIdFromUrl)));
+    if (!w) return null;
+    const idx = w.specialtyIds.findIndex(id => String(id) === String(specialtyIdFromUrl));
+    return w.specialtyNames?.[idx] ?? null;
   }, [workers, specialtyIdFromUrl]);
 
-  // ── Availability helpers based on workingHours ─────────────────────────────
+  // ── Availability helpers ───────────────────────────────────────────────────
   const JS_DAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 
   const isAvailableNow = (worker) => {
@@ -110,57 +152,51 @@ function Workers() {
   const isAvailableWithin24h = (worker) => {
     const wh = worker.workingHours;
     if (!wh || wh.length === 0) return false;
-    const now      = new Date();
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const todayName    = JS_DAYS[now.getDay()];
-    const tomorrowName = JS_DAYS[tomorrow.getDay()];
-    const currentMins  = now.getHours() * 60 + now.getMinutes();
+    const now           = new Date();
+    const tomorrow      = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const todayName     = JS_DAYS[now.getDay()];
+    const tomorrowName  = JS_DAYS[tomorrow.getDay()];
+    const currentMins   = now.getHours() * 60 + now.getMinutes();
     return wh.some(h => {
       const day = h.dayOfWeek?.toLowerCase();
       const [sh, sm] = (h.startTime || "00:00").split(":").map(Number);
       const [eh, em] = (h.endTime   || "00:00").split(":").map(Number);
-      if (day === todayName) {
-        // still has time left today
-        return eh * 60 + em > currentMins;
-      }
+      if (day === todayName)    return eh * 60 + em > currentMins;
       if (day === tomorrowName) return true;
       return false;
     });
   };
 
-  // --- FILTERING LOGIC ---
+  // ── Filtering ─────────────────────────────────────────────────────────────
   const filteredWorkers = useMemo(() => {
     let result = [...workers];
+    if (specialtyIdFromUrl)
+      result = result.filter(w => w.specialtyIds?.some(id => String(id) === String(specialtyIdFromUrl)));
 
-    // 1. Specialty Filter
-    if (specialtyIdFromUrl) {
-      result = result.filter(w => w.specialtyIds?.includes(specialtyIdFromUrl));
-    }
-
-    // 2. Rating Filter
     if (ratingFilter) {
-      result = result.filter(w => (w.avgRating || 5.0) >= ratingFilter);
+      result = result.filter(w => {
+        const rating = specialtyRatings[w.id]?.avg ?? w.avgRating ?? 0;
+        return rating >= ratingFilter;
+      });
     }
 
-    // 3. Availability Filter — based on workingHours schedule
-    if (availability === "now") {
+    if (availability === "now")
       result = result.filter(w => isAvailableNow(w));
-    } else if (availability === "24h") {
+    else if (availability === "24h")
       result = result.filter(w => isAvailableWithin24h(w));
-    }
 
     return result;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workers, specialtyIdFromUrl, ratingFilter, availability]);
+  }, [workers, specialtyIdFromUrl, ratingFilter, availability, specialtyRatings]);
 
-  const PAGE_SIZE = 4;
-  const totalPages = Math.max(1, Math.ceil(filteredWorkers.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
+  const PAGE_SIZE      = 4;
+  const totalPages     = Math.max(1, Math.ceil(filteredWorkers.length / PAGE_SIZE));
+  const safePage       = Math.min(page, totalPages);
   const paginatedWorkers = filteredWorkers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="min-h-screen bg-white font-sans pb-16" dir="rtl">
-      
+
       {/* Hero */}
       <section className="bg-[#fafbfc] border-b border-gray-100 pt-10 pb-12 px-4 relative">
         <div className="max-w-7xl mx-auto text-right relative z-10">
@@ -178,7 +214,7 @@ function Workers() {
       </section>
 
       <div className="max-w-7xl mx-auto px-4 py-10 flex flex-col lg:flex-row gap-10">
-        
+
         {/* Sidebar */}
         <aside className="w-full lg:w-80 shrink-0 order-2 lg:order-1 text-right">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-24">
@@ -188,7 +224,7 @@ function Workers() {
             </div>
 
             <div className="space-y-8">
-              {/* Availability Section */}
+              {/* Availability */}
               <div>
                 <p className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <Clock size={16} className="text-orange-500" /> التوفر الحالي
@@ -215,10 +251,9 @@ function Workers() {
                 ))}
               </div>
 
-              {/* Rating Section */}
+              {/* Rating */}
               <div className="pt-6 border-t border-gray-50">
                 <p className="text-sm font-bold text-gray-800 mb-4">التقييم</p>
-                {/* "All ratings" option */}
                 <label className="flex items-center gap-3 mb-3 cursor-pointer">
                   <div className="relative flex items-center justify-center">
                     <input
@@ -251,22 +286,17 @@ function Workers() {
                 ))}
               </div>
 
-              {/* Apply button */}
+              {/* Apply */}
               <motion.button
                 whileHover={{ scale: 1.02, backgroundColor: "#002d5c" }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setAvailability(pendingAvail);
-                  setRatingFilter(pendingRating);
-                  setPage(1);
-                }}
+                onClick={() => { setAvailability(pendingAvail); setRatingFilter(pendingRating); setPage(1); }}
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-md"
                 style={{ backgroundColor: NAVY }}
               >
                 تحديث البحث
               </motion.button>
 
-              {/* Reset link */}
               {(ratingFilter !== null || availability !== "all") && (
                 <button
                   onClick={() => {
@@ -286,86 +316,98 @@ function Workers() {
         {/* Workers Grid */}
         <main className="flex-1 order-1 lg:order-2">
           {loading ? (
-             <div className="flex justify-center py-24"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#F7A823]"></div></div>
+            <div className="flex justify-center py-24">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#F7A823]"></div>
+            </div>
           ) : filteredWorkers.length === 0 ? (
             <div className="text-center py-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-               <Search size={48} className="text-slate-200 mx-auto mb-4" />
-               <p className="text-slate-500 font-bold">عذراً، لا يوجد فنيين متاحين حالياً بهذا الاختيار</p>
-               <button onClick={() => {setAvailability("all"); setRatingFilter(null)}} className="mt-4 text-orange-500 font-bold text-sm underline">إعادة ضبط الفلاتر</button>
+              <Search size={48} className="text-slate-200 mx-auto mb-4" />
+              <p className="text-slate-500 font-bold">عذراً، لا يوجد فنيين متاحين حالياً بهذا الاختيار</p>
+              <button onClick={() => { setAvailability("all"); setRatingFilter(null); }} className="mt-4 text-orange-500 font-bold text-sm underline">إعادة ضبط الفلاتر</button>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <AnimatePresence mode="popLayout">
-                  {paginatedWorkers.map((w, i) => (
-                    <motion.article
-                      layout key={w.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="relative bg-slate-50 rounded-[24px] border border-gray-200 shadow-sm p-6 hover:shadow-xl transition-all duration-300"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="relative">
-                          <img
-                            src={
-                              w.profileImage && w.profileImage !== "string"
-                                ? (w.profileImage.startsWith("http") ? w.profileImage : `${IMAGE_BASE}${w.profileImage}`)
-                                : `https://ui-avatars.com/api/?name=${encodeURIComponent((w.firstName || "") + " " + (w.lastName || ""))}&background=001F3F&color=F7A823&size=200&bold=true`
-                            }
-                            onError={(e) => {
-                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((w.firstName || "") + " " + (w.lastName || ""))}&background=001F3F&color=F7A823&size=200&bold=true`;
-                            }}
-                            className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md"
-                            alt={`${w.firstName} ${w.lastName}`}
-                          />
-                          {/* Online status indicator */}
-                          {(w.isAvailable || w.status === "Available") && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 text-lg leading-tight truncate">{w.firstName} {w.lastName}</h3>
-                          {/* ✅ FIX: show ALL specialties joined by · instead of only [0] */}
-                          <p className="text-xs font-bold mt-1 uppercase leading-relaxed" style={{ color: ORANGE }}>
-                            {w.specialtyNames?.length > 0 ? w.specialtyNames.join(" · ") : "فني متخصص"}
-                          </p>
-                          {w.emailConfirmed && (
-                            <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-lg border border-blue-100" style={{ backgroundColor: INFO_BG, color: NAVY }}>
-                              <BadgeCheck className="w-3.5 h-3.5 text-blue-500" /> فني معتمد
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  {paginatedWorkers.map((w) => {
+                    const specialtyRating = specialtyRatings[w.id];
+                    const displayRating   = specialtyRating?.avg ?? w.avgRating ?? null;
+                    const ratingLabel     = specialtyIdFromUrl && selectedSpecialtyName
+                      ? selectedSpecialtyName
+                      : null;
 
-                      <StarRatingRow value={w.avgRating || 5.0} />
-
-                      <div className="grid grid-cols-2 gap-3 mt-6">
-                        <div className="bg-white rounded-xl px-3 py-3 border border-slate-200 shadow-sm">
-                          <p className="text-[10px] text-gray-400 font-bold mb-1">الخبرة</p>
-                          <p className="text-xs font-black" style={{ color: NAVY }}>{w.experienceYears || 0} سنوات</p>
+                    return (
+                      <motion.article
+                        layout key={w.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative bg-slate-50 rounded-[24px] border border-gray-200 shadow-sm p-6 hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="relative">
+                            <img
+                              src={
+                                w.profileImage && w.profileImage !== "string"
+                                  ? (w.profileImage.startsWith("http") ? w.profileImage : `${IMAGE_BASE}${w.profileImage}`)
+                                  : `https://ui-avatars.com/api/?name=${encodeURIComponent((w.firstName || "") + " " + (w.lastName || ""))}&background=001F3F&color=F7A823&size=200&bold=true`
+                              }
+                              onError={(e) => {
+                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((w.firstName || "") + " " + (w.lastName || ""))}&background=001F3F&color=F7A823&size=200&bold=true`;
+                              }}
+                              className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md"
+                              alt={`${w.firstName} ${w.lastName}`}
+                            />
+                            {(w.isAvailable || w.status === "Available") && (
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-900 text-lg leading-tight truncate">{w.firstName} {w.lastName}</h3>
+                            <p className="text-xs font-bold mt-1 uppercase leading-relaxed" style={{ color: ORANGE }}>
+                              {w.specialtyNames?.length > 0 ? w.specialtyNames.join(" · ") : "فني متخصص"}
+                            </p>
+                            {w.emailConfirmed && (
+                              <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-lg border border-blue-100" style={{ backgroundColor: INFO_BG, color: NAVY }}>
+                                <BadgeCheck className="w-3.5 h-3.5 text-blue-500" /> فني معتمد
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="bg-white rounded-xl px-3 py-3 border border-slate-200 shadow-sm">
-                          <p className="text-[10px] text-gray-400 font-bold mb-1">الموقع</p>
-                          <p className="text-xs font-black truncate" style={{ color: NAVY }}>{w.city || "فلسطين"}</p>
-                        </div>
-                      </div>
 
-                      <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                        <motion.button onClick={() => navigate(`/worker-view/${w.id}`)} className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-600 font-bold text-xs">عرض الملف</motion.button>
-                        <motion.button
-                          onClick={() => navigate(`/booking/${w.id}`)}
-                          className="flex-[1.4] py-3 rounded-xl text-white font-bold text-xs shadow-lg"
-                          style={{ backgroundColor: ORANGE }}
-                        >
-                          احجز موعد الآن
-                        </motion.button>
-                      </div>
-                    </motion.article>
-                  ))}
+
+
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                          <div className="bg-white rounded-xl px-3 py-3 border border-slate-200 shadow-sm">
+                            <p className="text-[10px] text-gray-400 font-bold mb-1">الخبرة</p>
+                            <p className="text-xs font-black" style={{ color: NAVY }}>{w.experienceYears || 0} سنوات</p>
+                          </div>
+                          <div className="bg-white rounded-xl px-3 py-3 border border-slate-200 shadow-sm">
+                            <p className="text-[10px] text-gray-400 font-bold mb-1">الموقع</p>
+                            <p className="text-xs font-black truncate" style={{ color: NAVY }}>{w.city || "فلسطين"}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                          <motion.button
+                            onClick={() => navigate(`/worker-view/${w.id}${specialtyIdFromUrl ? `?specialtyId=${specialtyIdFromUrl}` : ''}`)}
+                            className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-600 font-bold text-xs"
+                          >
+                            عرض الملف
+                          </motion.button>
+                          <motion.button
+                            onClick={() => navigate(`/booking/${w.id}${specialtyIdFromUrl ? `?specialtyId=${specialtyIdFromUrl}` : ''}`)}
+                            className="flex-[1.4] py-3 rounded-xl text-white font-bold text-xs shadow-lg"
+                            style={{ backgroundColor: ORANGE }}
+                          >
+                            احجز موعد الآن
+                          </motion.button>
+                        </div>
+                      </motion.article>
+                    );
+                  })}
                 </AnimatePresence>
               </div>
 
-              {/* Pagination Section (4 per page) */}
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-3 mt-14">
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1} className="w-10 h-10 flex items-center justify-center border rounded-xl bg-white disabled:opacity-30"><ChevronRight size={20} style={{ color: NAVY }} /></button>

@@ -92,7 +92,11 @@ function BookingToast({ id, workerName, serviceName, date, startTime, endTime, o
           <div className="flex items-center gap-2">
             <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" />
             <p className="text-xs text-white/80">
-              خدمة: <span className="text-white font-bold">{serviceName}</span>
+              الخدمة:{" "}
+              {serviceName
+                ? <span className="text-[#F7A823] font-bold">{serviceName}</span>
+                : <span className="text-white/40">غير محدد</span>
+              }
             </p>
           </div>
 
@@ -196,7 +200,8 @@ function BookingNotifier() {
           pushToast({
             bookingId: b.id,
             workerName:  b.workerName  || b.worker?.name  || b.providerName || "الفني",
-            serviceName: b.serviceName || b.service?.name || "الخدمة",
+            serviceName: b.specialtyName || b.serviceName || b.specialty?.name
+                      || b.service?.name || b.skillName   || null,
             date,
             startTime: b.startTime?.slice(0, 5) || null,
             endTime:   b.endTime?.slice(0, 5)   || null,

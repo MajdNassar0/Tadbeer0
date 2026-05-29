@@ -93,8 +93,14 @@ try {
 localStorage.setItem("token", token);
 login(user, token); // الآن كائن user يحتوي على id داخله ✅
 
-          // 4. تأخير بسيط ليظهر الـ Toast قبل الانتقال
-          await new Promise((res) => setTimeout(res, 800));
+          // 4. إظهار رسالة النجاح
+          toast.success(`أهلاً بك، ${user.name}!`, {
+            description: "تم تسجيل الدخول بنجاح. جاري تحويلك...",
+            duration: 2000,
+          });
+
+          // 5. تأخير ليظهر الـ Toast قبل الانتقال
+          await new Promise((res) => setTimeout(res, 1200));
 
           // 5. التوجيه بناءً على الدور
           if (role === "admin" || role === "superadmin") navigate("/admin");
