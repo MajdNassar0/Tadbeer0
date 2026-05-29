@@ -63,10 +63,29 @@ const WorkerHeader = ({
               <div className="flex flex-col gap-2 items-center sm:items-start"><Skeleton className="h-8 w-52"/><Skeleton className="h-5 w-32"/></div>
             ) : (
               <>
-                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                  <h1 className="text-2xl sm:text-3xl font-black m-2">{fullName || "—"}</h1>
-                  {worker?.isVerified && <BadgeCheck size={22} className="text-orange-400 shrink-0"/>}
-                </div>
+               {/* ── 🚀 الكود المحدث والمطابق للجيسون بالملي ──────────────── */}
+<div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+  <h1 className="text-2xl sm:text-3xl font-black m-2">
+    {fullName || "—"}
+  </h1>
+  
+  {/* شارة التوثيق الذكية باستخدام الاسم الرسمي من السيرفر isIdentityVerified */}
+  {worker?.isIdentityVerified && (
+    <div className="group relative flex items-center justify-center pt-1">
+      <motion.div
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+      >
+        <BadgeCheck size={24} className="text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.5)] shrink-0" />
+      </motion.div>
+      
+      {/* التلميح الأنيق عند تمرير الماوس */}
+      <span className="absolute bottom-full mb-2 hidden group-hover:inline-block whitespace-nowrap rounded-xl bg-gray-900/90 backdrop-blur-xs px-2.5 py-1 text-[10px] font-bold text-white shadow-xl transition border border-white/10 z-50">
+        ✓ حساب موثق من الإدارة
+      </span>
+    </div>
+  )}
+</div>
                 <div className="flex items-center justify-center sm:justify-start gap-2 mb-3 flex-wrap">
                   <span className="rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: avail.bg, color: avail.color }}>{avail.label}</span>
                   {isOwner && <span className="rounded-full px-3 py-0.5 text-xs font-bold border-b-black bg-white/10 text-emerald-100">ملفك الشخصي</span>}

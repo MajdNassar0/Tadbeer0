@@ -182,6 +182,7 @@ const WorkerProfileInner = () => {
         addWorkingHour={addWorkingHour}
         updateWorkingHour={updateWorkingHour}
         deleteWorkingHour={deleteWorkingHour}
+         setWorker={setWorker} 
       />
     ) : null,
   };

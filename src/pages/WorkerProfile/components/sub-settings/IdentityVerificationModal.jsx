@@ -4,7 +4,7 @@ import { X, Upload, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 // ✅ استيراد الـ apiClient المجهز والمربوط بالـ baseURL الصحيح والتوكن تلقائياً
 import apiClient from "../../../../API/axiosConfig"; 
 
-const IdentityVerificationModal = ({ isOpen, onClose }) => {
+const IdentityVerificationModal = ({ isOpen, onClose, onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -36,14 +36,22 @@ const IdentityVerificationModal = ({ isOpen, onClose }) => {
     formData.append("IdentityImage", selectedFile); 
 
     try {
-      // ✅ نرسل المسار النسبي فقط لأن الـ baseURL يحتوي على /api تلقائياً
-      await apiClient.post("/Worker/Profile/me/identity-picture", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+  await apiClient.post("/Worker/Profile/me/identity-picture", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 
-      setStatus("success");
+  setStatus("success");
+
+  // ✅ تشغيل دالة التحديث فوراً لتحديث الـ State في الصفحة الأبوية بدون ريفريش
+  if (onUploadSuccess) {
+    onUploadSuccess();
+  }
+  setTimeout(() => {
+  onClose();
+}, 2000);
+
     } catch (err) {
       console.error("خطأ أثناء رفع صورة الهوية:", err);
       setStatus("error");

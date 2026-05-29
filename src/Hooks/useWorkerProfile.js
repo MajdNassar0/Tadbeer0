@@ -255,6 +255,31 @@ const deleteWorkingHour = useCallback(async (id) => {
     return { ok: false, error: "فشل حذف الموعد" };
   }
 }, []);
+// ── الرفع والتحديث الفوري لصورة الهوية ───────────────────────────
+const uploadIdentityCard = useCallback(async (imageFile) => {
+  setSaving(true);
+  try {
+    const fd = new FormData();
+    fd.append("IdentityImage", imageFile);
+
+    const res = await apiClient.post("/Worker/Profile/me/identity-picture", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    // 🔥 التحديث الفوري للحالة المحلية في نفس اللحظة
+    setWorker(prev => ({
+      ...prev,
+      hasIdentityImage: true,
+      identityImageRejectionReason: null
+    }));
+
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.response?.data?.message || "فشل رفع صورة الهوية" };
+  } finally {
+    setSaving(false);
+  }
+}, []);
 
   useEffect(() => { fetchWorker(); }, [fetchWorker]);
   useEffect(() => { fetchWorkImages(); }, [fetchWorkImages]);
@@ -267,6 +292,7 @@ const deleteWorkingHour = useCallback(async (id) => {
     uploadProfileImage, setWorker,
     uploadWorkImage, deleteWorkImage,
     uploadSubImage, deleteSubImage,
-    addWorkingHour, updateWorkingHour, deleteWorkingHour
+    addWorkingHour, updateWorkingHour, deleteWorkingHour ,
+    uploadIdentityCard,
   };
 };

@@ -1,4 +1,5 @@
 import { createBrowserRouter } from "react-router-dom";
+import { ToastProvider } from "./context/ToastContext";
 import MainLayout from "./layout/MainLayout";
 import Login from "./pages/Login/Login";
 import Home from "./pages/Home/Home";
@@ -23,6 +24,7 @@ import Technicians   from "./pages/Admin/Technicians";
 import AdminBookings from "./pages/Admin/Bookings";
 import Reports       from "./pages/Admin/Reports";
 import Settings      from "./pages/Admin/Settings";
+import VerificationRequests from "./pages/Admin/VerificationRequests"; // 👈 ضيفي هذا السطر هون
 
 // Worker
 import WorkerLayout   from "./pages/TechnicanDashboard/WorkerLayout";
@@ -83,13 +85,16 @@ const router = createBrowserRouter([
     path: "admin",
     element: (
       <ProtectedRoute role={["admin", "superadmin"]}>
-        <AdminLayout />
+        <ToastProvider> 
+          <AdminLayout />
+        </ToastProvider>
       </ProtectedRoute>
     ),
     children: [
       { index: true,         element: <Dashboard />     },
       { path: "users",       element: <Users />         },
       { path: "technicians", element: <Technicians />   },
+      { path: "verifications", element: <VerificationRequests /> },
       { path: "bookings",    element: <AdminBookings /> },
       { path: "reports",     element: <Reports />       },
       { path: "settings",    element: <Settings />      },

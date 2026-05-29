@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation, NavLink } from "react-router-dom";
 import axios from "axios";
 import {
   LayoutDashboard, Users, UserCog, Calendar,
-  Star, BarChart3, Settings, LogOut, Search, Bell
+  Star, BarChart3, Settings, LogOut, Search, Bell ,ShieldCheck
 } from "lucide-react";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "لوحة القيادة",     to: "/admin"             },
   { icon: Users,           label: "إدارة المستخدمين", to: "/admin/users"       },
   { icon: UserCog,         label: "إدارة الفنيين",    to: "/admin/technicians" },
+  { icon: ShieldCheck,     label: "طلبات التوثيق",    to: "/admin/verifications" },
   { icon: BarChart3,       label: "التقارير",         to: "/admin/reports"     },
   { icon: Settings,        label: "الإعدادات",        to: "/admin/settings"    },
 ];
@@ -72,25 +73,16 @@ const AdminLayout = () => {
         };
         setAdmin(updated);
         localStorage.setItem("user", JSON.stringify(updated));
-      } catch (err) {
-        const status = err.response?.status;
-        // 401 = token invalid/expired → force logout
-        // 403 = token valid but wrong role → only redirect if user is definitely not admin
-        if (status === 401) {
-          localStorage.clear();
-          navigate("/auth/login");
-        } else if (status === 403) {
-          // Don't clear storage — could be a StrictMode double-invoke race.
-          // Re-read role from storage; only redirect if genuinely not admin.
-          const u = JSON.parse(localStorage.getItem("user") ?? "null");
-          const r = u?.role?.trim().toLowerCase();
-          if (!r || (r !== "admin" && r !== "superadmin")) {
-            localStorage.clear();
-            navigate("/auth/login");
-          }
-          // Otherwise silently ignore — the layout still renders from cached user data
-        }
-      }
+    } catch (err) {
+  const status = err.response?.status;
+  
+  if (status === 401 || status === 403) {
+    // 🎯 إذا واجهنا 401 (غير مسجل) أو 403 (حساب فني يحاول دخول الأدمن)
+    // نقوم بتنظيف الذاكرة فوراً وتوجيهه للـ Login
+    localStorage.clear();
+    navigate("/auth/login");
+  }
+}
     };
     load();
   }, [navigate]);

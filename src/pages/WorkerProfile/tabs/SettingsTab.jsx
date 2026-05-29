@@ -5,20 +5,19 @@ import { useToast } from "../../../context/ToastContext";
 import PersonalInfoForm from "../components/sub-settings/PersonalInfoForm";
 import ProfessionalInfoForm from "../components/sub-settings/ProfessionalInfoForm";
 import DeactivateModal from "../../../components/Profile/Security/modals/DeactivateModal";
-// 1️⃣ استيراد مكوّن توثيق الهوية الجديد من المجلد الفرعي sub-settings
 import IdentityVerificationModal from "../components/sub-settings/IdentityVerificationModal"; 
 
+
 import {
-  User, Briefcase, ShieldCheck, Key, Shield, UserX, CheckCircle2
+  User, Briefcase, ShieldCheck, Key, Shield, UserX, CheckCircle2, AlertTriangle
 } from "lucide-react";
 
 const SettingsTab = ({
   worker, updateWorker, saving, onToggleStatus, toggling, updateUser,
-  addWorkingHour, updateWorkingHour, deleteWorkingHour
+  addWorkingHour, updateWorkingHour, deleteWorkingHour, setWorker 
 }) => {
   const [activeTab, setActiveTab] = useState("profile");
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
-  // 2️⃣ إضافة State للتحكم بفتح وإغلاق مودال توثيق الهوية
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false); 
   const [activeModal, setActiveModal] = useState(null);
   const toast = useToast();
@@ -26,9 +25,39 @@ const SettingsTab = ({
   // ✅ الـ Backend بيستخدم "Existed" / "Deleted" بدل "Active" / "Inactive"
   const isInactive = worker?.status === "Deleted";
 
+  // 🔍 فحص حالة توثيق الهوية لبناء الـ UX الذكي
+  const isVerified = worker?.isVerified;
+  const hasIdentityImage = worker?.hasIdentityImage;
+  const rejectionReason = worker?.identityImageRejectionReason;
+
+  // إعداد الحالات الافتراضية لزر التوثيق
+  let verifyActionText = "توثيق";
+  let isVerifySuccess = false;
+  let isVerifyDisabled = false;
+  let isVerifyWarning = false;
+  let verifyDescription = "ارفع هويتك الشخصية للحصول على شارة الحساب الموثق";
+
+  if (isVerified) {
+    // 1️⃣ حالة: الحساب موثق ومؤكد مسبقاً ✅
+    verifyActionText = "موثق ✓";
+    isVerifySuccess = true;
+    isVerifyDisabled = true; // قفل لمنع الرفع مجدداً
+    verifyDescription = "تهانينا! حسابك موثق ومؤكد بشكل رسمي ومحمّي.";
+  } else if (hasIdentityImage && !rejectionReason) {
+    // 2️⃣ حالة: قيد التدقيق والمراجعة من الأدمن ⏳
+    verifyActionText = "قيد المراجعة";
+    isVerifyDisabled = true; // قفل لمنع تكرار الرفع وإغراق السيرفر
+    verifyDescription = "طلبك قيد المراجعة والتدقيق حالياً من قبل الإدارة.";
+  } else if (rejectionReason) {
+    // 3️⃣ حالة: تم رفض الطلب من الأدمن لوجود مشكلة ❌
+    verifyActionText = "إعادة رفع";
+    isVerifyWarning = true;
+    verifyDescription = `تم الرفض: ${rejectionReason}`;
+  }
+
   const SettingsRow = ({
     icon: Icon, title, description, actionText,
-    isDestructive = false, onClick, isSuccess = false, disabled = false
+    isDestructive = false, onClick, isSuccess = false, isWarning = false, disabled = false
   }) => (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
@@ -38,6 +67,7 @@ const SettingsTab = ({
       <div className="flex items-center gap-4">
         <div className={`p-3 rounded-xl ${
           isSuccess ? 'bg-green-50 text-green-500' :
+          isWarning ? 'bg-amber-50 text-amber-500' :
           isDestructive ? 'bg-red-50 text-red-500' :
           'bg-gray-50 text-gray-400'
         }`}>
@@ -45,23 +75,26 @@ const SettingsTab = ({
         </div>
         <div className="text-right">
           <h4 className="text-sm font-bold text-gray-800">{title}</h4>
-          <p className="text-[11px] text-gray-400 mt-0.5">{description}</p>
+          <p className={`text-[11px] mt-0.5 ${isWarning ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>{description}</p>
         </div>
       </div>
       <button
         onClick={onClick}
         disabled={disabled}
         className={`px-5 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 ${
-          disabled ? "opacity-60 cursor-not-allowed" : ""
+          disabled && !isSuccess ? "opacity-60 cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200" : ""
         } ${
           isSuccess
-            ? "border-green-200 bg-green-50 text-green-600"
-            : isDestructive
-              ? "border-red-100 text-red-500 hover:bg-red-50"
-              : "border-orange-100 text-orange-500 hover:bg-orange-50"
+            ? "border-green-200 bg-green-50 text-green-600 cursor-not-allowed"
+            : isWarning
+              ? "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100/50"
+              : isDestructive
+                ? "border-red-100 text-red-500 hover:bg-red-50"
+                : "border-orange-100 text-orange-500 hover:bg-orange-50"
         }`}
       >
         {isSuccess && <CheckCircle2 size={14} />}
+        {isWarning && !disabled && <AlertTriangle size={14} />}
         {actionText}
       </button>
     </motion.div>
@@ -144,12 +177,15 @@ const SettingsTab = ({
                 onClick={() => setIsPassModalOpen(true)}
               />
 
-              {/* 3️⃣ هنا قمنا بربط زر الـ onClick ليقوم بفتح مودال التوثيق عند الضغط عليه */}
+              {/* 🛡️ حقل توثيق الهوية المطور ذكياً بالحالات الأربعة */}
               <SettingsRow
                 icon={Shield}
                 title="توثيق الهوية"
-                description="ارفع هويتك للحصول على شارة موثوق"
-                actionText="توثيق"
+                description={verifyDescription}
+                actionText={verifyActionText}
+                isSuccess={isVerifySuccess}
+                isWarning={isVerifyWarning}
+                disabled={isVerifyDisabled}
                 onClick={() => setIsVerifyModalOpen(true)} 
               />
 
@@ -184,12 +220,20 @@ const SettingsTab = ({
         toast={toast}
       />
 
-      {/* 4️⃣ إضافة المكوّن هنا في الأسفل ليعمل مع بقية الـ Modals بسلاسة */}
-      <IdentityVerificationModal
-        isOpen={isVerifyModalOpen}
-        onClose={() => setIsVerifyModalOpen(false)}
-      />
 
+<IdentityVerificationModal
+key={isVerifyModalOpen ? "open" : "closed"}
+  isOpen={isVerifyModalOpen}
+  onClose={() => setIsVerifyModalOpen(false)}
+  onUploadSuccess={() => {
+    setWorker(prev => ({
+      ...prev,
+      hasIdentityImage: true,
+      identityImageRejectionReason: null,
+    }));
+    setIsVerifyModalOpen(false); // ✅ أغلق المودال تلقائياً بعد النجاح
+  }}
+/>
       <DeactivateModal
         isOpen={activeModal === "deactivate"}
         onClose={() => setActiveModal(null)}
