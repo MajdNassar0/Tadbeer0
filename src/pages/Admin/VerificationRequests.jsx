@@ -59,16 +59,20 @@ const VerificationRequests = () => {
     }
     setSubmitting(true);
     try {
-      const workerId = selectedRequest.id; 
+      // 🎯 التأكد من جلب المعرف السليم للطلب (id أو workerId) حسب بنية السيرفر لديكِ
+      const workerId = selectedRequest.id || selectedRequest.workerId; 
+      
+      // إرسال الطلب ممرراً المعرف والسبب بمرونة تامة
       await rejectIdentity(workerId, rejectionReason);
       toast(`تم رفض الطلب وإرسال سبب الرفض للعامل: (${rejectionReason}) ❌`, "success");
       
       setIsRejectModalOpen(false);
       setSelectedRequest(null);
       setRejectionReason("");
-      loadRequests(); // تحديث القائمة
+      loadRequests(); // تحديث القائمة فوراً بعد النجاح
     } catch (err) {
-      toast(err.message || "فشل إرسال طلب الرفض", "error");
+      console.error("Error during rejection entry:", err);
+      toast(err.response?.data?.message || err.message || "فشل إرسال طلب الرفض", "error");
     } finally {
       setSubmitting(false);
     }
@@ -114,16 +118,14 @@ const VerificationRequests = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {requests.map((req) => {
-            // 🎯 تم التصحيح لتقرأ من الـ req المعرف بالـ map مية بالمية
-            const requestFirstName = req?.user?.firstName || req?.worker?.firstName || req?.firstName || "";
-            const requestLastName = req?.user?.lastName || req?.worker?.lastName || req?.lastName || "";
+            const requestFirstName = req?.firstName || req?.user?.firstName || "";
+            const requestLastName = req?.lastName || req?.user?.lastName || "";
             const displayFullName = `${requestFirstName} ${requestLastName}`.trim() || "مستخدم غير معروف";
-            const displayPhone = req?.user?.phoneNumber || req?.worker?.phoneNumber || req?.phoneNumber || "بدون رقم هاتف";
 
             return (
               <motion.div
                 layout
-                key={req.id || req.userId} // تم التصحيح هنا لـ req المضمون
+                key={req.id}
                 className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between"
               >
                 <div>
@@ -131,7 +133,9 @@ const VerificationRequests = () => {
                     <h3 className="text-sm font-bold text-gray-800">
                       {displayFullName}
                     </h3>
-                    
+                    <span className="text-xs text-orange-500 mt-0.5 font-medium">
+                      طلب توثيق معلق
+                    </span>
                   </div>
 
                   <div className="bg-gray-50 rounded-2xl p-3 mb-4 border border-gray-100/50 flex items-center justify-between">
@@ -174,10 +178,9 @@ const VerificationRequests = () => {
               </button>
 
               <h2 className="text-base font-black text-gray-800 mb-4 flex items-center gap-2">
-                مراجعة وثيقة العامل: {selectedRequest.user?.firstName || selectedRequest.firstName} {selectedRequest.user?.lastName || selectedRequest.lastName}
+                مراجعة وثيقة العامل: {selectedRequest.firstName || selectedRequest.user?.firstName} {selectedRequest.lastName || selectedRequest.user?.lastName}
               </h2>
 
-              {/* حاوية عرض الصورة المرفوعة من السيرفر */}
               <div className="w-full h-80 bg-gray-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-gray-100 mb-6">
                 {selectedRequest?.identityImageUrl || selectedRequest?.identityImage ? (
                   <img 
@@ -202,7 +205,6 @@ const VerificationRequests = () => {
                 )}
               </div>
 
-              {/* أزرار اتخاذ القرار الإداري */}
               <div className="flex gap-3 justify-end border-t border-gray-50 pt-4">
                 <button
                   onClick={() => setIsRejectModalOpen(true)}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation, NavLink } from "react-router-dom";
-import axios from "axios";
+// 🎯 استيراد الـ apiClient المخصص بدلاً من axios الخام لمنع مشاكل الـ 403 والـ Loops
+import apiClient from "../../API/axiosConfig"; 
 import {
   LayoutDashboard, Users, UserCog, Calendar,
-  Star, BarChart3, Settings, LogOut, Search, Bell ,ShieldCheck
+  Star, BarChart3, Settings, LogOut, Search, Bell, ShieldCheck
 } from "lucide-react";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -34,7 +35,7 @@ const NAV_ITEMS = [
   { icon: UserCog,         label: "إدارة الفنيين",    to: "/admin/technicians" },
   { icon: ShieldCheck,     label: "طلبات التوثيق",    to: "/admin/verifications" },
   { icon: BarChart3,       label: "التقارير",         to: "/admin/reports"     },
-  { icon: Settings,        label: "الإعدادات",        to: "/admin/settings"    },
+  { icon: Settings,        label: "الإعدادat",        to: "/admin/settings"    },
 ];
 
 // ── layout ────────────────────────────────────────────────────────────────────
@@ -61,10 +62,9 @@ const AdminLayout = () => {
       }
 
       try {
-        const res = await axios.get(
-          "https://tadbeer0.runasp.net/api/Admin/Profile/me",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // 🎯 تعديل استخدام الـ apiClient المخصص والمحمي بالـ Interceptor
+        const res = await apiClient.get("/Admin/Profile/me");
+        
         const updated = {
           name:         res.data.fullName || res.data.name || admin?.name,
           email:        res.data.email    || admin?.email,
@@ -73,16 +73,16 @@ const AdminLayout = () => {
         };
         setAdmin(updated);
         localStorage.setItem("user", JSON.stringify(updated));
-    } catch (err) {
-  const status = err.response?.status;
-  
-  if (status === 401 || status === 403) {
-    // 🎯 إذا واجهنا 401 (غير مسجل) أو 403 (حساب فني يحاول دخول الأدمن)
-    // نقوم بتنظيف الذاكرة فوراً وتوجيهه للـ Login
-    localStorage.clear();
-    navigate("/auth/login");
-  }
-}
+      } catch (err) {
+        const status = err.response?.status;
+        console.error("Admin dashboard verification tracking error:", err);
+        
+        if (status === 401 || status === 403) {
+          // إذا انتهت الجلسة أو الحساب ليس لديه صلاحية إدارية فعلياً يتم الخروج المنظم
+          localStorage.clear();
+          navigate("/auth/login");
+        }
+      }
     };
     load();
   }, [navigate]);
@@ -101,8 +101,7 @@ const AdminLayout = () => {
           onClick={() => navigate("/")}
           className="flex items-center gap-3 px-6 py-6 hover:opacity-80 transition-opacity border-b border-white/[0.07]"
         >
-          <img src="../../../public/logo.png" alt="تدبير"
-               className="w-9 h-9 object-contain" />
+          <img src="/logo.png" alt="تدبير" className="w-9 h-9 object-contain" />
           <span className="text-lg font-medium tracking-tight">تدبير</span>
         </button>
 

@@ -9,36 +9,36 @@ export const getPendingVerifications = async () => {
     const response = await apiClient.get('/Admin/Users/identity-verification/pending');
     return response.data;
   } catch (error) {
-    throw error.response?.data || error.message;
+    throw new Error(error.response?.data?.message || error.response?.data || error.message || "فشل تحميل طلبات التوثيق");
   }
 };
 
 /**
- * 2. الموافقة على توثيق هوية مستخدم معين
+ * 2. قبول وتوثيق حساب الحرفي
  * POST /api/Admin/Users/{id}/identity-verification/approve
  */
 export const approveIdentity = async (id) => {
   try {
-    // تأكدي من حالة الأحرف الكابيتال للـ Users لتطابق سكيما السيرفر
-    const response = await apiClient.put(`/Admin/Users/${id}/approve-identity`);
+    const response = await apiClient.post(`/Admin/Users/${id}/identity-verification/approve`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || error.message;
+    throw new Error(error.response?.data?.message || error.response?.data || error.message || "فشل إتمام عملية الموافقة");
   }
 };
+
 /**
- * 3. رفض توثيق هوية مستخدم معين مع إرسال السبب
+ * 3. رفض طلب التوثيق مع سبب الرفض
  * POST /api/Admin/Users/{id}/identity-verification/reject
  */
-// التعديل السحري لدالة الرفض لتطابق الباكيند بالملي
 export const rejectIdentity = async (id, reason) => {
   try {
-    // تمرير الـ reason داخل الـ params ليرسلها الأكسيوس بالـ URL كـ Query String
-    const response = await apiClient.put(`/Admin/Users/${id}/reject-identity`, null, {
-      params: { reason: reason }
+    // إرسال كائن بالـ body يحتوي على الحقل "reason" كما تطلبه السكيما بالضبط
+    const response = await apiClient.post(`/Admin/Users/${id}/identity-verification/reject`, {
+      reason: reason
     });
     return response.data;
   } catch (error) {
-    throw error.response?.data || error.message;
+    console.error("Reject API Error:", error.response);
+    throw new Error(error.response?.data?.message || error.response?.data?.error || error.message || "فشل إرسال طلب الرفض");
   }
 };
