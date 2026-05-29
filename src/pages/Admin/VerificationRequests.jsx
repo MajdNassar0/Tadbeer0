@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, XCircle, Eye, Loader2, AlertCircle, FileText, Check, X } from "lucide-react";
+import { ShieldCheck, Eye, Loader2, AlertCircle, FileText, X } from "lucide-react";
 import { getPendingVerifications, approveIdentity, rejectIdentity } from "../../API/adminService";
 import { useToast } from "../../context/ToastContext";
 
@@ -37,65 +37,42 @@ const VerificationRequests = () => {
   }, []);
 
   // دالة الموافقة على طلب التوثيق
-const handleApprove = async (workerId) => {
-  setSubmitting(true);
-  try {
-    // إرسال طلب القبول للباكيند بالـ ID الصحيح
-    await approveIdentity(workerId);
-    
-    // إرسال رسالة التوست الناجحة للأدمن
-    toast("تم قبول طلب التوثيق بنجاح! تم تفعيل الشارة وإرسال إشعار للعامل 💬✓", "success");
-    
-    setSelectedRequest(null);
-    loadRequests(); // تحديث القائمة
-  } catch (err) {
-    toast(err.message || "فشل إتمام عملية الموافقة", "error");
-  } finally {
-    setSubmitting(false);
-  }
-};
-  // في handleViewRequest (أو عند setSelectedRequest)
-const handleViewRequest = async (req) => {
-  setSelectedRequest(req);
-  // إذا ما في صورة، جرب تجلبها من endpoint الـ identity-verification
-  if (!req.identityImageUrl && !req.identityImage) {
+  const handleApprove = async (workerId) => {
+    setSubmitting(true);
     try {
-      const res = await apiClient.get(
-        `/Admin/Users/${req.userId || req.user?.id}/identity-verification`
-      );
-      setSelectedRequest(prev => ({
-        ...prev,
-        identityImageUrl: res.data?.identityImageUrl
-      }));
-    } catch {}
-  }
-};
+      await approveIdentity(workerId);
+      toast("تم قبول طلب التوثيق بنجاح! تم تفعيل الشارة وإرسال إشعار للعامل 💬✓", "success");
+      setSelectedRequest(null);
+      loadRequests(); // تحديث القائمة
+    } catch (err) {
+      toast(err.message || "فشل إتمام عملية الموافقة", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // دالة رفض طلب التوثيق
   const handleReject = async () => {
-  if (!rejectionReason.trim()) {
-    toast("الرجاء كتابة سبب الرفض أولاً", "error");
-    return;
-  }
-  setSubmitting(true);
-  try {
-    // نمرر الـ id الصحيح للعامل مع سبب الرفض المكتوب
-    const workerId = selectedRequest.id; 
-    await rejectIdentity(workerId, rejectionReason);
-    
-    // إرسال توست النجاح للأدمن
-    toast(`تم رفض الطلب وإرسال سبب الرفض للعامل: (${rejectionReason}) ❌`, "success");
-    
-    setIsRejectModalOpen(false);
-    setSelectedRequest(null);
-    setRejectionReason("");
-    loadRequests(); // تحديث القائمة
-  } catch (err) {
-    toast(err.message || "فشل إرسال طلب الرفض", "error");
-  } finally {
-    setSubmitting(false);
-  }
-};
+    if (!rejectionReason.trim()) {
+      toast("الرجاء كتابة سبب الرفض أولاً", "error");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const workerId = selectedRequest.id; 
+      await rejectIdentity(workerId, rejectionReason);
+      toast(`تم رفض الطلب وإرسال سبب الرفض للعامل: (${rejectionReason}) ❌`, "success");
+      
+      setIsRejectModalOpen(false);
+      setSelectedRequest(null);
+      setRejectionReason("");
+      loadRequests(); // تحديث القائمة
+    } catch (err) {
+      toast(err.message || "فشل إرسال طلب الرفض", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -136,58 +113,50 @@ const handleViewRequest = async (req) => {
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {requests.map((req) => {
-  // 🎯 استخراج البيانات حسب الـ Dto الرسمي من الصورة:
-  const requestId = req.id; 
-const imageUrl = req.identityImageUrl || req.identityImage;
-  
-  // البيانات الشخصية موجودة داخل كائن user الملحق بالطلب
-  const userObj = req.user || {};
-  const firstName = userObj.firstName || "مستخدم";
-  const lastName = userObj.lastName || "غير معروف";
-  const phoneNumber = userObj.phoneNumber || "بدون رقم هاتف";
+          {requests.map((req) => {
+            // 🎯 تم التصحيح لتقرأ من الـ req المعرف بالـ map مية بالمية
+            const requestFirstName = req?.user?.firstName || req?.worker?.firstName || req?.firstName || "";
+            const requestLastName = req?.user?.lastName || req?.worker?.lastName || req?.lastName || "";
+            const displayFullName = `${requestFirstName} ${requestLastName}`.trim() || "مستخدم غير معروف";
+            const displayPhone = req?.user?.phoneNumber || req?.worker?.phoneNumber || req?.phoneNumber || "بدون رقم هاتف";
 
-  return (
-    <motion.div
-      layout
-      key={requestId} // الـ key صار يقرأ الـ id السمول المضمون مية بالمية
-      className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between"
-    >
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-11 h-11 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 font-bold border border-orange-100">
-            {firstName ? firstName[0] : "U"}
-          </div>
-          <div>
-            <h3 className="text-sm font-black text-gray-800">{firstName} {lastName}</h3>
-            <p className="text-[11px] text-gray-400" style={{ direction: 'ltr' }}>{phoneNumber}</p>
-          </div>
-        </div>
+            return (
+              <motion.div
+                layout
+                key={req.id || req.userId} // تم التصحيح هنا لـ req المضمون
+                className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex flex-col text-right mb-3">
+                    <h3 className="text-sm font-bold text-gray-800">
+                      {displayFullName}
+                    </h3>
+                    
+                  </div>
 
-        <div className="bg-gray-50 rounded-2xl p-3 mb-4 border border-gray-100/50 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-gray-600">
-            <FileText size={16} className="text-gray-400" />
-            <span className="text-xs font-medium">وثيقة الهوية الشخصية</span>
-          </div>
-          <span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold animate-pulse">معلق</span>
-        </div>
-      </div>
+                  <div className="bg-gray-50 rounded-2xl p-3 mb-4 border border-gray-100/50 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <FileText size={16} className="text-gray-400" />
+                      <span className="text-xs font-medium">وثيقة الهوية الشخصية</span>
+                    </div>
+                    <span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold animate-pulse">معلق</span>
+                  </div>
+                </div>
 
-      <button
-        onClick={() => setSelectedRequest(req)}
-        className="w-full py-2 bg-[#001e3c] text-white hover:bg-[#002d5a] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/10"
-      >
-        <Eye size={14} />
-        عرض ومراجعة الطلب
-      </button>
-    </motion.div>
-  );
-})}
-
+                <button
+                  onClick={() => setSelectedRequest(req)}
+                  className="w-full py-2 bg-[#001e3c] text-white hover:bg-[#002d5a] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/10"
+                >
+                  <Eye size={14} />
+                  عرض ومراجعة الطلب
+                </button>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
-      {/* ── 3️⃣ مودال تفاصيل طلب التوثيق والمراجعة ────────────────── */}
+      {/* ── مودال تفاصيل طلب التوثيق والمراجعة ────────────────── */}
       <AnimatePresence>
         {selectedRequest && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
@@ -206,61 +175,57 @@ const imageUrl = req.identityImageUrl || req.identityImage;
 
               <h2 className="text-base font-black text-gray-800 mb-4 flex items-center gap-2">
                 مراجعة وثيقة العامل: {selectedRequest.user?.firstName || selectedRequest.firstName} {selectedRequest.user?.lastName || selectedRequest.lastName}
-
               </h2>
 
-           {/* حاوية عرض الصورة المرفوعة من السيرفر */}
-
-<div className="w-full h-80 bg-gray-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-gray-100 mb-6">
-{selectedRequest?.identityImageUrl || selectedRequest?.identityImage ? (
-  <img 
-    src={(() => {
-      const raw = selectedRequest.identityImageUrl || selectedRequest.identityImage;
-      if (!raw) return null;
-      // إذا كان URL كامل استخدمه مباشرة
-      if (raw.startsWith("http")) return raw;
-      // إذا كان relative path أضف الـ base URL
-      return `https://tadbeer0.runasp.net/${raw.replace(/^\//, "")}`;
-    })()}
-    alt="Identity"
-    className="w-full h-full object-contain select-none"
-    onError={(e) => {
-      e.target.onerror = null;
-      e.target.src = "https://placehold.co/600x400?text=Error+Loading+Image";
-    }}
-  />
-  ) : (
-    <div className="text-center text-gray-400">
-      <FileText size={48} className="mx-auto mb-2 opacity-50" />
-      <p className="text-xs">مسار صورة الهوية غير متاح في رد السيرفر</p>
-    </div>
-  )}
-</div>
+              {/* حاوية عرض الصورة المرفوعة من السيرفر */}
+              <div className="w-full h-80 bg-gray-950 rounded-2xl overflow-hidden relative flex items-center justify-center border border-gray-100 mb-6">
+                {selectedRequest?.identityImageUrl || selectedRequest?.identityImage ? (
+                  <img 
+                    src={(() => {
+                      const raw = selectedRequest.identityImageUrl || selectedRequest.identityImage;
+                      if (!raw) return null;
+                      if (raw.startsWith("http")) return raw;
+                      return `https://tadbeer0.runasp.net/${raw.replace(/^\//, "")}`;
+                    })()}
+                    alt="Identity"
+                    className="w-full h-full object-contain select-none"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://placehold.co/600x400?text=Error+Loading+Image";
+                    }}
+                  />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <FileText size={48} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-xs">مسار صورة الهوية غير متاح في رد السيرفر</p>
+                  </div>
+                )}
+              </div>
 
               {/* أزرار اتخاذ القرار الإداري */}
               <div className="flex gap-3 justify-end border-t border-gray-50 pt-4">
-               <button
-  onClick={() => setIsRejectModalOpen(true)}
-  className="px-6 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition"
->
-  رفض الطلب
-</button>
+                <button
+                  onClick={() => setIsRejectModalOpen(true)}
+                  className="px-6 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition"
+                >
+                  رفض الطلب
+                </button>
                 
-  <button
-  disabled={submitting}
-  onClick={() => handleApprove(selectedRequest.id)} // 👈 مررنا الـ id المباشر فورا
-  className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-green-700/20"
->
-  {submitting ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
-  قبول وتوثيق الحساب
-</button>
+                <button
+                  disabled={submitting}
+                  onClick={() => handleApprove(selectedRequest.id)}
+                  className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-green-700/20"
+                >
+                  {submitting ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
+                  قبول وتوثيق الحساب
+                </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ── 4️⃣ مودال كتابة سبب الرفض ────────────────── */}
+      {/* ── مودال كتابة سبب الرفض ────────────────── */}
       <AnimatePresence>
         {isRejectModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">

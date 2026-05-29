@@ -17,24 +17,25 @@ export const getPendingVerifications = async () => {
  * 2. الموافقة على توثيق هوية مستخدم معين
  * POST /api/Admin/Users/{id}/identity-verification/approve
  */
-export const approveIdentity = async (userId) => {
+export const approveIdentity = async (id) => {
   try {
-    const response = await apiClient.post(`/Admin/Users/${userId}/identity-verification/approve`);
+    // تأكدي من حالة الأحرف الكابيتال للـ Users لتطابق سكيما السيرفر
+    const response = await apiClient.put(`/Admin/Users/${id}/approve-identity`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
-
 /**
  * 3. رفض توثيق هوية مستخدم معين مع إرسال السبب
  * POST /api/Admin/Users/{id}/identity-verification/reject
  */
-export const rejectIdentity = async (userId, reason) => {
+// التعديل السحري لدالة الرفض لتطابق الباكيند بالملي
+export const rejectIdentity = async (id, reason) => {
   try {
-    // الباكيند يتوقع المتغير "identityImageRejectionReason" في الـ Body
-    const response = await apiClient.post(`/Admin/Users/${userId}/identity-verification/reject`, {
-      identityImageRejectionReason: reason
+    // تمرير الـ reason داخل الـ params ليرسلها الأكسيوس بالـ URL كـ Query String
+    const response = await apiClient.put(`/Admin/Users/${id}/reject-identity`, null, {
+      params: { reason: reason }
     });
     return response.data;
   } catch (error) {
