@@ -39,50 +39,47 @@ const WorkerLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
- useEffect(() => {
-  let isMounted = true;
+  useEffect(() => {
+    let isMounted = true;
 
-  const fetchPending = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
+    const fetchPending = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
-      const res = await axios.get(
-        "https://tadbeer0.runasp.net/api/Worker/Bookings",
-        {
-          headers: { Authorization: `Bearer ${token}` },
+        const res = await axios.get(
+          "https://tadbeer0.runasp.net/api/Worker/Bookings",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        let items = [];
+        if (Array.isArray(res.data)) items = res.data;
+        else if (Array.isArray(res.data?.items)) items = res.data.items;
+        else if (Array.isArray(res.data?.data?.items)) items = res.data.data.items;
+
+        const count = items.filter(
+          b => b.status?.toLowerCase() === "pending"
+        ).length;
+
+        if (isMounted) {
+          setPendingCount(prev => (prev !== count ? count : prev));
         }
-      );
 
-      let items = [];
-      if (Array.isArray(res.data)) items = res.data;
-      else if (Array.isArray(res.data?.items)) items = res.data.items;
-      else if (Array.isArray(res.data?.data?.items)) items = res.data.data.items;
-
-      const count = items.filter(
-        b => b.status?.toLowerCase() === "pending"
-      ).length;
-
-      if (isMounted) {
-        setPendingCount(prev => (prev !== count ? count : prev));
+      } catch (err) {
+        console.log("error fetching pending");
       }
+    };
 
-    } catch (err) {
-      console.log("error fetching pending");
-    }
-  };
+    fetchPending();
+    const interval = setInterval(fetchPending, 3000);
 
-  // run immediately
-  fetchPending();
-
-  // run every 3 sec (NOT 10)
-  const interval = setInterval(fetchPending, 3000);
-
-  return () => {
-    isMounted = false;
-    clearInterval(interval);
-  };
-}, []);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") ?? "null"); }
@@ -99,17 +96,19 @@ const WorkerLayout = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const p = res.data;
+        
+        // 🎯 تضمين حقول التوثيق والرفض القادمة من الباكيند مباشرة لتحديث الـ State
         const updated = {
           id:           p.id           || p.workerId   || user?.id,
           name:         `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || user?.name,
           email:        p.email        || user?.email,
           role:         p.role         || user?.role,
+          isVerified:   p.isVerified   ?? false, 
+          identityImageRejectionReason: p.identityImageRejectionReason || null,
           specialty:    p.specialtyNames?.[0] || "فني متخصص",
           profileImage: (() => {
-            // Try every field name the API might use
             const raw = p.profileImage || p.ProfileImage || p.profileImageUrl
                      || p.ProfileImageUrl || p.image || p.Image || p.avatar || null;
-            console.log("[WorkerLayout] raw image field:", raw, "| full p keys:", Object.keys(p));
             if (!raw || raw === 'string') return null;
             return raw.startsWith('http') ? raw : `https://tadbeer0.runasp.net/${raw}`;
           })(),
@@ -147,34 +146,32 @@ const WorkerLayout = () => {
         transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0
         ${isSidebarOpen ? "translate-x-0" : "translate-x-full"}
       `}>
-       <div
-  onClick={() => navigate("/")}
-  className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/[0.07] cursor-pointer"
->
-  <div className="flex items-center gap-3">
-    <img
-      src="../../../public/logo.png"
-      alt="تدبير"
-      className="w-9 h-9 object-contain"
-    />
+        <div
+          onClick={() => navigate("/")}
+          className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/[0.07] cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="تدبير"
+              className="w-9 h-9 object-contain"
+            />
+            <div>
+              <h1 className="text-lg font-medium">تدبير</h1>
+              <p className="text-[9px] text-gray-400">العودة للموقع</p>
+            </div>
+          </div>
 
-    <div>
-      <h1 className="text-lg font-medium">تدبير</h1>
-      <p className="text-[9px] text-gray-400">العودة للموقع</p>
-    </div>
-  </div>
-
-  {/* close button only */}
-  <button
-    className="lg:hidden"
-    onClick={(e) => {
-      e.stopPropagation();
-      setIsSidebarOpen(false);
-    }}
-  >
-    <X size={20} />
-  </button>
-</div>
+          <button
+            className="lg:hidden"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSidebarOpen(false);
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         {/* Profile mini card */}
         <div className="mx-3 mt-4 mb-2 bg-white/5 rounded-xl p-3 flex items-center gap-3">
@@ -259,6 +256,62 @@ const WorkerLayout = () => {
 
         {/* Page content */}
         <div className="flex-1 overflow-y-auto p-6">
+          
+         {/* ─── 🔔 نظام الإشعارات الذكي والمؤتمت ─── */}
+<div className="w-full space-y-4 mb-6">
+  
+  {/* 1️⃣ حالة الرفض: تظهر لو الـ isVerified رجعت false من الباكيند وفي نص للسبب */}
+  {user?.isVerified === false && user?.identityImageRejectionReason && (
+    <div className="flex items-start gap-3 p-4 bg-red-50 border-r-4 border-red-500 rounded-xl animate-pulse text-right">
+      <div className="bg-red-500 text-white p-1.5 rounded-lg mt-0.5 flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h4 className="text-sm font-bold text-red-900 mb-0.5">⚠️ تم رفض طلب توثيق حسابك</h4>
+        <p className="text-xs text-red-700 leading-relaxed">
+          عذراً، لقد رفضت الإدارة طلب التوثيق الخاص بك بسبب: 
+          <span className="font-bold bg-red-100 px-1.5 py-0.5 rounded mx-1 text-red-900 font-mono">
+            "{user.identityImageRejectionReason}"
+          </span>
+        </p>
+        <p className="text-[11px] text-gray-500 mt-2">
+          يرجى التوجه إلى صفحة الإعدادات لتعديل بيانات الهوية وإعادة رفعها للمراجعة.
+        </p>
+      </div>
+    </div>
+  )}
+
+  {/* 2️⃣ حالة القبول والنجاح: ما دام الحساب بالـ Console طالع true، رح نخلي الإشعار يظهر عشان تشوفيه */}
+  {user?.isVerified === true && !localStorage.getItem(`welcomed_verified_${user?.id}`) && (
+    <div className="flex items-start gap-3 p-4 bg-emerald-50 border-r-4 border-emerald-500 rounded-xl text-right">
+      <div className="bg-emerald-500 text-white p-1.5 rounded-lg mt-0.5 flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h4 className="text-sm font-bold text-emerald-900 mb-0.5">🎉 مبروك! تم توثيق حسابك بنجاح</h4>
+        <p className="text-xs text-emerald-700 leading-relaxed">
+          أصبح حسابك الآن يحمل شارة التوثيق الرسمية في منصة **تدبير**. يمكنك الآن استقبال طلبات الصيانة بثقة أعلى!
+        </p>
+        <button 
+          onClick={() => {
+            localStorage.setItem(`welcomed_verified_${user?.id}`, 'true');
+            window.location.reload(); 
+          }}
+          className="text-[11px] text-emerald-800 underline mt-2 font-bold hover:text-emerald-900 block"
+        >
+          فهمت ذلك، إغلاق الإشعار ×
+        </button>
+      </div>
+    </div>
+  )}
+
+</div>
+          {/* ─────────────────────────────────────────────────── */}
+
           <Outlet context={{ user }} />
         </div>
       </div>

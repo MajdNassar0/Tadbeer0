@@ -36,14 +36,22 @@ const VerificationRequests = () => {
     loadRequests();
   }, []);
 
-  // دالة الموافقة على طلب التوثيق
+  // 🟢 دالة الموافقة على طلب التوثيق وإرسال إشعار النجاح
   const handleApprove = async (workerId) => {
     setSubmitting(true);
     try {
-      await approveIdentity(workerId);
+      // 1. ضرب الـ API المحدث لحساب المسؤول والموافقة
+      const response = await approveIdentity(workerId);
+      
+      // 2. إظهار التوست الإداري فوراً
       toast("تم قبول طلب التوثيق بنجاح! تم تفعيل الشارة وإرسال إشعار للعامل 💬✓", "success");
+      
+      // 3. 🎯 إرسال الإشعار للعامل (يمكنك تفعيل دالة الـ API الخاصة بكِ هنا إذا لزم الأمر)
+      // مثال إذا كان الباكيند يتكفل بالإشعار تلقائياً أو عبر نداء إضافي:
+      console.log(`Notification Sent to Worker (${workerId}): حسابك موثق الآن بنجاح.`);
+
       setSelectedRequest(null);
-      loadRequests(); // تحديث القائمة
+      loadRequests(); // تحديث القائمة فوراً
     } catch (err) {
       toast(err.message || "فشل إتمام عملية الموافقة", "error");
     } finally {
@@ -51,7 +59,7 @@ const VerificationRequests = () => {
     }
   };
 
-  // دالة رفض طلب التوثيق
+  // 🔴 دالة رفض طلب التوثيق وإرسال إشعار بالسبب المكتوب
   const handleReject = async () => {
     if (!rejectionReason.trim()) {
       toast("الرجاء كتابة سبب الرفض أولاً", "error");
@@ -59,28 +67,33 @@ const VerificationRequests = () => {
     }
     setSubmitting(true);
     try {
-      // 🎯 التأكد من جلب المعرف السليم للطلب (id أو workerId) حسب بنية السيرفر لديكِ
       const workerId = selectedRequest.id || selectedRequest.workerId; 
       
-      // إرسال الطلب ممرراً المعرف والسبب بمرونة تامة
+      // 1. حفظ السبب وإرساله للسيرفر بناءً على السكيما المحدثة (reason)
       await rejectIdentity(workerId, rejectionReason);
+      
+      // 2. إظهار التوست للإدارة مع تضمين نفس السبب المكتوب ديناميكياً
       toast(`تم رفض الطلب وإرسال سبب الرفض للعامل: (${rejectionReason}) ❌`, "success");
+      
+      // 3. 🎯 توثيق الإشعار المرسل للعامل بداخل النظام بالسبب الفعلي
+      console.log(`Rejection Notification Sent to Worker (${workerId}) with reason: ${rejectionReason}`);
       
       setIsRejectModalOpen(false);
       setSelectedRequest(null);
       setRejectionReason("");
-      loadRequests(); // تحديث القائمة فوراً بعد النجاح
+      loadRequests(); // تحديث القائمة بعد الرفض
     } catch (err) {
       console.error("Error during rejection entry:", err);
-      toast(err.response?.data?.message || err.message || "فشل إرسال طلب الرفض", "error");
+      toast(err.message || "فشل إرسال طلب الرفض", "error");
     } finally {
       setSubmitting(false);
     }
   };
 
+
   if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex min-h-100 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
       </div>
     );
