@@ -103,10 +103,11 @@ function StatusBar({ status }) {
 }
 
 // ── Worker hero card ──────────────────────────────────────────────────────────
-function WorkerHeroCard({ worker }) {
+function WorkerHeroCard({ worker, activeSpecialtyName }) {
   const img  = worker.profileImage && worker.profileImage !== "string"
     ? `${IMAGE_BASE}${worker.profileImage}` : null;
   const name = `${worker.firstName ?? ""} ${worker.lastName ?? ""}`.trim();
+  const displaySpecialty = activeSpecialtyName || worker.specialtyNames?.[0] || "فني متخصص";
 
   return (
     <div className="bg-[#001F3F] rounded-3xl p-6 flex items-center justify-between relative overflow-hidden">
@@ -114,7 +115,7 @@ function WorkerHeroCard({ worker }) {
       <div className="relative z-10 flex-1 min-w-0">
         <p className="text-gray-400 text-xs mb-1">الفني</p>
         <h2 className="text-white text-xl font-medium mb-1"> {name}</h2>
-        <p className="text-yellow-400 text-xs mb-3">✏️ {worker.specialtyNames?.[0] || "فني متخصص"}</p>
+        <p className="text-yellow-400 text-xs mb-3">✏️ {displaySpecialty}</p>
         <div className="flex flex-wrap gap-2">
           {worker.city && (
             <span className="bg-white/10 text-gray-300 text-[10px] px-3 py-1 rounded-full flex items-center gap-1">
@@ -154,7 +155,7 @@ function WorkerHeroCard({ worker }) {
 }
 
 // ── Review modal ──────────────────────────────────────────────────────────────
-function ReviewModal({ booking, onClose, onDone }) {
+function ReviewModal({ booking, specialtyName, onClose, onDone }) {
   const [loading, setLoading] = useState(false);
   const [done,    setDone   ] = useState(false);
   const [comment, setComment] = useState("");
@@ -166,10 +167,11 @@ function ReviewModal({ booking, onClose, onDone }) {
     try {
       const token = localStorage.getItem("token");
       await axios.post(`${API}/User/Reviews`, {
-        bookingId: booking.id,
-        workerId:  booking.workerId,
-        rate:      rating,
-        comment:   comment.trim() || null,
+        bookingId:  booking.id,
+        workerId:   booking.workerId,
+        specialtyId: booking.specialtyId ?? null,
+        rate:       rating,
+        comment:    comment.trim() || null,
       }, { headers: { Authorization: `Bearer ${token}` } });
       setDone(true);
       toast.success("تم إرسال التقييم بنجاح!");
@@ -191,7 +193,15 @@ function ReviewModal({ booking, onClose, onDone }) {
       <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
         <div className="p-8">
           <div className="flex justify-between items-center mb-6 border-b border-gray-50 pb-4">
-            <h3 className="text-lg font-bold text-[#001F3F]">تقييم الخدمة</h3>
+            <div>
+              <h3 className="text-lg font-bold text-[#001F3F]">تقييم الخدمة</h3>
+              {specialtyName && (
+                <p className="text-xs text-amber-600 font-bold mt-1 flex items-center gap-1">
+                  <Star size={11} className="fill-amber-500" />
+                  {specialtyName}
+                </p>
+              )}
+            </div>
             <button onClick={onClose} className="text-gray-300 hover:text-gray-500 transition-colors">
               <X size={24} />
             </button>
@@ -247,42 +257,48 @@ function ReviewModal({ booking, onClose, onDone }) {
 }
 
 // ── My bookings list ──────────────────────────────────────────────────────────
-function MyBookingsList({ workerId, refreshKey, onRate, navigate }) {
+function MyBookingsList({ workerId, specialtyId, specialtyName, refreshKey, onRate, navigate }) {
   const [bookings, setBookings] = useState(null);
   const [reviews,  setReviews ] = useState([]);
   const [page,     setPage    ] = useState(1);
   const pageSize = 3;
+
+  // Use a ref so load() always sees latest specialtyId without needing it in deps
+  const specialtyIdRef = React.useRef(specialtyId);
+  useEffect(() => { specialtyIdRef.current = specialtyId; }, [specialtyId]);
 
   const load = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
       const res = await axios.get(`${API}/User/Bookings`,
-        { headers: { Authorization: `Bearer ${token}` } });
-      const items = (res.data.items ?? res.data ?? [])
-        .filter(b => b.workerId === workerId)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        { headers: { Authorization: `Bearer ${token}` }, params: { workerId } });
+      let items = (res.data.items ?? res.data ?? [])
+        .filter(b => b.workerId === workerId);
+      const sid = specialtyIdRef.current;
+      if (sid) {
+        items = items.filter(b => String(b.specialtyId) === String(sid));
+      }
+      items = items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setBookings(items);
     } catch {
       setBookings([]);
     }
-  }, [workerId]);
+  }, [workerId]); // workerId only — specialtyId read via ref
 
   useEffect(() => {
     const loadReviews = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${API}/General/Reviews`, {
-          headers: { Authorization: `Bearer ${token}` },
-          params:  { workerId },
-        });
+        const params = { workerId, pageNumber: 1, pageSize: 100 };
+        if (specialtyId) params.specialtyId = specialtyId;
+        const res = await axios.get(`${API}/General/Reviews`, { params });
         setReviews(res.data.items ?? res.data ?? []);
       } catch {
         setReviews([]);
       }
     };
     loadReviews();
-  }, [workerId]);
+  }, [workerId, specialtyId]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -344,11 +360,17 @@ function MyBookingsList({ workerId, refreshKey, onRate, navigate }) {
                     <p className="text-xs font-bold text-gray-800 truncate mb-1">
                       {DAYS_AR[b.workingDay?.toLowerCase()] ?? b.workingDay}، {date}
                     </p>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-600">
+                    <div className="flex items-center gap-2 text-[10px] text-gray-600 flex-wrap">
                       <div className="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded-md border border-gray-200">
                         <Clock size={10} className="text-yellow-500" />
                         {b.startTime?.slice(0, 5)} – {b.endTime?.slice(0, 5)}
                       </div>
+                      {specialtyName && (
+                        <div className="flex items-center gap-1 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200">
+                          <Briefcase size={10} className="text-amber-500" />
+                          <span className="text-amber-600 font-bold">{specialtyName}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -407,6 +429,9 @@ const Booking = () => {
   const { workerId }   = useParams();
   const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // specialtyId passed from Workers/WorkerView via query param (GUID string)
+  const specialtyIdFromUrl = searchParams.get("specialtyId") || null;
 
   const [worker,     setWorker    ] = useState(null);
   const [loading,    setLoading   ] = useState(true);
@@ -477,7 +502,7 @@ const Booking = () => {
       if (!token) return;
       try {
         const res = await axios.get(`${API}/User/Bookings`,
-          { headers: { Authorization: `Bearer ${token}` } });
+          { headers: { Authorization: `Bearer ${token}` }, params: { workerId } });
         const items = (res.data.items ?? res.data ?? [])
           .filter(b => b.workerId === workerId &&
             !["cancelled"].includes(b.status?.toLowerCase()));
@@ -512,6 +537,19 @@ const Booking = () => {
   }, [booked]);
 
   const workingHours = worker?.workingHours ?? [];
+
+  // Resolve the specialty name for the current context (GUIDs — string comparison)
+  const activeSpecialtyName = (() => {
+    if (!worker) return null;
+    if (specialtyIdFromUrl) {
+      const idx = worker.specialtyIds?.findIndex(id => String(id) === specialtyIdFromUrl);
+      if (idx != null && idx !== -1) return worker.specialtyNames?.[idx] ?? null;
+    }
+    return worker.specialtyNames?.[0] ?? null;
+  })();
+
+  // specialtyId to send to the API — use URL param or fall back to first specialty
+  const resolvedSpecialtyId = specialtyIdFromUrl ?? worker?.specialtyIds?.[0] ?? null;
 
   const getDayName = (year, month, day) =>
     JS_DAY_TO_NAME[new Date(year, month, day).getDay()];
@@ -605,6 +643,7 @@ const Booking = () => {
       const bookingDate = `${selDate.year}-${pad(selDate.month + 1)}-${pad(selDate.day)}`;
       const res = await axios.post(`${API}/User/Bookings`, {
         workerId,
+        specialtyId:   resolvedSpecialtyId,
         workingHourId: selSlot.workingHourId,
         bookingDate,
         startTime: selSlot.startTime,
@@ -616,19 +655,32 @@ const Booking = () => {
       setRefreshKey(k => k + 1);
       toast.success("تم الحجز بنجاح!");
     } catch (err) {
-      const msg  = err.response?.data?.message || err.response?.data?.title || "";
+      const apiData = err.response?.data;
+      const msg = apiData?.message || apiData?.title || "";
+      const detail = typeof apiData === "object" ? JSON.stringify(apiData) : String(apiData ?? "");
       const lmsg = msg.toLowerCase();
-      if (lmsg.includes("outside") || lmsg.includes("availability")) {
+
+      console.error("Booking API error:", {
+        status: err.response?.status,
+        data: apiData,
+        sent: {
+          workerId,
+          specialtyId: resolvedSpecialtyId,
+          workingHourId: selSlot?.workingHourId,
+        }
+      });
+
+      if (err.response?.status === 401) {
+        toast.error("يرجى تسجيل الدخول أولاً");
+        navigate("/auth/login");
+      } else if (lmsg.includes("outside") || lmsg.includes("availability")) {
         toast.error("الوقت المختار خارج أوقات عمل الفني");
       } else if (lmsg.includes("already booked") || lmsg.includes("conflict")) {
         toast.error("هذا الموعد محجوز بالفعل، يرجى اختيار وقت آخر");
-      } else if (err.response?.status === 401) {
-        toast.error("يرجى تسجيل الدخول أولاً");
-        navigate("/auth/login");
       } else if (err.response?.status === 400) {
-        toast.error("بيانات الحجز غير صحيحة، يرجى المحاولة مجدداً");
+        toast.error("خطأ 400: " + (msg || detail || "بيانات غير صحيحة"));
       } else {
-        toast.error("فشل الحجز، يرجى المحاولة مجدداً");
+        toast.error("فشل الحجز (" + (err.response?.status ?? "network") + "): " + (msg || "يرجى فتح F12 والضغط Console"));
       }
     } finally {
       setSubmitting(false);
@@ -662,6 +714,7 @@ const Booking = () => {
       {rateBook && (
         <ReviewModal
           booking={rateBook}
+          specialtyName={activeSpecialtyName}
           onClose={() => setRateBook(null)}
           onDone={() => { setRateBook(null); setRefreshKey(k => k + 1); }}
         />
@@ -676,8 +729,7 @@ const Booking = () => {
           <ArrowRight size={16} /> العودة للفنيين
         </button>
 
-        <WorkerHeroCard worker={worker} />
-        <StatusBar status={liveStatus} />
+        <WorkerHeroCard worker={worker} activeSpecialtyName={activeSpecialtyName} />
 
         {/* Booking details */}
         <div className="bg-white rounded-3xl border border-gray-200 p-6 space-y-3">
@@ -710,6 +762,28 @@ const Booking = () => {
               <p className="text-xs text-yellow-800 font-medium">في انتظار موافقة الفني على حجزك</p>
             </div>
           )}
+          {liveStatus === "Pending" && bookingRes?.id && (
+            <button
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem("token");
+                  await axios.patch(
+                    `${API}/User/Bookings/${bookingRes.id}/cancel`,
+                    {},
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                  setLiveStatus("Cancelled");
+                  setRefreshKey(k => k + 1);
+                  toast.success("تم إلغاء الحجز");
+                } catch {
+                  toast.error("فشل إلغاء الحجز، يرجى المحاولة مجدداً");
+                }
+              }}
+              className="w-full border border-red-200 text-red-500 py-3 rounded-2xl text-sm font-medium hover:bg-red-50 transition-colors"
+            >
+              إلغاء الحجز
+            </button>
+          )}
           {liveStatus === "Confirmed" && (
             <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-2xl p-3">
               <CheckCircle2 size={14} className="text-blue-600 flex-shrink-0" />
@@ -734,6 +808,8 @@ const Booking = () => {
 
         <MyBookingsList
           workerId={workerId}
+          specialtyId={specialtyIdFromUrl}
+          specialtyName={activeSpecialtyName}
           refreshKey={refreshKey}
           onRate={b => setRateBook(b)}
           navigate={navigate}
@@ -769,11 +845,12 @@ const Booking = () => {
         {/* ── Left: form ── */}
         <div className="lg:col-span-2 space-y-5">
 
-          <WorkerHeroCard worker={worker} />
+          <WorkerHeroCard worker={worker} activeSpecialtyName={activeSpecialtyName} />
 
           {rateBook && (
             <ReviewModal
               booking={rateBook}
+              specialtyName={activeSpecialtyName}
               onClose={() => setRateBook(null)}
               onDone={() => { setRateBook(null); setRefreshKey(k => k + 1); }}
             />
@@ -942,7 +1019,7 @@ const Booking = () => {
               { icon: <MapPin size={14} className="text-yellow-500" />, label: "الموقع",
                 value: worker.city || null },
               { icon: <Briefcase size={14} className="text-yellow-500" />, label: "التخصص",
-                value: worker.specialtyNames?.[0] || null },
+                value: activeSpecialtyName || null },
             ].map((row, i) => (
               // ✅ sidebar rows: darker border + darker label
               <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl text-xs border border-gray-200">
@@ -1012,6 +1089,8 @@ const Booking = () => {
       {/* Previous bookings with this worker */}
       <MyBookingsList
         workerId={workerId}
+        specialtyId={specialtyIdFromUrl}
+        specialtyName={activeSpecialtyName}
         refreshKey={refreshKey}
         onRate={b => setRateBook(b)}
         navigate={navigate}

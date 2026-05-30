@@ -111,12 +111,11 @@ const Reports = () => {
     }
 
     try {
-      const revRes = await axios.get(`${API_BASE}/General/Reviews`, h);
+      const revRes = await axios.get(`${API_BASE}/General/Reviews`, {
+        params: { workerId, pageNumber: 1, pageSize: 100 },
+      });
       const raw = revRes.data.items ?? revRes.data ?? [];
-      const mine = Array.isArray(raw)
-        ? raw.filter(r => !workerId || r.workerId === workerId)
-        : [];
-      setReviews(mine);
+      setReviews(Array.isArray(raw) ? raw : []);
     } catch { setReviews([]); }
   }, [navigate, workerId]);
 

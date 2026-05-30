@@ -66,7 +66,7 @@ const WorkerSidebar = ({
               <p className="text-sm font-bold text-gray-800">{fullName}</p>
               
               <div className="mt-2 flex justify-center">
-                <StarRating rating={worker?.rating || 0} size={12} />
+                <StarRating rating={worker?.avgRating || 0} size={12} />
               </div>
             </>
           )}
