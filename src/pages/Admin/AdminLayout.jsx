@@ -30,12 +30,12 @@ function Avatar({ name, src }) {
 }
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "لوحة القيادة",     to: "/admin"             },
+  { icon: LayoutDashboard, label: "لوحة القيادة",      to: "/admin"             },
   { icon: Users,           label: "إدارة المستخدمين", to: "/admin/users"       },
   { icon: UserCog,         label: "إدارة الفنيين",    to: "/admin/technicians" },
   { icon: ShieldCheck,     label: "طلبات التوثيق",    to: "/admin/verifications" },
   { icon: BarChart3,       label: "التقارير",         to: "/admin/reports"     },
-  { icon: Settings,        label: "الإعدادat",        to: "/admin/settings"    },
+  { icon: Settings,        label: "الإعدادات",        to: "/admin/settings"    },
 ];
 
 // ── layout ────────────────────────────────────────────────────────────────────
@@ -62,11 +62,16 @@ const AdminLayout = () => {
       }
 
       try {
-        // 🎯 تعديل استخدام الـ apiClient المخصص والمحمي بالـ Interceptor
-        const res = await apiClient.get("/Admin/Profile/me");
+        // 🎯 التعديل الجوهري: تحديد رابط البروفايل ديناميكياً لتفادي الـ 403 للسوبر أدمن
+        let profileEndpoint = "/Admin/Profile/me";
+        if (role === "superadmin") {
+          profileEndpoint = "/Admin/SuperAdminProfile/me";
+        }
+
+        const res = await apiClient.get(profileEndpoint);
         
         const updated = {
-          name:         res.data.fullName || res.data.name || admin?.name,
+          name:         res.data.fullName || res.data.firstName + " " + res.data.lastName || res.data.name || admin?.name,
           email:        res.data.email    || admin?.email,
           role:         res.data.role     || admin?.role,
           profileImage: res.data.profileImage ?? null,

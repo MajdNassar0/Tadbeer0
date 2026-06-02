@@ -8,6 +8,7 @@ import axios from "axios";
 import { Toaster, toast } from "sonner";
 import { jwtDecode } from "jwt-decode";
 import apiClient from "../../API/axiosConfig";
+
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -64,14 +65,18 @@ const Login = () => {
 
           const role = user.role?.trim().toLowerCase();
 
-          // 2. جلب تفاصيل البروفايل بناءً على الدور الدقيق (أدمن، عامل، أو مستخدم)
+          // 2. جلب تفاصيل البروفايل بناءً على الدور الدقيق (سوبر أدمن، أدمن، عامل، أو مستخدم)
           try {
-            let profileUrl = "https://tadbeer0.runasp.net/api/User/Profile/me"; // الافتراضي للمستخدم العادي
+            let profileUrl = "https://tadbeer0.runasp.net/api/User/Profile/me"; // الافتراضي للمخدم العادي
 
             if (role === "worker") {
               profileUrl = "https://tadbeer0.runasp.net/api/Worker/Profile/me";
-            } else if (role === "admin" || role === "superadmin") {
-              profileUrl = "https://tadbeer0.runasp.net/api/Admin/Profile/me"; // 🎯 حل مشكلة الـ 403 للأدمن
+            } else if (role === "superadmin") {
+              // 👑 الرابط الصحيح والمخصص للسوبر أدمن لمنع الـ 403 نهائياً
+              profileUrl = "https://tadbeer0.runasp.net/api/Admin/SuperAdminProfile/me";
+            } else if (role === "admin") {
+              // 🔧 الرابط الخاص بالأدمن العادي
+              profileUrl = "https://tadbeer0.runasp.net/api/Admin/Profile/me"; 
             }
 
             const profileRes = await axios.get(profileUrl, {
@@ -95,7 +100,7 @@ const Login = () => {
           // 3. تخزين التوكن وإتمام الدخول
           localStorage.setItem("token", token);
           
-          // 🎯 التعديل الجوهري: حقن التوكن في الـ apiClient والـ axios العادي فوراً لحماية أولى طلبات الـ Layout
+          // حقن التوكن في الـ apiClient والـ axios العادي فوراً لحماية أولى طلبات الـ Layout
           if (apiClient.defaults.headers.common) {
             apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
           }
@@ -114,7 +119,7 @@ const Login = () => {
           // 5. تأخير ليظهر الـ Toast قبل الانتقال
           await new Promise((res) => setTimeout(res, 1200));
 
-          // 5. التوجيه بناءً على الدور
+          // 6. التوجيه بناءً على الدور
           if (role === "admin" || role === "superadmin") navigate("/admin");
           else if (role === "worker") navigate("/technical");
           else navigate("/");
@@ -219,7 +224,6 @@ const Login = () => {
                     placeholder="كلمة المرور"
                     autoComplete="current-password"
                     className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-12 text-right transition-colors
-                    [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden
                     ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
                     focus:outline-none focus:border-blue-900`}
                   />
