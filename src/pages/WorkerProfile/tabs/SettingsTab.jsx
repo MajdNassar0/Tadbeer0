@@ -25,10 +25,10 @@ const SettingsTab = ({
   // ✅ الـ Backend بيستخدم "Existed" / "Deleted" بدل "Active" / "Inactive"
   const isInactive = worker?.status === "Deleted";
 
-  // 🔍 فحص حالة توثيق الهوية لبناء الـ UX الذكي
-  const isVerified = worker?.isVerified;
-  const hasIdentityImage = worker?.hasIdentityImage;
-  const rejectionReason = worker?.identityImageRejectionReason;
+  
+  const isVerified = worker?.isIdentityVerified;
+const hasIdentityImage = !!worker?.identityImageUrl;
+const rejectionReason = worker?.identityImageRejectionReason;
 
   // إعداد الحالات الافتراضية لزر التوثيق
   let verifyActionText = "توثيق";
