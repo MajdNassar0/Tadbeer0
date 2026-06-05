@@ -39,6 +39,7 @@ const WorkerLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
+  // ─── جلب الحجوزات المنتظرة بشكل دوري (Polling) ───
   useEffect(() => {
     let isMounted = true;
 
@@ -86,6 +87,7 @@ const WorkerLayout = () => {
     catch { return null; }
   });
 
+  // ─── جلب بيانات الحساب وتحديث الـ State بالتوافق مع الباكيند ───
   useEffect(() => {
     const load = async () => {
       const token = localStorage.getItem("token");
@@ -97,13 +99,15 @@ const WorkerLayout = () => {
         );
         const p = res.data;
         
-        // 🎯 تضمين حقول التوثيق والرفض القادمة من الباكيند مباشرة لتحديث الـ State
         const updated = {
           id:           p.id           || p.workerId   || user?.id,
           name:         `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || user?.name,
           email:        p.email        || user?.email,
           role:         p.role         || user?.role,
-          isVerified:   p.isVerified   ?? false, 
+          
+          // 🟢 تعديل لمطابقة الباكيند: قراءة حالة التوثيق الصحيحة وحفظها
+          isIdentityVerified: p.isIdentityVerified ?? null, 
+          
           identityImageRejectionReason: p.identityImageRejectionReason || null,
           specialty:    p.specialtyNames?.[0] || "فني متخصص",
           profileImage: (() => {
@@ -257,59 +261,65 @@ const WorkerLayout = () => {
         {/* Page content */}
         <div className="flex-1 overflow-y-auto p-6">
           
-         {/* ─── 🔔 نظام الإشعارات الذكي والمؤتمت ─── */}
-<div className="w-full space-y-4 mb-6">
-  
-  {/* 1️⃣ حالة الرفض: تظهر لو الـ isVerified رجعت false من الباكيند وفي نص للسبب */}
-  {user?.isVerified === false && user?.identityImageRejectionReason && (
-    <div className="flex items-start gap-3 p-4 bg-red-50 border-r-4 border-red-500 rounded-xl animate-pulse text-right">
-      <div className="bg-red-500 text-white p-1.5 rounded-lg mt-0.5 flex-shrink-0">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      </div>
-      <div className="flex-1">
-        <h4 className="text-sm font-bold text-red-900 mb-0.5">⚠️ تم رفض طلب توثيق حسابك</h4>
-        <p className="text-xs text-red-700 leading-relaxed">
-          عذراً، لقد رفضت الإدارة طلب التوثيق الخاص بك بسبب: 
-          <span className="font-bold bg-red-100 px-1.5 py-0.5 rounded mx-1 text-red-900 font-mono">
-            "{user.identityImageRejectionReason}"
-          </span>
-        </p>
-        <p className="text-[11px] text-gray-500 mt-2">
-          يرجى التوجه إلى صفحة الإعدادات لتعديل بيانات الهوية وإعادة رفعها للمراجعة.
-        </p>
-      </div>
-    </div>
-  )}
+          {/* ─── 🔔 نظام الإشعارات الذكي والمؤتمت ─── */}
+          <div className="w-full space-y-4 mb-6">
+            
+            {/* طباعة كونسول لتتبع الداتا القادمة من السيرفر بكل سهولة */}
+            {console.log("بيانات توثيق الهوية المحدثة:", {
+              isIdentityVerified: user?.isIdentityVerified,
+              reason: user?.identityImageRejectionReason
+            })}
 
-  {/* 2️⃣ حالة القبول والنجاح: ما دام الحساب بالـ Console طالع true، رح نخلي الإشعار يظهر عشان تشوفيه */}
-  {user?.isVerified === true && !localStorage.getItem(`welcomed_verified_${user?.id}`) && (
-    <div className="flex items-start gap-3 p-4 bg-emerald-50 border-r-4 border-emerald-500 rounded-xl text-right">
-      <div className="bg-emerald-500 text-white p-1.5 rounded-lg mt-0.5 flex-shrink-0">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <div className="flex-1">
-        <h4 className="text-sm font-bold text-emerald-900 mb-0.5">🎉 مبروك! تم توثيق حسابك بنجاح</h4>
-        <p className="text-xs text-emerald-700 leading-relaxed">
-          أصبح حسابك الآن يحمل شارة التوثيق الرسمية في منصة **تدبير**. يمكنك الآن استقبال طلبات الصيانة بثقة أعلى!
-        </p>
-        <button 
-          onClick={() => {
-            localStorage.setItem(`welcomed_verified_${user?.id}`, 'true');
-            window.location.reload(); 
-          }}
-          className="text-[11px] text-emerald-800 underline mt-2 font-bold hover:text-emerald-900 block"
-        >
-          فهمت ذلك، إغلاق الإشعار ×
-        </button>
-      </div>
-    </div>
-  )}
+            {/* 1️⃣ حالة الرفض: تعتمد على الحقل المعدل ووجود السبب */}
+            {(user?.isIdentityVerified === false || String(user?.isIdentityVerified).toLowerCase() === "false") && user?.identityImageRejectionReason && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border-r-4 border-red-500 rounded-xl text-right">
+                <div className="bg-red-500 text-white p-1.5 rounded-lg mt-0.5 flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-red-900 mb-0.5">⚠️ تم رفض طلب توثيق حسابك</h4>
+                  <p className="text-xs text-red-700 leading-relaxed">
+                    عذراً، لقد رفضت الإدارة طلب التوثيق الخاص بك بسبب: 
+                    <span className="font-bold bg-red-100 px-1.5 py-0.5 rounded mx-1 text-red-900">
+                      "{user.identityImageRejectionReason}"
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-2">
+                    يرجى التوجه إلى صفحة الإعدادات لتعديل بيانات الهوية وإعادة رفعها للمراجعة.
+                  </p>
+                </div>
+              </div>
+            )}
 
-</div>
+            {/* 2️⃣ حالة القبول والنجاح: تظهر فور أن تصبح القيمة true ولم يغلق الفني الإشعار مسبقاً */}
+            {(user?.isIdentityVerified === true || String(user?.isIdentityVerified).toLowerCase() === "true") && !localStorage.getItem(`welcomed_verified_${user?.id}`) && (
+              <div className="flex items-start gap-3 p-4 bg-emerald-50 border-r-4 border-emerald-500 rounded-xl text-right">
+                <div className="bg-emerald-500 text-white p-1.5 rounded-lg mt-0.5 flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-emerald-900 mb-0.5">🎉 مبروك! تم توثيق حسابك بنجاح</h4>
+                  <p className="text-xs text-emerald-700 leading-relaxed">
+                    أصبح حسابك الآن يحمل شارة التوثيق الرسمية في منصة **تدبير**. يمكنك الآن استقبال طلبات الصيانة بثقة أعلى!
+                  </p>
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem(`welcomed_verified_${user?.id}`, 'true');
+                      window.location.reload(); 
+                    }}
+                    className="text-[11px] text-emerald-800 underline mt-2 font-bold hover:text-emerald-900 block"
+                  >
+                    فهمت ذلك، إغلاق الإشعار ×
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
           {/* ─────────────────────────────────────────────────── */}
 
           <Outlet context={{ user }} />
