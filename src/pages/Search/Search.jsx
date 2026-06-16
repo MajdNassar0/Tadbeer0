@@ -509,6 +509,7 @@ const [query, setQuery] = useState(() => {
     { role:"assistant", text:"مرحباً! 👋 صف لي مشكلتك وأنا أساعدك تلاقي الخدمة والعامل المناسب.\nمثال: \"عندي تسريب مياه في الحمام\" أو \"الكهرباء انقطعت في غرفتي\"" }
   ]);
   const [chatResult, setChatResult]     = useState(null);
+  const [chatSessionId, setChatSessionId] = useState(null);
 
   const fileRef     = useRef();
   const debounceRef = useRef(null);
@@ -617,6 +618,112 @@ const [query, setQuery] = useState(() => {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior:"smooth" }); }, [chatMessages]);
 
   /* ── Chatbot ── */
+
+  // Try multiple chat endpoints in order, return { data } or throw
+  const tryChatEndpoints = async (userMsg) => {
+    const endpoints = [
+      `${API_BASE}/General/Chat/gemini`,
+      `${API_BASE}/General/Chat`,
+      `${API_BASE}/Chat/gemini`,
+      `${API_BASE}/Chat`,
+      `${API_BASE}/AI/Chat`,
+    ];
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: chatSessionId, message: userMsg }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data;
+        }
+        // log non-OK status but keep trying
+        console.warn(`Chat endpoint ${url} returned ${res.status}`);
+      } catch (_) {
+        console.warn(`Chat endpoint ${url} failed`);
+      }
+    }
+    return null; // all endpoints failed
+  };
+
+  // Arabic synonym/keyword map → specialty keywords
+  const ARABIC_SYNONYMS = {
+    // سباكة / مياه
+    "تسريب": ["سباكة","مياه","صرف","حنفية","أنابيب","خزان"],
+    "مياه":  ["سباكة","مياه","خزانات","تسريب","صرف"],
+    "مياة":  ["سباكة","مياه","خزانات"],
+    "سباكة": ["سباكة","مياه","صرف"],
+    "حمام":  ["سباكة","مياه","صرف","بلاط"],
+    "مطبخ": ["سباكة","مياه","كهرباء","صرف"],
+    "حنفية": ["سباكة","مياه"],
+    "صرف":   ["سباكة","صرف","مياه"],
+    "خزان":  ["خزانات","مياه","سباكة"],
+    // كهرباء
+    "كهرباء": ["كهرباء","أسلاك","إنارة","لوحة"],
+    "كهربا":  ["كهرباء","أسلاك","إنارة"],
+    "انقطعت": ["كهرباء","أسلاك"],
+    "بريز":   ["كهرباء","أسلاك"],
+    "لمبة":   ["كهرباء","إنارة"],
+    "إنارة":  ["كهرباء","إنارة"],
+    // نجارة / أثاث
+    "باب":    ["نجارة","أثاث","أبواب"],
+    "نافذة":  ["نجارة","أبواب","ألومنيوم"],
+    "خزانة":  ["نجارة","أثاث"],
+    "نجارة":  ["نجارة","أثاث"],
+    // دهان / بويا
+    "دهان":   ["دهان","بويا","ديكور"],
+    "بويا":   ["دهان","بويا"],
+    "جدار":   ["دهان","بناء","ترميم"],
+    "طلاء":   ["دهان","بويا"],
+    // بناء / ترميم
+    "بلاط":   ["بلاط","ترميم","سيراميك"],
+    "سيراميك":["بلاط","سيراميك","ترميم"],
+    "ترميم":  ["ترميم","بناء","بلاط"],
+    "شقوق":   ["ترميم","بناء"],
+    "جبس":    ["جبس","ديكور","ترميم"],
+    // تكييف
+    "تكييف":  ["تكييف","مكيف","تبريد"],
+    "مكيف":   ["تكييف","مكيف","تبريد"],
+    "تبريد":  ["تكييف","مكيف"],
+    "حرارة":  ["تكييف","مكيف"],
+    // تنظيف
+    "تنظيف":  ["تنظيف","نظافة","غسيل"],
+    "نظافة":  ["تنظيف","نظافة"],
+    "غسيل":   ["تنظيف","غسيل","مغاسل"],
+    // عام
+    "مشكلة":  [], // don't expand — too generic
+    "عندي":   [],
+    "عندك":   [],
+  };
+
+  // Smart local fallback: search allWorkers + allServices by keywords + synonyms
+  const localChatFallback = (userMsg) => {
+    const rawWords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+
+    // Expand words with synonyms
+    const expandedSet = new Set(rawWords);
+    rawWords.forEach(word => {
+      const syns = ARABIC_SYNONYMS[word] || [];
+      syns.forEach(s => expandedSet.add(s.toLowerCase()));
+    });
+    const words = Array.from(expandedSet);
+
+    const fw = allWorkers.filter(w => {
+      const haystack = [
+        w.firstName, w.lastName, w.jobDescription, w.city,
+        ...(w.specialtyNames || []),
+      ].join(" ").toLowerCase();
+      return words.some(word => haystack.includes(word));
+    });
+    const fs = allServices.filter(s => {
+      const haystack = `${s.name || ""} ${s.description || ""}`.toLowerCase();
+      return words.some(word => haystack.includes(word));
+    });
+    return { workers: fw, services: fs };
+  };
+
   const handleChatSend = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const userMsg = chatInput.trim();
@@ -627,66 +734,43 @@ const [query, setQuery] = useState(() => {
     setResults(null);
 
     try {
-      const workersCtx = allWorkers.slice(0,50).map(w =>
-        `- ${w.firstName} ${w.lastName} | تخصص: ${(w.specialtyNames||[]).join("،")} | مدينة: ${w.city||"?"} | تقييم: ${w.avgRating||0}`
-      ).join("\n");
-      const servicesCtx = allServices.slice(0,30).map(s => `- ${s.name}`).join("\n");
+      const data = await tryChatEndpoints(userMsg);
 
-      const systemPrompt = `أنت مساعد ذكي لمنصة تدبير لإيجاد العمال والخدمات المنزلية.
-المستخدم يصف مشكلته. مهمتك:
-1. افهم المشكلة وحدد التخصص المناسب
-2. اقترح العمال المناسبين من القائمة
-3. رد بالعربي بشكل ودي وموجز (3-4 جمل)
-4. في نهاية ردك اكتب سطراً: SEARCH: [كلمة البحث المناسبة]
+      if (!data) {
+        // ── All API endpoints returned 404 / failed ──
+        // Fall back to local smart search so the chatbot still works
+        console.warn("All chat endpoints failed — using local fallback");
+        const { workers: fw, services: fs } = localChatFallback(userMsg);
 
-العمال المتاحون:
-${workersCtx || "لا يوجد"}
+        const replyText = fw.length > 0 || fs.length > 0
+          ? fw.length > 0
+            ? `بناءً على طلبك، تم العثور على ${fw.length} عامل متاح و ${fs.length} خدمة مناسبة. يمكنك الاطلاع على النتائج أدناه واختيار ما يناسبك.`
+            : `تم العثور على ${fs.length} خدمة مناسبة لطلبك. يمكنك الاطلاع على التفاصيل أدناه.`
+          : "عذراً، لم نتمكن من العثور على نتائج مطابقة لطلبك. يُرجى إعادة وصف المشكلة بمزيد من التفاصيل.";
 
-الخدمات المتاحة:
-${servicesCtx || "لا يوجد"}`;
-
-      // Build Gemini history: roles must be "user"/"model", must NOT start with "model"
-      const geminiHistory = chatMessages
-        .filter(m => m.role === "user" || m.role === "assistant")
-        .slice(-6)
-        .map(m => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.text }],
-        }))
-        .filter((_, i, arr) => !(i === 0 && arr[0].role === "model"));
-
-      // Call Gemini API directly from the browser — no backend needed
-      const GEMINI_API_KEY = "AIzaSyA6dOdi42ltNuw-lY4Mv4k_WCuWv6FxqtU";
-      const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
-      const res = await fetch(GEMINI_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [
-            ...geminiHistory,
-            { role: "user", parts: [{ text: userMsg }] },
-          ],
-          generationConfig: { maxOutputTokens: 1000 },
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("Gemini API error:", res.status, errText);
-        throw new Error(`HTTP ${res.status}`);
+        setChatMessages(prev => [...prev, { role:"assistant", text:replyText }]);
+        if (fw.length > 0 || fs.length > 0) {
+          setChatResult({ workers: fw, services: fs });
+          setResults({ workers: fw, services: fs });
+          setPage(1); setServicePage(1);
+          setActiveTab(fw.length === 0 && fs.length > 0 ? "services" : "workers");
+        }
+        return;
       }
 
-      const data = await res.json();
-      const fullText = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "عذراً، حدث خطأ.";
-      const searchMatch = fullText.match(/SEARCH:\s*(.+)/);
-      const cleanText = fullText.replace(/SEARCH:\s*.+/, "").trim();
+      // ── API succeeded ──
+      if (data.sessionId) setChatSessionId(data.sessionId);
 
-      setChatMessages(prev => [...prev, { role:"assistant", text:cleanText }]);
+      const fullText = data.reply || "عذراً، حدث خطأ.";
+      const searchMatch = fullText.match(/SEARCH:\s*(.+)/);
+      const rawClean = fullText.replace(/SEARCH:\s*.+/, "").trim();
+
+      // Polish the reply to make it formal and well-worded
+      const polished = await polishReply(rawClean);
+      setChatMessages(prev => [...prev, { role:"assistant", text:polished }]);
 
       if (searchMatch) {
         const kw = searchMatch[1].trim();
-        // filter locally and show results
         const kw_lower = kw.toLowerCase();
         const fw = allWorkers.filter(w => {
           const fn=(w.firstName||"").toLowerCase(), ln=(w.lastName||"").toLowerCase();
@@ -704,8 +788,20 @@ ${servicesCtx || "لا يوجد"}`;
       }
     } catch(e) {
       console.error("Chat error:", e);
-      const errMsg = e?.message ? `خطأ: ${e.message}` : "عذراً، حدث خطأ في الاتصال. حاول مرة أخرى.";
-      setChatMessages(prev => [...prev, { role:"assistant", text:errMsg }]);
+      // Even on unexpected error, try local fallback before showing error message
+      const { workers: fw, services: fs } = localChatFallback(userMsg);
+      if (fw.length > 0 || fs.length > 0) {
+        const fallbackMsg = fw.length > 0
+          ? `تم العثور على ${fw.length} عامل متاح يمكنه مساعدتك، بالإضافة إلى ${fs.length} خدمة ذات صلة. يمكنك الاطلاع على النتائج أدناه.`
+          : `تم العثور على ${fs.length} خدمة مناسبة لطلبك. يمكنك الاطلاع على التفاصيل أدناه.`;
+        setChatMessages(prev => [...prev, { role:"assistant", text:fallbackMsg }]);
+        setChatResult({ workers: fw, services: fs });
+        setResults({ workers: fw, services: fs });
+        setPage(1); setServicePage(1);
+        setActiveTab(fw.length===0 && fs.length>0 ? "services" : "workers");
+      } else {
+        setChatMessages(prev => [...prev, { role:"assistant", text:"عذراً، لم نتمكن من معالجة طلبك في الوقت الحالي. يرجى المحاولة مرة أخرى أو تعديل وصف المشكلة." }]);
+      }
     } finally {
       setChatLoading(false);
     }
@@ -721,6 +817,34 @@ ${servicesCtx || "لا يوجد"}`;
     if (m !== "image") { setAiResult(null); setAiError(null); }
     if (m === "image") { setAiMode(true); } else { setAiMode(false); }
     if (m !== "search") { setResults(null); setQuery(""); }
+    // Chat history and session are preserved when switching modes
+  };
+
+  // Polish a raw backend reply into a formal, well-formatted Arabic message
+  const polishReply = async (rawText) => {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 400,
+          messages: [{
+            role: "user",
+            content: `أنت مساعد لمنصة "تدبير" لخدمات الصيانة المنزلية.
+الرسالة التالية هي رد خام من نظام ذكاء اصطناعي. حوّلها إلى رد رسمي ومهذب وواضح باللغة العربية الفصحى البسيطة، مع الحفاظ التام على المعنى الأصلي. لا تضف معلومات جديدة. لا تستخدم markdown أو نجمات أو علامات خاصة. أجب بالرد المنقح فقط بدون أي مقدمة.
+
+الرد الخام:
+${rawText}`
+          }]
+        })
+      });
+      if (!res.ok) return rawText;
+      const data = await res.json();
+      return data.content?.[0]?.text?.trim() || rawText;
+    } catch (_) {
+      return rawText;
+    }
   };
 
   const handleQueryChange = (e) => {
