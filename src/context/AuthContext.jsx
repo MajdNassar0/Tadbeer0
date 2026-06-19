@@ -29,7 +29,6 @@ useEffect(() => {
   initializeAuth();
 }, []);
 
-// في AuthContext.jsx قم بتعديل دالة login
 const login = (userData, token) => {
   // إضافة فحص للتأكد من وجود المعرف وتوحيده
   const formattedUser = {
