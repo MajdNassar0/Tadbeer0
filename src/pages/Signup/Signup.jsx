@@ -62,6 +62,7 @@ const Signup = () => {
       message: "كلمة المرور غير متطابقة",
       path: ["confirmPassword"],
     })
+
     .superRefine((data, ctx) => {
       if (data.role === "Worker") {
         if (!data.dateOfBirth) {
@@ -73,7 +74,8 @@ const Signup = () => {
         if (age > 70) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "تاريخ الميلاد غير صحيح", path: ["dateOfBirth"] });
       }
     });
-
+    
+   // جسر الربط بين Zod و Formik
   const validate = (values) => {
     const result = signupSchema.safeParse(values);
     if (result.success) return {};

@@ -12,8 +12,7 @@ const Home = () => {
   return (
     <>
      
-            <FloatingRobot />
-
+      <FloatingRobot />
       <Hero />
       <AboutSection />
       <ServicesSection />
