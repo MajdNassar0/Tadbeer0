@@ -28,7 +28,6 @@ import WorkerSidebar from "./components/WorkerSidebar";
 // Tab Components
 import OverviewTab from "./tabs/OverviewTab";
 import PortfolioTab from "./tabs/PortfolioTab";
-import ServicesTab from "./tabs/ServicesTab";
 import ReviewsTab from "./tabs/ReviewsTab";
 import SettingsTab from "./tabs/SettingsTab";
 
