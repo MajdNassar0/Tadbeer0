@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation, NavLink } from "react-router-dom";
 import apiClient from "../../API/axiosConfig"; 
 import {
   LayoutDashboard, Users, UserCog, Calendar,
-  Star, BarChart3, Settings, LogOut, Search, Bell, ShieldCheck
+  Star, BarChart3, Settings, LogOut, Bell, ShieldCheck
 } from "lucide-react";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -152,12 +152,7 @@ const AdminLayout = () => {
         {/* Topbar */}
         <header className="flex justify-between items-center px-8 py-4 bg-white
                            border-b border-gray-100 sticky top-0 z-10">
-          <div className="relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300" size={15} />
-            <input type="text" placeholder="بحث..."
-              className="bg-gray-50 border border-gray-100 rounded-xl pr-9 pl-4 py-2.5
-                         text-sm outline-none focus:ring-2 focus:ring-yellow-400/30 w-56" />
-          </div>
+
           <div className="flex items-center gap-5">
             <button className="text-gray-400 hover:text-gray-600 relative">
               <Bell size={19} />

@@ -120,27 +120,20 @@ const Services = () => {
             </div>
             <div className="text-right">
               <h3 className="text-lg md:text-xl font-bold text-gray-900">
-                هل تحتاج لخدمة خاصة؟
+                تريد تصفح كل الفنيين؟
               </h3>
               <p className="text-gray-500 text-sm">
-                تواصل معنا وسنوفر لك الفني المناسب فوراً.
+                شاهد جميع الفنيين المتاحين واختر من يناسبك.
               </p>
             </div>
           </div>
 
           <div className="flex gap-3">
-            <button
-              className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all"
-            >
-              اطلب الآن
-              <ArrowLeft size={18} />
-            </button>
-
             <button 
               onClick={() => navigate('/workers')}
-              className="text-gray-600 hover:text-gray-900 font-medium px-4 transition"
+              className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all"
             >
-              مشاهدة الكل
+              تصفح جميع الفنيين
             </button>
           </div>
         </motion.div>

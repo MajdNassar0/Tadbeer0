@@ -179,30 +179,46 @@ const Technicians = () => {
 
       setTechs(list);
 
-      // Step 2 — fetch Admin/Bookings ONCE (same as Dashboard.jsx), distribute per worker
+      // Step 2 — fetch all bookings with pagination, build completedMap per worker
       const enrichAll = async () => {
-        // Single bookings request — exact same endpoint as Dashboard.jsx line 215
         let allBookings = [];
         try {
-          const rb = await axios.get(`${API_BASE}/Admin/Bookings`, { headers });
-          const raw = rb.data?.items ?? rb.data ?? [];
-          allBookings = Array.isArray(raw) ? raw : [];
+          // Fetch page 1 to get total count, then fetch all pages
+          const first = await axios.get(`${API_BASE}/Admin/Bookings`, { headers, params: { pageNumber: 1, pageSize: 100 } });
+          const firstRaw = first.data?.items ?? first.data ?? [];
+          allBookings = Array.isArray(firstRaw) ? firstRaw : [];
+
+          // If paginated, fetch remaining pages
+          const totalCount = first.data?.totalCount ?? first.data?.total ?? null;
+          if (totalCount && totalCount > 100) {
+            const totalPages = Math.ceil(totalCount / 100);
+            const rest = await Promise.allSettled(
+              Array.from({ length: totalPages - 1 }, (_, i) =>
+                axios.get(`${API_BASE}/Admin/Bookings`, { headers, params: { pageNumber: i + 2, pageSize: 100 } })
+              )
+            );
+            rest.forEach(r => {
+              if (r.status !== "fulfilled") return;
+              const items = r.value.data?.items ?? r.value.data ?? [];
+              if (Array.isArray(items)) allBookings = allBookings.concat(items);
+            });
+          }
         } catch {
           // bookings unavailable — completed column shows 0
         }
 
         // Build completedMap: workerId → completed count
-        // Uses same fields as Dashboard: b.workerId || b.worker?.id
-        // Uses same getKey logic: toLowerCase().trim().replace(/\s/g,"")
         const completedMap = {};
         allBookings.forEach(b => {
           const wid = b.workerId || b.worker?.id;
           if (!wid) return;
+          // API returns "Completed" with capital C
           const s = b.status?.toString().toLowerCase().trim().replace(/\s/g, "");
           if (s === "completed") {
             completedMap[wid] = (completedMap[wid] ?? 0) + 1;
           }
         });
+        console.log("[Technicians] completedMap:", completedMap, "total bookings:", allBookings.length);
 
         // Fetch each worker's full profile in parallel
         const enriched = {};
