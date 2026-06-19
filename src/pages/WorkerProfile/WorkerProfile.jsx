@@ -176,9 +176,6 @@ const WorkerProfileInner = () => {
       workerId={workerId}
       workerData={worker}
     />,
-    services: (
-      <ServicesTab services={worker?.services || []} isOwner={isOwner} loading={loading} />
-    ),
     reviews: (
       <ReviewsTab
         workerId={workerId}
