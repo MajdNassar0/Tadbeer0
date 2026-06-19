@@ -223,9 +223,9 @@ function Navbar() {
                         لوحة التحكم
                       </button>
                     )}
-                    {user && (
-                      <button
-                        onClick={handleProfileNavigation}
+                    {user && !["admin", "superadmin"].includes(role) && (
+  <button
+    onClick={handleProfileNavigation}
                         className="w-full text-right flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-red-50 rounded-xl transition-colors"
                       >
                         <User size={20} /> الملف الشخصي

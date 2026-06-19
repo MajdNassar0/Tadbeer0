@@ -35,7 +35,6 @@ import SettingsTab from "./tabs/SettingsTab";
 const OWNER_TABS = [
   { id: "overview", label: "المعلومات الشخصية", icon: Info },
   { id: "portfolio", label: "الأعمال", icon: BookOpen },
-  { id: "services", label: "الخدمات", icon: Wrench },
   { id: "reviews", label: "التقييمات", icon: Star },
   { id: "settings", label: "الإعدادات", icon: Settings },
 ];
