@@ -39,8 +39,15 @@ const STEPS = [
 
 function normalizeStatus(s) {
   if (!s) return "Pending";
-  if (s.toLowerCase() === "accepted") return "Confirmed";
-  return s;
+  switch (s.toLowerCase()) {
+    case "pending":   return "Pending";
+    case "accepted":
+    case "confirmed": return "Confirmed";
+    case "completed": return "Completed";
+    case "cancelled":
+    case "canceled":  return "Cancelled";
+    default:          return s;
+  }
 }
 
 const STATUS_STYLE = {
@@ -61,42 +68,93 @@ function buildCalendar(year, month) {
   return days;
 }
 
-// ── Status bar ────────────────────────────────────────────────────────────────
+// ── Status tracker (circle steps) ─────────────────────────────────────────────
+// Steps shown to user:
+//   Normal  : قيد الانتظار → مقبول → مكتمل
+//   Cancelled: قيد الانتظار → مقبول → ملغى  (last circle turns red)
 function StatusBar({ status }) {
-  const norm        = normalizeStatus(status);
-  const cancelled   = norm === "Cancelled";
-  const activeIndex = STEPS.findIndex(s => s.key === norm);
+  const norm      = normalizeStatus(status);
+  const cancelled = norm === "Cancelled";
+
+  // Build the 3 display steps — last one changes when cancelled
+  const STEPS = [
+    { key: "Pending",   label: "قيد الانتظار" },
+    { key: "Confirmed", label: "مقبول"         },
+    { key: cancelled ? "Cancelled" : "Completed",
+      label: cancelled ? "ملغى" : "مكتمل"      },
+  ];
+
+  // Which circle index is "active" (current)
+  const activeIndex = cancelled
+    ? 2                                          // last circle = ملغى
+    : STEPS.findIndex(s => s.key === norm);
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-100 p-5">
-      <div className="flex items-center justify-between relative">
-        <div className="absolute top-5 right-6 left-6 h-px bg-gray-100 z-0" />
+    <div className="bg-white rounded-3xl border border-gray-100 p-6">
+      <p className="text-[11px] font-bold text-gray-400 text-center mb-5">حالة الحجز</p>
+
+      <div className="flex items-start">
         {STEPS.map((step, i) => {
-          const done    = i < activeIndex;
+          const done    = !cancelled && i < activeIndex;
           const current = i === activeIndex;
-          const isCan   = step.key === "Cancelled" && cancelled;
+          const isCancelCircle = cancelled && i === 2;
+
           return (
-            <div key={step.key} className="flex flex-col items-center gap-2 relative z-10">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all
-                ${current && isCan ? "bg-red-500    border-red-500    text-white"
-                : current          ? "bg-[#001F3F]  border-[#001F3F]  text-white shadow-lg"
-                : done             ? "bg-yellow-400 border-yellow-400 text-white"
-                :                    "bg-white       border-gray-200   text-gray-700"}`}>
-                {done              ? <Check size={16} />
-                : current && isCan ? <XCircle size={16} />
-                : current          ? <div className="w-2.5 h-2.5 rounded-full bg-white" />
-                :                    <div className="w-2 h-2 rounded-full bg-gray-200" />}
+            <React.Fragment key={step.key}>
+              {/* Circle + label */}
+              <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
+                  ${isCancelCircle
+                    ? "bg-red-500 border-red-500 text-white shadow-lg shadow-red-200/60 ring-4 ring-red-100"
+                    : done
+                      ? "bg-[#F7A823] border-[#F7A823] text-white shadow-sm shadow-yellow-300/60"
+                      : current
+                        ? "bg-[#001F3F] border-[#001F3F] text-white shadow-lg shadow-[#001F3F]/20 ring-4 ring-[#001F3F]/10"
+                        : "bg-white border-gray-200 text-gray-300"
+                  }`}>
+                  {isCancelCircle ? (
+                    <XCircle size={18} />
+                  ) : done ? (
+                    <Check size={18} />
+                  ) : current ? (
+                    norm === "Completed"
+                      ? <Check size={18} />
+                      : <div className="w-3 h-3 rounded-full bg-white animate-pulse" />
+                  ) : (
+                    <div className="w-2.5 h-2.5 rounded-full bg-gray-200" />
+                  )}
+                </div>
+                <span className={`text-[10px] font-bold whitespace-nowrap
+                  ${isCancelCircle ? "text-red-500"
+                  : done           ? "text-[#F7A823]"
+                  : current        ? "text-[#001F3F]"
+                  :                  "text-gray-300"}`}>
+                  {step.label}
+                </span>
               </div>
-              <span className={`text-[10px] font-medium whitespace-nowrap
-                ${current && isCan ? "text-red-500"
-                : current          ? "text-[#001F3F]"
-                : done             ? "text-yellow-500"
-                :                    "text-gray-400"}`}>
-                {step.label}
-              </span>
-            </div>
+
+              {/* Connector line */}
+              {i < STEPS.length - 1 && (
+                <div className={`flex-1 h-0.5 mt-6 mx-2 rounded-full transition-all duration-500
+                  ${cancelled && i === 1 ? "bg-red-200"
+                  : done                 ? "bg-[#F7A823]"
+                  :                        "bg-gray-100"}`} />
+              )}
+            </React.Fragment>
           );
         })}
+      </div>
+
+      {/* Status sub-message */}
+      <div className={`mt-4 text-center text-[11px] font-medium rounded-2xl py-2 px-4
+        ${cancelled            ? "bg-red-50    text-red-600"
+        : norm === "Pending"   ? "bg-yellow-50 text-yellow-700"
+        : norm === "Confirmed" ? "bg-blue-50   text-blue-700"
+        :                        "bg-green-50  text-green-700"}`}>
+        {cancelled             && "✗ تم إلغاء الحجز من قِبل الفني"}
+        {!cancelled && norm === "Pending"   && "في انتظار موافقة الفني على حجزك..."}
+        {!cancelled && norm === "Confirmed" && "✓ وافق الفني — موعدك مؤكد"}
+        {!cancelled && norm === "Completed" && "✓✓ تمت الخدمة بنجاح — يمكنك الآن تقييم الفني"}
       </div>
     </div>
   );
@@ -344,10 +402,10 @@ function MyBookingsList({ workerId, specialtyId, specialtyName, refreshKey, onRa
             return (
               <div
                 key={b.id}
-                onClick={() => navigate(`/booking/${workerId}?bookingId=${b.id}`)}
+                onClick={() => navigate(`/booking/${workerId}?bookingId=${b.id}${b.specialtyId ? `&specialtyId=${b.specialtyId}` : (specialtyId ? `&specialtyId=${specialtyId}` : "")}`)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={e => e.key === "Enter" && navigate(`/booking/${workerId}?bookingId=${b.id}`)}
+                onKeyDown={e => e.key === "Enter" && navigate(`/booking/${workerId}?bookingId=${b.id}${b.specialtyId ? `&specialtyId=${b.specialtyId}` : (specialtyId ? `&specialtyId=${specialtyId}` : "")}`)}
                 className="group relative flex items-center justify-between p-4 bg-[#F8FAFC]
                            hover:bg-white border border-gray-200 hover:border-yellow-400
                            rounded-2xl transition-all duration-300 cursor-pointer"
@@ -471,7 +529,8 @@ const Booking = () => {
   // Restore booking view from ?bookingId= in URL
   useEffect(() => {
     const bid = searchParams.get("bookingId");
-    if (!bid || booked) return;
+    if (!bid) return;
+    if (bookingRes?.id === bid) return; // already showing this booking
     const restore = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -489,6 +548,7 @@ const Booking = () => {
           setSelSlot({ startTime: b.startTime, endTime: b.endTime, dayOfWeek: b.workingDay });
         }
         setBooked(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } catch {}
     };
     restore();
@@ -756,54 +816,9 @@ const Booking = () => {
             ))}
           </div>
 
-          {liveStatus === "Pending" && (
-            <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-2xl p-3">
-              <Loader2 size={14} className="text-yellow-600 animate-spin flex-shrink-0" />
-              <p className="text-xs text-yellow-800 font-medium">في انتظار موافقة الفني على حجزك</p>
-            </div>
-          )}
-          {liveStatus === "Pending" && bookingRes?.id && (
-            <button
-              onClick={async () => {
-                try {
-                  const token = localStorage.getItem("token");
-                  await axios.patch(
-                    `${API}/User/Bookings/${bookingRes.id}/cancel`,
-                    {},
-                    { headers: { Authorization: `Bearer ${token}` } }
-                  );
-                  setLiveStatus("Cancelled");
-                  setRefreshKey(k => k + 1);
-                  toast.success("تم إلغاء الحجز");
-                } catch {
-                  toast.error("فشل إلغاء الحجز، يرجى المحاولة مجدداً");
-                }
-              }}
-              className="w-full border border-red-200 text-red-500 py-3 rounded-2xl text-sm font-medium hover:bg-red-50 transition-colors"
-            >
-              إلغاء الحجز
-            </button>
-          )}
-          {liveStatus === "Confirmed" && (
-            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-2xl p-3">
-              <CheckCircle2 size={14} className="text-blue-600 flex-shrink-0" />
-              <p className="text-xs text-blue-800 font-medium">تم قبول حجزك من قِبل الفني</p>
-            </div>
-          )}
-          {liveStatus === "Completed" && (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-2xl p-3">
-              <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
-              <p className="text-xs text-green-800 font-medium">
-                تم إتمام الخدمة — يمكنك الآن تقييم الفني من قائمة حجوزاتك أدناه
-              </p>
-            </div>
-          )}
-          {liveStatus === "Cancelled" && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl p-3">
-              <XCircle size={14} className="text-red-600 flex-shrink-0" />
-              <p className="text-xs text-red-800 font-medium">تم إلغاء الحجز</p>
-            </div>
-          )}
+          <StatusBar status={liveStatus} />
+
+
         </div>
 
         <MyBookingsList

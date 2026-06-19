@@ -223,15 +223,15 @@ const Login = () => {
                     }}
                     placeholder="كلمة المرور"
                     autoComplete="current-password"
-                    className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 pr-11 pl-12 text-right transition-colors
+                    style={{WebkitAppearance:"none"}}
+                    className={`w-full bg-[#f8f9fa] border-2 rounded-lg py-3 px-4 pe-12 text-right transition-colors [&::-ms-reveal]:hidden [&::-webkit-credentials-auto-fill-button]:hidden
                     ${formik.touched.password && formik.errors.password ? "border-red-500" : "border-transparent"}
                     focus:outline-none focus:border-blue-900`}
                   />
-                  <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#001e3c]"
+                    className="absolute end-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#001e3c]"
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
