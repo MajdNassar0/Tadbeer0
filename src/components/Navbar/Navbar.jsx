@@ -261,13 +261,28 @@ function Navbar() {
             )}
           </div>
 
-          {/* Mobile Toggle */}
-          <button
-            onClick={() => setOpen(!open)}
-            className="lg:hidden p-2 bg-gray-50 text-[#001e3c] rounded-xl"
-          >
-            {open ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          {/* Mobile Toggle + Search */}
+          <div className="lg:hidden flex items-center gap-2">
+            {user && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate("/search")}
+                aria-label="ابحث الآن"
+                className="flex items-center justify-center p-2.5 bg-gray-900 text-white rounded-xl shadow-md shadow-gray-100"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+              </motion.button>
+            )}
+            <button
+              onClick={() => setOpen(!open)}
+              className="p-2 bg-gray-50 text-[#001e3c] rounded-xl"
+            >
+              {open ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -290,18 +305,6 @@ function Navbar() {
                   {link.name}
                 </button>
               ))}
-
-              {user && (
-                <button
-                  onClick={() => { navigate("/search"); setOpen(false); }}
-                  className="flex items-center gap-2 w-full text-right text-lg font-bold text-yellow-600"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-                  </svg>
-                  ابحث الآن
-                </button>
-              )}
 
               {user && dashboardRoutes[role] && (
                 <button
