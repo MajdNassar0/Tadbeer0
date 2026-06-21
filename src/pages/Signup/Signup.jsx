@@ -1,23 +1,30 @@
 import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  User,
-  Mail,
-  Phone,
-  Lock,
-  ShieldCheck,
-  UserCircle,
-  Briefcase,
-  ArrowRight,
-  Eye,
-  EyeOff,
-  Calendar,
+  User, Mail, Phone, Lock, ShieldCheck, UserCircle, Briefcase,
+  ArrowRight, Eye, EyeOff, Calendar, MapPin, Navigation,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
 import axios from "axios";
 import { z } from "zod";
 import { Toaster, toast } from "sonner";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+/* ── Clickable map — sets marker on click ── */
+function LocationPicker({ onPick }) {
+  useMapEvents({ click(e) { onPick(e.latlng); } });
+  return null;
+}
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -34,6 +41,17 @@ const Signup = () => {
   // حالات إظهار وإخفاء كلمة المرور
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [workerLocation, setWorkerLocation] = useState(null);   // { lat, lng }
+  const [geoLoading, setGeoLoading] = useState(false);
+
+  const detectMyLocation = () => {
+    if (!navigator.geolocation) return toast.error("المتصفح لا يدعم تحديد الموقع");
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setWorkerLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoLoading(false); },
+      ()    => { toast.error("لم يُسمح بتحديد الموقع"); setGeoLoading(false); }
+    );
+  };
 
   // تعريف مخطط التحقق باللغة العربية
   const signupSchema = z
@@ -107,8 +125,9 @@ const Signup = () => {
         confirmPassword: values.confirmPassword,
         phoneNumber: values.phone,
         role: values.role,
-        ...(values.role === "Worker" && values.dateOfBirth
-          ? { dateOfBirth: values.dateOfBirth }
+        ...(values.role === "Worker" && values.dateOfBirth ? { dateOfBirth: values.dateOfBirth } : {}),
+        ...(values.role === "Worker" && workerLocation
+          ? { latitude: workerLocation.lat, longitude: workerLocation.lng }
           : {}),
       };
 
@@ -270,6 +289,56 @@ const Signup = () => {
                 {formik.touched.dateOfBirth && formik.errors.dateOfBirth && (
                   <p className="text-red-500 text-[11px] mt-1 font-medium">{formik.errors.dateOfBirth}</p>
                 )}
+              </motion.div>
+            )}
+
+            {/* LOCATION MAP — workers only */}
+            {formik.values.role === "Worker" && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                    <MapPin size={13} className="text-orange-400" /> موقعك الجغرافي
+                    <span className="text-gray-400 font-normal">(اختياري — لمساعدة العملاء القريبين)</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={detectMyLocation}
+                    disabled={geoLoading}
+                    className="flex items-center gap-1 text-[11px] font-bold text-blue-900 border border-blue-100 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50"
+                  >
+                    <Navigation size={11} />
+                    {geoLoading ? "جاري التحديد..." : "تحديد تلقائي"}
+                  </button>
+                </div>
+
+                {/* Map */}
+                <div className="rounded-xl overflow-hidden border-2 border-gray-100 shadow-sm" style={{ height: 220 }}>
+                  <MapContainer
+                    center={workerLocation ? [workerLocation.lat, workerLocation.lng] : [31.9, 35.2]}
+                    zoom={workerLocation ? 13 : 8}
+                    style={{ height: "100%", width: "100%" }}
+                    key={workerLocation ? `${workerLocation.lat},${workerLocation.lng}` : "default"}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <LocationPicker onPick={(latlng) => setWorkerLocation({ lat: latlng.lat, lng: latlng.lng })} />
+                    {workerLocation && <Marker position={[workerLocation.lat, workerLocation.lng]} />}
+                  </MapContainer>
+                </div>
+
+                <p className="text-[10px] text-gray-400 text-center">
+                  {workerLocation
+                    ? `✅ تم تحديد الموقع: ${workerLocation.lat.toFixed(4)}، ${workerLocation.lng.toFixed(4)}`
+                    : "انقر على الخريطة لتحديد موقعك"}
+                </p>
               </motion.div>
             )}
 

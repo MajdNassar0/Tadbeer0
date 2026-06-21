@@ -1,5 +1,46 @@
 import { useState, useRef, useCallback , useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix leaflet default marker icons (broken with bundlers)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+// Custom orange worker marker
+const workerIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+});
+// Blue user marker
+const userIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+});
+
+/* ── Haversine distance (km) between two lat/lng points ── */
+const haversine = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+};
+
+/* ── Re-center map helper ── */
+function MapCenterHelper({ center }) {
+  const map = useMap();
+  useEffect(() => { if (center) map.setView(center, 12); }, [center, map]);
+  return null;
+}
 
 const API_BASE = "https://tadbeer0.runasp.net/api";
 const getImageUrl = (path) => {
@@ -45,34 +86,82 @@ const extractArray = (data) => {
   return [];
 };
 
-/* ── Fetch workers from multiple possible endpoints ── */
+/* ── Fetch workers from multiple possible endpoints, paging through ALL of them ──
+   Many backends cap the page size server-side regardless of what's requested
+   (e.g. always returning 10), so a single request isn't enough. This keeps
+   requesting subsequent pages — sending both "page" and "pageNumber" since
+   unused query params are harmless and we don't know which one the API
+   actually honors — and merges everything by id until a page comes back
+   with no new workers (or a short page signals the end). */
+const WORKERS_PAGE_SIZE = 50;
+const WORKERS_MAX_PAGES = 50; // safety cap (=> up to 2500 workers)
+
 const fetchWorkers = async () => {
-  const endpoints = [
-    `${API_BASE}/General/Workers?pageSize=200`,
-    `${API_BASE}/General/Worker?pageSize=200`,
-    `${API_BASE}/Workers?pageSize=200`,
+  const baseCandidates = [
     `${API_BASE}/General/Workers`,
     `${API_BASE}/General/Worker`,
+    `${API_BASE}/Workers`,
   ];
-  for (const url of endpoints) {
+
+  let baseUrl = null;
+  let firstArr = null;
+  let firstRaw = null;
+
+  for (const base of baseCandidates) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(`${base}?pageNumber=1&page=1&pageSize=${WORKERS_PAGE_SIZE}`);
       if (!res.ok) continue;
       const raw = await res.json();
       const arr = extractArray(raw);
-      if (arr.length > 0) return { arr, raw, url };
+      if (arr.length > 0) { baseUrl = base; firstArr = arr; firstRaw = raw; break; }
     } catch (_) { continue; }
   }
-  // Return raw from first responding endpoint even if empty (for debug)
-  for (const url of endpoints) {
+
+  // Nothing worked — fall back to returning whatever the first endpoint gives us (for debugging)
+  if (!baseUrl) {
+    for (const base of baseCandidates) {
+      try {
+        const res = await fetch(base);
+        if (!res.ok) continue;
+        const raw = await res.json();
+        return { arr: extractArray(raw), raw, url: base };
+      } catch (_) { continue; }
+    }
+    return { arr: [], raw: null, url: null };
+  }
+
+  // If the API reports a total count, use it to know when to stop early
+  const totalFromApi =
+    firstRaw?.totalCount ?? firstRaw?.TotalCount ??
+    firstRaw?.totalItems ?? firstRaw?.TotalItems ??
+    firstRaw?.total ?? firstRaw?.Total ?? null;
+
+  let all = [...firstArr];
+  const seen = new Set(all.map((w) => w.id));
+
+  let pageNum = 2;
+  while (pageNum <= WORKERS_MAX_PAGES) {
+    if (totalFromApi && all.length >= totalFromApi) break;
+
     try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
+      const res = await fetch(`${baseUrl}?pageNumber=${pageNum}&page=${pageNum}&pageSize=${WORKERS_PAGE_SIZE}`);
+      if (!res.ok) break;
       const raw = await res.json();
-      return { arr: [], raw, url };
-    } catch (_) { continue; }
+      const arr = extractArray(raw);
+      const newOnes = arr.filter((w) => !seen.has(w.id));
+
+      if (newOnes.length === 0) break; // nothing new -> we've reached the end
+      newOnes.forEach((w) => seen.add(w.id));
+      all = all.concat(newOnes);
+
+      if (arr.length < WORKERS_PAGE_SIZE) break; // short page -> this was the last one
+    } catch (_) {
+      break;
+    }
+    pageNum++;
   }
-  return { arr: [], raw: null, url: null };
+
+  return { arr: all, raw: firstRaw, url: baseUrl };
 };
 
 /* ── Fetch services from multiple possible endpoints ── */
@@ -480,13 +569,19 @@ export default function TadbeerSearch() {
 const [query, setQuery] = useState(() => {
   return sessionStorage.getItem("tadbeer_search_query") || "";
 });
-  const [allWorkers, setAllWorkers]     = useState([]);   // full unfiltered list
-  const [allServices, setAllServices]   = useState([]);   // full unfiltered list
-  const [debugInfo, setDebugInfo]       = useState(null); // raw API debug info
-  const [results, setResults]           = useState(null); // filtered results (null = show all)
+  const [allWorkers, setAllWorkers]     = useState([]);
+  const [allServices, setAllServices]   = useState([]);
+  const [debugInfo, setDebugInfo]       = useState(null);
+  const [results, setResults]           = useState(null);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState(null);
   const [page, setPage]                 = useState(1);
+  // Map state
+  const [showMap, setShowMap]               = useState(false);
+  const [userLocation, setUserLocation]     = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError]   = useState(null);
+  const [nearbyWorkers, setNearbyWorkers]   = useState([]);
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [activeTab, setActiveTab]       = useState("workers");
   const [servicePage, setServicePage]   = useState(1);
@@ -540,6 +635,43 @@ const [query, setQuery] = useState(() => {
       setAllServices(services);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
+  };
+
+  /* ── Get user location and sort workers by distance ── */
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("المتصفح لا يدعم تحديد الموقع");
+      return;
+    }
+    setLocationLoading(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const userLat = pos.coords.latitude;
+        const userLng = pos.coords.longitude;
+        setUserLocation({ lat: userLat, lng: userLng });
+
+        // Get the workers currently displayed (search results or all)
+        const workersToSort = results?.workers ?? allWorkers;
+
+        // Sort workers who have coordinates by distance
+        const withCoords = workersToSort
+          .filter(w => w.latitude != null && w.longitude != null)
+          .map(w => ({
+            ...w,
+            distanceKm: haversine(userLat, userLng, w.latitude, w.longitude),
+          }))
+          .sort((a, b) => a.distanceKm - b.distanceKm);
+
+        setNearbyWorkers(withCoords);
+        setShowMap(true);
+        setLocationLoading(false);
+      },
+      (err) => {
+        setLocationError("لم يتم السماح بتحديد الموقع. يرجى السماح للمتصفح.");
+        setLocationLoading(false);
+      }
+    );
   };
 
   /* ── Switch mode ── */
@@ -1091,6 +1223,122 @@ ${rawText}`
           <div style={{ background:"linear-gradient(90deg,rgba(249,115,22,0.08),rgba(249,115,22,0.02))", border:`1px solid rgba(249,115,22,0.22)`, borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:10, fontSize:13, color:THEME.textMain, marginBottom:16 }}>
             <span style={{ fontSize:18 }}>✅</span>
             <span>وجدنا <strong style={{ color:THEME.primary }}>{chatResult.workers.length} عامل</strong> و<strong style={{ color:THEME.primary }}>{chatResult.services.length} خدمة</strong> مناسبين لمشكلتك 👇</span>
+          </div>
+        )}
+
+        {/* ── Map Toggle Button ── */}
+        {activeTab === "workers" && (
+          <div style={{ marginBottom:14 }}>
+            <button
+              onClick={() => showMap ? setShowMap(false) : getUserLocation()}
+              disabled={locationLoading}
+              style={{
+                display:"flex", alignItems:"center", gap:8,
+                padding:"10px 20px", borderRadius:22,
+                border:`1.5px solid ${showMap ? THEME.primary : THEME.border}`,
+                background: showMap ? THEME.primaryLight : THEME.bgCard,
+                color: showMap ? THEME.primary : THEME.textMuted,
+                fontWeight:700, fontSize:14, cursor: locationLoading ? "wait" : "pointer",
+                fontFamily:"'Cairo',sans-serif", transition:"all 0.2s",
+                boxShadow: showMap ? "0 2px 8px rgba(249,115,22,0.15)" : "none",
+              }}
+            >
+              <span style={{ fontSize:16 }}>🗺️</span>
+              {locationLoading ? "جاري تحديد موقعك..." : showMap ? "إخفاء الخريطة" : "عرض العمال على الخريطة"}
+            </button>
+            {locationError && (
+              <p style={{ margin:"6px 0 0", fontSize:12, color:THEME.errorText }}>{locationError}</p>
+            )}
+          </div>
+        )}
+
+        {/* ── Map Panel ── */}
+        {showMap && userLocation && (
+          <div style={{ marginBottom:20, borderRadius:16, overflow:"hidden", border:`1px solid ${THEME.border}`, boxShadow:"0 4px 16px rgba(0,0,0,0.07)" }}>
+            {/* Map header */}
+            <div style={{ background:THEME.primaryDark, color:"#fff", padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span style={{ fontWeight:700, fontSize:14 }}>
+                📍 العمال القريبون منك — {nearbyWorkers.length > 0 ? `${nearbyWorkers.length} عامل على الخريطة` : "لا يوجد عمال بإحداثيات بعد"}
+              </span>
+              <button onClick={() => setShowMap(false)} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.7)", cursor:"pointer", fontSize:18 }}>✕</button>
+            </div>
+
+            {/* Leaflet map */}
+            <MapContainer
+              center={[userLocation.lat, userLocation.lng]}
+              zoom={12}
+              style={{ height:400, width:"100%" }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapCenterHelper center={[userLocation.lat, userLocation.lng]} />
+
+              {/* User marker */}
+              <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
+                <Popup><strong>📍 موقعك الحالي</strong></Popup>
+              </Marker>
+
+              {/* Worker markers */}
+              {nearbyWorkers.map((w) => (
+                <Marker key={w.id} position={[w.latitude, w.longitude]} icon={workerIcon}>
+                  <Popup>
+                    <div style={{ direction:"rtl", minWidth:160, fontFamily:"'Cairo',sans-serif" }}>
+                      <p style={{ margin:"0 0 4px", fontWeight:700, fontSize:14 }}>{w.firstName} {w.lastName}</p>
+                      <p style={{ margin:"0 0 4px", fontSize:12, color:"#555" }}>{w.specialtyNames?.join(" · ") || "خدمات عامة"}</p>
+                      <p style={{ margin:"0 0 8px", fontSize:12, color:THEME.primary, fontWeight:700 }}>
+                        📏 {w.distanceKm.toFixed(1)} كم
+                      </p>
+                      <button
+                        onClick={() => navigate(`/worker-profile/${w.id}`)}
+                        style={{ width:"100%", padding:"6px 10px", background:THEME.primary, color:"#fff", border:"none", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Cairo',sans-serif" }}
+                      >عرض الملف</button>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+
+            {/* Nearby workers list (sorted by distance) */}
+            {nearbyWorkers.length > 0 && (
+              <div style={{ padding:"14px 16px", background:THEME.bgCanvas, borderTop:`1px solid ${THEME.border}` }}>
+                <p style={{ margin:"0 0 10px", fontSize:13, fontWeight:700, color:THEME.textMain }}>الأقرب إليك 👇</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {nearbyWorkers.slice(0,5).map((w) => (
+                    <div key={w.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:THEME.bgCard, borderRadius:10, padding:"10px 14px", border:`1px solid ${THEME.border}` }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:38, height:38, borderRadius:10, overflow:"hidden", background:THEME.primaryLight, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, color:THEME.primary }}>
+                          {w.profileImage
+                            ? <img src={getImageUrl(w.profileImage)} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
+                            : w.firstName?.[0]
+                          }
+                        </div>
+                        <div style={{ direction:"rtl" }}>
+                          <p style={{ margin:0, fontWeight:700, fontSize:13, color:THEME.textMain }}>{w.firstName} {w.lastName}</p>
+                          <p style={{ margin:0, fontSize:11, color:THEME.textMuted }}>{w.specialtyNames?.[0] || "خدمات عامة"}</p>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontSize:12, fontWeight:700, color:THEME.primary, background:THEME.primaryLight, padding:"3px 10px", borderRadius:20 }}>
+                          {w.distanceKm.toFixed(1)} كم
+                        </span>
+                        <button
+                          onClick={() => navigate(`/booking/${w.id}`)}
+                          style={{ padding:"6px 14px", background:THEME.primary, color:"#fff", border:"none", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Cairo',sans-serif" }}
+                        >احجز</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {nearbyWorkers.length === 0 && (
+              <div style={{ padding:"2rem", textAlign:"center", color:THEME.textMuted, background:THEME.bgCanvas, borderTop:`1px solid ${THEME.border}` }}>
+                <p style={{ fontSize:14, margin:0 }}>⚠️ لا يوجد عمال بإحداثيات جغرافية حتى الآن. يرجى التواصل مع الـ backend لإضافة حقلي <strong>latitude</strong> و <strong>longitude</strong> لكل عامل.</p>
+              </div>
+            )}
           </div>
         )}
 

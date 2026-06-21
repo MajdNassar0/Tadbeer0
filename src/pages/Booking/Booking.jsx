@@ -735,8 +735,16 @@ const Booking = () => {
         navigate("/auth/login");
       } else if (lmsg.includes("outside") || lmsg.includes("availability")) {
         toast.error("الوقت المختار خارج أوقات عمل الفني");
-      } else if (lmsg.includes("already booked") || lmsg.includes("conflict")) {
-        toast.error("هذا الموعد محجوز بالفعل، يرجى اختيار وقت آخر");
+      } else if (lmsg.includes("already") || lmsg.includes("conflict") || lmsg.includes("reserved")) {
+        toast.error("للأسف حد تاني حجز نفس الموعد ده قبلك. اختار وقت تاني من فضلك");
+        // نضيف السلوت ده لقائمة المحجوز فورًا عشان يتلون رمادي على طول
+        setTakenSlots(prev => [...prev, {
+          workingHourId: selSlot.workingHourId,
+          bookingDate: `${selDate.year}-${String(selDate.month + 1).padStart(2, "0")}-${String(selDate.day).padStart(2, "0")}`,
+          startTime: selSlot.startTime,
+          status: "Pending",
+        }]);
+        setSelSlot(null);
       } else if (err.response?.status === 400) {
         toast.error("خطأ 400: " + (msg || detail || "بيانات غير صحيحة"));
       } else {
