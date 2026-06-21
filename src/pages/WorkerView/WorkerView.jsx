@@ -9,6 +9,16 @@ import {
   Circle, Award, MessageCircle, Phone, ExternalLink, ChevronLeft
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 const API_BASE   = "https://tadbeer0.runasp.net/api";
 const IMAGE_BASE = "https://tadbeer0.runasp.net/";
@@ -481,12 +491,42 @@ const WorkerView = () => {
             </div>
 
             {/* Location */}
-            <div className="bg-slate-900 rounded-[2rem] p-6 text-center text-white relative overflow-hidden">
-              <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/world-map.png')] bg-center bg-no-repeat" />
-              <MapPin className="mx-auto mb-3 text-[#F7A823]" size={32} />
-              <p className="font-black text-lg">منطقة الخدمة</p>
-              <p className="text-slate-400 text-sm mt-1">يغطي كافة مناطق مدينة {worker.city || "نابلس"}</p>
-            </div>
+            {worker.latitude && worker.longitude ? (
+              <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-slate-50/50 px-8 py-6 border-b border-gray-50 flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-[#F7A823]" />
+                  <h3 className="font-black text-[#001F3F]">منطقة الخدمة</h3>
+                </div>
+                <div style={{ height: 200 }}>
+                  <MapContainer
+                    center={[worker.latitude, worker.longitude]}
+                    zoom={13}
+                    style={{ height: "100%", width: "100%" }}
+                    key={`worker-${worker.latitude}-${worker.longitude}`}
+                    zoomControl={false}
+                    dragging={false}
+                    scrollWheelZoom={false}
+                    doubleClickZoom={false}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[worker.latitude, worker.longitude]} />
+                  </MapContainer>
+                </div>
+                <p className="text-center text-slate-400 text-xs py-3 border-t border-gray-50">
+                  يغطي كافة مناطق مدينة {worker.city || "نابلس"}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-slate-900 rounded-[2rem] p-6 text-center text-white relative overflow-hidden">
+                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/world-map.png')] bg-center bg-no-repeat" />
+                <MapPin className="mx-auto mb-3 text-[#F7A823]" size={32} />
+                <p className="font-black text-lg">منطقة الخدمة</p>
+                <p className="text-slate-400 text-sm mt-1">يغطي كافة مناطق مدينة {worker.city || "نابلس"}</p>
+              </div>
+            )}
 
           </div>
         </div>

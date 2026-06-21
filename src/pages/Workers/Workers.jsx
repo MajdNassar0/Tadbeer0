@@ -10,8 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  Clock
 } from "lucide-react";
+import { useReverseGeocode } from "../../Utils/geocodeLocation"; // adjust path to match your project structure
 
 const NAVY     = "#001F3F";
 const ORANGE   = "#F7A823";
@@ -51,6 +51,18 @@ function StarRatingRow({ value, count, serviceLabel, isGeneral }) {
   );
 }
 
+function WorkerLocationLabel({ worker }) {
+  const hasCoords = worker.latitude != null && worker.longitude != null;
+  const { placeName, loading } = useReverseGeocode(
+    hasCoords ? worker.latitude : null,
+    hasCoords ? worker.longitude : null
+  );
+
+  if (!hasCoords) return <>{worker.city || "غير محدد"}</>;
+  if (loading && !placeName) return <span className="text-gray-300">جاري التحديد...</span>;
+  return <>{placeName || worker.city || "فلسطين"}</>;
+}
+
 function Workers() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -64,8 +76,6 @@ function Workers() {
 
   const [ratingFilter,  setRatingFilter ] = useState(null);
   const [pendingRating, setPendingRating] = useState(null);
-  const [availability,  setAvailability ] = useState("all");
-  const [pendingAvail,  setPendingAvail ] = useState("all");
 
   const specialtyIdFromUrl = searchParams.get("specialtyId");
 
@@ -180,14 +190,9 @@ function Workers() {
       });
     }
 
-    if (availability === "now")
-      result = result.filter(w => isAvailableNow(w));
-    else if (availability === "24h")
-      result = result.filter(w => isAvailableWithin24h(w));
-
     return result;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workers, specialtyIdFromUrl, ratingFilter, availability, specialtyRatings]);
+  }, [workers, specialtyIdFromUrl, ratingFilter, specialtyRatings]);
 
   const PAGE_SIZE      = 4;
   const totalPages     = Math.max(1, Math.ceil(filteredWorkers.length / PAGE_SIZE));
@@ -224,36 +229,11 @@ function Workers() {
             </div>
 
             <div className="space-y-8">
-              {/* Availability */}
-              <div>
-                <p className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <Clock size={16} className="text-orange-500" /> التوفر الحالي
-                </p>
-                {[
-                  { id: "all", label: "الكل" },
-                  { id: "now", label: "متاح الآن" },
-                  { id: "24h", label: "خلال 24 ساعة" },
-                ].map((opt) => (
-                  <label key={opt.id} className="flex items-center gap-3 mb-3 cursor-pointer group">
-                    <div className="relative flex items-center justify-center">
-                      <input
-                        type="radio" name="avail"
-                        checked={pendingAvail === opt.id}
-                        onChange={() => setPendingAvail(opt.id)}
-                        className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded-full checked:border-[#F7A823] transition-all cursor-pointer"
-                      />
-                      <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F7A823] scale-0 peer-checked:scale-100 transition-transform"></div>
-                    </div>
-                    <span className={`text-sm font-medium transition-colors ${pendingAvail === opt.id ? "text-orange-600 font-bold" : "text-gray-600"}`}>
-                      {opt.label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-
               {/* Rating */}
-              <div className="pt-6 border-t border-gray-50">
+              <div>
                 <p className="text-sm font-bold text-gray-800 mb-4">التقييم</p>
+
+                {/* "All" option */}
                 <label className="flex items-center gap-3 mb-3 cursor-pointer">
                   <div className="relative flex items-center justify-center">
                     <input
@@ -268,9 +248,15 @@ function Workers() {
                     الكل
                   </span>
                 </label>
-                {[4.5, 4.0].map((val) => (
+
+                {/* Star rating options */}
+                {[
+                  { val: 4.5, filled: 4, half: true },
+                  { val: 4.0, filled: 4, half: false },
+                  { val: 3.0, filled: 3, half: false },
+                ].map(({ val, filled, half }) => (
                   <label key={val} className="flex items-center gap-3 mb-3 cursor-pointer group">
-                    <div className="relative flex items-center justify-center">
+                    <div className="relative flex items-center justify-center shrink-0">
                       <input
                         type="radio" name="rating"
                         checked={pendingRating === val}
@@ -279,9 +265,31 @@ function Workers() {
                       />
                       <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F7A823] scale-0 peer-checked:scale-100 transition-transform"></div>
                     </div>
-                    <span className={`text-sm font-medium transition-colors ${pendingRating === val ? "text-orange-600 font-bold" : "text-gray-600"}`}>
-                      {val} فأعلى
-                    </span>
+                    {/* Visual stars row */}
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((i) => {
+                        const isFilled = i <= filled;
+                        const isHalf   = half && i === filled + 1;
+                        return (
+                          <span key={i} className="relative w-4 h-4 inline-block">
+                            {/* grey base */}
+                            <Star className="absolute inset-0 w-4 h-4 text-gray-200" strokeWidth={1} />
+                            {/* filled or half overlay */}
+                            {isFilled && (
+                              <Star className="absolute inset-0 w-4 h-4 fill-amber-400 text-amber-400" strokeWidth={0} />
+                            )}
+                            {isHalf && (
+                              <span className="absolute inset-0 overflow-hidden w-[50%]">
+                                <Star className="w-4 h-4 fill-amber-400 text-amber-400" strokeWidth={0} />
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                      <span className={`text-xs font-bold mr-1 ${pendingRating === val ? "text-orange-600" : "text-gray-400"}`}>
+                        {val}+
+                      </span>
+                    </div>
                   </label>
                 ))}
               </div>
@@ -290,17 +298,16 @@ function Workers() {
               <motion.button
                 whileHover={{ scale: 1.02, backgroundColor: "#002d5c" }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => { setAvailability(pendingAvail); setRatingFilter(pendingRating); setPage(1); }}
+                onClick={() => { setRatingFilter(pendingRating); setPage(1); }}
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-md"
                 style={{ backgroundColor: NAVY }}
               >
                 تحديث البحث
               </motion.button>
 
-              {(ratingFilter !== null || availability !== "all") && (
+              {ratingFilter !== null && (
                 <button
                   onClick={() => {
-                    setAvailability("all"); setPendingAvail("all");
                     setRatingFilter(null);  setPendingRating(null);
                     setPage(1);
                   }}
@@ -323,7 +330,7 @@ function Workers() {
             <div className="text-center py-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
               <Search size={48} className="text-slate-200 mx-auto mb-4" />
               <p className="text-slate-500 font-bold">عذراً، لا يوجد فنيين متاحين حالياً بهذا الاختيار</p>
-              <button onClick={() => { setAvailability("all"); setRatingFilter(null); }} className="mt-4 text-orange-500 font-bold text-sm underline">إعادة ضبط الفلاتر</button>
+              <button onClick={() => { setRatingFilter(null); }} className="mt-4 text-orange-500 font-bold text-sm underline">إعادة ضبط الفلاتر</button>
             </div>
           ) : (
             <>
@@ -383,7 +390,9 @@ function Workers() {
                           </div>
                           <div className="bg-white rounded-xl px-3 py-3 border border-slate-200 shadow-sm">
                             <p className="text-[10px] text-gray-400 font-bold mb-1">الموقع</p>
-                            <p className="text-xs font-black truncate" style={{ color: NAVY }}>{w.city || "فلسطين"}</p>
+                            <p className="text-xs font-black truncate" style={{ color: NAVY }}>
+                              <WorkerLocationLabel worker={w} />
+                            </p>
                           </div>
                         </div>
 

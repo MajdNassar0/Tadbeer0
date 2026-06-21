@@ -329,7 +329,7 @@ function Navbar() {
                       onClick={() => navigate("/auth/login")}
                       className="w-full bg-gray-50 py-3 rounded-xl font-bold"
                     >
-                      دخول
+                     تسجيل دخول 
                     </button>
                     <button
                       onClick={() => navigate("/auth/signup")}

@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation, NavLink } from "react-router-dom";
 import apiClient from "../../API/axiosConfig"; 
 import {
   LayoutDashboard, Users, UserCog, Calendar,
-  Star, BarChart3, Settings, LogOut, Bell, ShieldCheck
+  Star, BarChart3, Settings, LogOut, Bell, ShieldCheck, Menu, X
 } from "lucide-react";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -42,6 +42,7 @@ const NAV_ITEMS = [
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [admin, setAdmin] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") ?? "null"); }
@@ -100,15 +101,36 @@ const AdminLayout = () => {
   return (
     <div dir="rtl" className="flex min-h-screen bg-gray-50 font-sans text-right">
 
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-[#0a1d37] text-white flex-col hidden lg:flex shrink-0 sticky top-0 h-screen">
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-3 px-6 py-6 hover:opacity-80 transition-opacity border-b border-white/[0.07]"
-        >
-          <img src="/logo.png" alt="تدبير" className="w-9 h-9 object-contain" />
-          <span className="text-lg font-medium tracking-tight">تدبير</span>
-        </button>
+      <aside
+        className={`w-64 bg-[#0a1d37] text-white flex flex-col flex-shrink-0
+                    fixed lg:sticky top-0 h-screen z-40 transition-transform duration-300
+                    ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
+                    right-0 lg:right-auto`}
+      >
+        <div className="flex items-center justify-between px-6 py-6 border-b border-white/[0.07]">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
+            <img src="/logo.png" alt="تدبير" className="w-9 h-9 object-contain" />
+            <span className="text-lg font-medium tracking-tight">تدبير</span>
+          </button>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/50 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(({ icon: Icon, label, to }) => (
@@ -116,6 +138,7 @@ const AdminLayout = () => {
               key={to}
               to={to}
               end={to === "/admin"}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm transition-all
                 ${isActive
@@ -152,6 +175,15 @@ const AdminLayout = () => {
         {/* Topbar */}
         <header className="flex justify-between items-center px-8 py-4 bg-white
                            border-b border-gray-100 sticky top-0 z-10">
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden text-gray-500 hover:text-gray-700"
+            >
+              <Menu size={22} />
+            </button>
+          </div>
 
           <div className="flex items-center gap-5">
             <button className="text-gray-400 hover:text-gray-600 relative">
