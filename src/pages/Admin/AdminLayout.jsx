@@ -101,7 +101,7 @@ const AdminLayout = () => {
     <div dir="rtl" className="flex min-h-screen bg-gray-50 font-sans text-right">
 
       {/* Sidebar */}
-      <aside className="w-64 bg-[#0a1d37] text-white flex-col hidden lg:flex flex-shrink-0 sticky top-0 h-screen">
+      <aside className="w-64 bg-[#0a1d37] text-white flex-col hidden lg:flex shrink-0 sticky top-0 h-screen">
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-3 px-6 py-6 hover:opacity-80 transition-opacity border-b border-white/[0.07]"

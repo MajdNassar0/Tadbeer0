@@ -117,7 +117,7 @@ function WorkerAvatar({ src, name, initial }) {
         src={src}
         alt={name}
         onError={() => setErr(true)}
-        className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100"
+        className="w-8 h-8 rounded-full object-cover shrink-0 border border-gray-100"
       />
     );
   }

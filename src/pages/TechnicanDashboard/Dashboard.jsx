@@ -226,7 +226,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px]">
+              <table className="w-full min-w-140">
                 <thead className="bg-gray-50/50 border-b border-gray-50">
                   <tr className="text-[10px] text-gray-400">
                     <th className="py-3 px-6 text-right font-medium">العميل</th>
@@ -283,7 +283,7 @@ const Dashboard = () => {
       </div>
 
       {/* ── Right sidebar ── */}
-      <div className="w-full lg:w-72 space-y-5 flex-shrink-0">
+      <div className="w-full lg:w-72 space-y-5 shrink-0">
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
           <h4 className="text-sm font-medium text-gray-800 mb-4">الحجوزات القادمة</h4>
           {bookings === undefined ? <Spinner /> : upcoming.length === 0 ? (

@@ -16,7 +16,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2"
+      <div className="fixed bottom-6 left-1/2 z-100 flex -translate-x-1/2 flex-col gap-2"
         style={{ minWidth: 260 }}>
         <AnimatePresence>
           {toasts.map(t => (

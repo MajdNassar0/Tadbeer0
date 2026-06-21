@@ -57,7 +57,7 @@ const How = () => {
           <div className="space-y-6">
             {steps.map((step, index) => (
               <div key={index} className="flex items-start gap-4">
-                <div className="bg-yellow-500 text-white min-w-[32px] h-8 flex items-center justify-center rounded-full font-bold">
+                <div className="bg-yellow-500 text-white min-w-8 h-8 flex items-center justify-center rounded-full font-bold">
                   {index + 1}
                 </div>
                 <div>

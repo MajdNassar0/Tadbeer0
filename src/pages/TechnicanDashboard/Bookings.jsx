@@ -182,7 +182,7 @@ const Bookings = () => {
       ) : (
         <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px]">
+            <table className="w-full min-w-160">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr className="text-[10px] text-gray-400">
                   <th className="py-4 px-6 text-right font-medium">العميل</th>

@@ -48,6 +48,7 @@ function statusInfo(status) {
   return STATUS_MAP[key] ?? { label: status || "—", cls: "bg-gray-100 text-gray-500" };
 }
 
+ {/* دائرة التحميل */}
 function Spinner() {
   return (
     <div className="flex justify-center py-8">
@@ -64,7 +65,7 @@ function WorkerAvatar({ src, name }) {
         src={src}
         alt={name}
         onError={() => setErr(true)}
-        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+        className="w-8 h-8 rounded-full object-cover shrink-0"
       />
     );
   }

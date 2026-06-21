@@ -45,7 +45,7 @@ const Hero = () => {
 
               <h1 className="text-4xl md:text-6xl xl:text-7xl font-black text-gray-900 leading-[1.15]">
                 حلول ذكية <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-l from-yellow-500 to-yellow-600">
+                <span className="text-transparent bg-clip-text bg-linear-to-l from-yellow-500 to-yellow-600">
                   لخدماتك المنزلية
                 </span>
               </h1>
@@ -110,9 +110,9 @@ const Hero = () => {
                 <img
                   src={heroImg}
                   alt="Professional Technician"
-                  className="w-full h-[400px] lg:h-[550px] object-cover"
+                  className="w-full h-100 lg:h-137.5 object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
               </div>
 
               {/* البطاقة العائمة */}

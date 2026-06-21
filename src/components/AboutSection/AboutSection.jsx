@@ -8,7 +8,7 @@ function AboutSection() {
         <div className="grid lg:grid-cols-2 rounded-3xl overflow-hidden shadow-lg">
 
           {/* الصورة */}
-          <div className="h-[420px]">
+          <div className="h-105">
             <img
               src="/img/Electrical Energy Company.jpg"
               alt="about tadbeer"

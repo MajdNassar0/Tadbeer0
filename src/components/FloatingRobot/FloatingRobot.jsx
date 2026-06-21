@@ -24,6 +24,7 @@ export default function FloatingRobot() {
         group
       "
     >
+      
       {/* Pulse ring */}
       <span className="
         absolute inset-0 rounded-full

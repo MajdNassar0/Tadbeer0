@@ -294,7 +294,7 @@ const Reports = () => {
                     {i + 1}
                   </span>
                   <div className="w-7 h-7 rounded-full bg-[#001F3F] flex items-center justify-center
-                                  text-[#F7A823] text-[10px] font-bold flex-shrink-0">
+                                  text-[#F7A823] text-[10px] font-bold shrink-0">
                     {w.name.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
