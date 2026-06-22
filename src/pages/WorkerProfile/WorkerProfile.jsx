@@ -48,8 +48,8 @@ const WorkerProfileInner = () => {
   const [showReactivate, setShowReactivate] = useState(false);
 
   // ── Reviews from API ─────────────────────────────────────────────────────
-  const [reviews,       setReviews      ] = useState([]);
-  const [reviewsLoading,setReviewsLoading] = useState(true);
+  const [reviews,        setReviews       ] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
 
   useEffect(() => {
     if (!workerId) return;
@@ -61,6 +61,43 @@ const WorkerProfileInner = () => {
       .catch(() => setReviews([]))
       .finally(() => setReviewsLoading(false));
   }, [workerId]);
+
+  // ── Public worker data for visitors (includes workImages) ─────────────────
+  // useWorkerProfile fetches from the private /me endpoint which returns no
+  // workImages for non-owners. We fetch from the public API separately so that
+  // visitors can see the portfolio tab correctly.
+  const [publicWorkerData, setPublicWorkerData] = useState(null);
+
+  useEffect(() => {
+  if (!workerId) return;
+  const fetchPublicWorker = async () => {
+    try {
+      let page = 1;
+      while (true) {
+        const res = await axios.get(`${API_BASE}/General/Workers`, {
+          params: { pageNumber: page, pageSize: 50 },
+        });
+        const data = res.data;
+        const list = Array.isArray(data)
+          ? data
+          : data?.workers ?? data?.items ?? data?.data ?? [];
+
+        const match = list.find(w => String(w.id) === String(workerId));
+        if (match) {
+          setPublicWorkerData(match);
+          return;
+        }
+
+        const totalCount = data?.totalCount ?? 0;
+        if (list.length < 50 || page * 50 >= totalCount) break;
+        page++;
+      }
+    } catch (err) {
+      console.error("Public worker fetch failed:", err);
+    }
+  };
+  fetchPublicWorker();
+}, [workerId]);
 
   const getSafeStoredUser = () => {
     try {
@@ -97,7 +134,7 @@ const WorkerProfileInner = () => {
   // ── حفظ الموقع المعلق من الـ Signup ──────────────────────────────────────
   useEffect(() => {
     if (!isOwner || loading || !worker) return;
-    if (worker.latitude != null) return; // الموقع محفوظ مسبقاً
+    if (worker.latitude != null) return;
 
     const pending = localStorage.getItem("pendingLocation");
     if (!pending) return;
@@ -107,16 +144,16 @@ const WorkerProfileInner = () => {
       if (!loc?.lat || !loc?.lng) return;
 
       updateWorker({
-        FirstName:      worker.firstName      || "",
-        LastName:       worker.lastName       || "",
-        PhoneNumber:    worker.phoneNumber    || "",
-        JobDescription: worker.jobDescription || "",
+        FirstName:       worker.firstName      || "",
+        LastName:        worker.lastName       || "",
+        PhoneNumber:     worker.phoneNumber    || "",
+        JobDescription:  worker.jobDescription || "",
         ExperienceYears: worker.experienceYears ?? "",
-        DateOfBirth:    worker.dateOfBirth    || "",
-        Latitude:       loc.lat,
-        Longitude:      loc.lng,
-        SpecialtyIds:   worker.specialtyIds   || [],
-        WorkingHours:   worker.workingHours   || [],
+        DateOfBirth:     worker.dateOfBirth    || "",
+        Latitude:        loc.lat,
+        Longitude:       loc.lng,
+        SpecialtyIds:    worker.specialtyIds   || [],
+        WorkingHours:    worker.workingHours   || [],
       }).then((res) => {
         if (res.ok) {
           localStorage.removeItem("pendingLocation");
@@ -189,13 +226,19 @@ const WorkerProfileInner = () => {
 
   const tabs = isOwner ? OWNER_TABS : VISITOR_TABS;
 
+  // ── For the portfolio tab, owners use private `worker` data (from useWorkerProfile),
+  // visitors use `publicWorkerData` fetched from the public API (which includes workImages).
+  const portfolioWorkerData = isOwner ? worker : publicWorkerData;
+
   const tabContent = {
     overview: <OverviewTab worker={worker} isOwner={isOwner} loading={loading} />,
-    portfolio: <PortfolioTab
-      isOwner={isOwner}
-      workerId={workerId}
-      workerData={worker}
-    />,
+    portfolio: (
+      <PortfolioTab
+        isOwner={isOwner}
+        workerId={workerId}
+        workerData={portfolioWorkerData}
+      />
+    ),
     reviews: (
       <ReviewsTab
         workerId={workerId}

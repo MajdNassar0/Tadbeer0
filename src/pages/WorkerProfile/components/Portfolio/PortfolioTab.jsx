@@ -26,18 +26,19 @@ const PortfolioTabInner = ({ isOwner, workerId, workerData }) => {
   const [deleting, setDeleting] = useState(false);
 
   const fetchProjects = useCallback(async () => {
-    // حالة الزائر: نأخذ الصور من البيانات المجلوبة مسبقاً في المكون الأب
     if (!isOwner) {
-      if (workerData?.workImages) {
-        setProjects(workerData.workImages);
-      } else {
-        setProjects([]);
+      // ✅ FIX: if publicWorkerData hasn't arrived yet, stay in loading state
+      // instead of immediately showing empty. The parent fetches it async.
+      if (workerData == null) {
+        setLoading(true);
+        return;
       }
+      setProjects(workerData.workImages ?? []);
       setLoading(false);
       return;
     }
 
-    // حالة المالك: نجلب البيانات من مسار الإدارة الخاص به
+    // Owner: fetch from private endpoint
     setLoading(true);
     try {
       const res = await apiClient.get("/Worker/Profile/me/work-images"); 
@@ -72,16 +73,16 @@ const PortfolioTabInner = ({ isOwner, workerId, workerData }) => {
     <div className="min-h-screen bg-gray-50/50 p-4 sm:p-6" dir="rtl">
       <AnimatePresence mode="wait">
         {selectedProject ? (
-<ProjectDetail
-  key="detail"
-  project={selectedProject}
-  onBack={() => setSelectedProject(null)}
-  onProjectDeleted={(id) => {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-    setSelectedProject(null);
-  }}
-  isOwner={isOwner} // 👈 هنا مكانها الصحيح والنظيف كـ Prop للمكون!
-/>
+          <ProjectDetail
+            key="detail"
+            project={selectedProject}
+            onBack={() => setSelectedProject(null)}
+            onProjectDeleted={(id) => {
+              setProjects((prev) => prev.filter((p) => p.id !== id));
+              setSelectedProject(null);
+            }}
+            isOwner={isOwner}
+          />
         ) : (
           <motion.div
             key="grid"
@@ -90,16 +91,15 @@ const PortfolioTabInner = ({ isOwner, workerId, workerData }) => {
             exit={{ opacity: 0 }}
             className="space-y-5"
           >
-            {/* الهيدر */}
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-black text-gray-900">معرض الأعمال</h2>
                 <p className="text-sm text-gray-400 mt-0.5">
-                   {projects.length} {projects.length === 1 ? "مشروع منجز" : "مشاريع منجزة"}
+                  {projects.length} {projects.length === 1 ? "مشروع منجز" : "مشاريع منجزة"}
                 </p>
               </div>
               
-              {/* إظهار زر الإضافة فقط للمالك */}
               {isOwner && projects.length > 0 && (
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -110,7 +110,7 @@ const PortfolioTabInner = ({ isOwner, workerId, workerData }) => {
               )}
             </div>
 
-            {/* شبكة المشاريع */}
+            {/* Grid */}
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...Array(6)].map((_, i) => <ProjectCardSkeleton key={i} />)}
@@ -141,22 +141,16 @@ const PortfolioTabInner = ({ isOwner, workerId, workerData }) => {
         )}
       </AnimatePresence>
 
-      {/* مودالات التحكم (تظهر فقط للمالك) */}
       {isOwner && (
         <>
-        <CreateProjectModal
-  open={showCreateModal}
-  onClose={() => setShowCreateModal(false)}
-  // ✅ عند النجاح، نعيد جلب البيانات من السيرفر فوراً لتتحدث الشاشة بالكامل بشكل سليم
-  onCreated={() => {
-    fetchProjects(); 
-  }}
-/>
-
-          
+          <CreateProjectModal
+            open={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onCreated={() => { fetchProjects(); }}
+          />
           <ConfirmDialog
             open={confirm.open}
-            message={`هل تريد حذف "${confirm.project?.title || "هذا المشروع"}"؟`}
+            message={`هل تريد حذف "${confirm.project?.name || confirm.project?.title || "هذا المشروع"}"؟`}
             loading={deleting}
             onConfirm={handleDeleteProject}
             onCancel={() => setConfirm({ open: false, project: null })}
