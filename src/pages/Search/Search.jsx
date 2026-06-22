@@ -524,13 +524,7 @@ const AiResultPanel = ({ result, onSelectWorker, onNavigate }) => {
         </div>
       )}
 
-      {workers.length === 0 && specialties.length > 0 && (
-        <div style={{ textAlign:"center", padding:"2.5rem", background:THEME.bgCard, borderRadius:16, border:`1.5px dashed ${THEME.border}`, color:THEME.textMuted, fontSize:14 }}>
-          <div style={{ fontSize:40, marginBottom:10 }}>🗺️</div>
-          <p style={{ margin:0, fontWeight:600, color:THEME.textMain }}>لا يوجد عمال قريبون في الوقت الحالي</p>
-          <p style={{ margin:"6px 0 0", fontSize:13 }}>اضغط على أحد التخصصات أعلاه لتصفح جميع العمال</p>
-        </div>
-      )}
+      
     </div>
   );
 };
@@ -550,6 +544,128 @@ const Pagination = ({ page, totalPages, onPrev, onNext }) => (
     <span style={{ fontSize:14, color:THEME.textMuted, fontWeight:600 }}>{page} / {totalPages}</span>
     <button onClick={onNext} disabled={page>=totalPages} style={{ padding:"9px 20px", borderRadius:10, border:`1px solid ${THEME.border}`, background:THEME.bgCard, cursor:page>=totalPages?"not-allowed":"pointer", opacity:page>=totalPages?0.4:1, fontFamily:"'Cairo',sans-serif", color:THEME.textMain, fontWeight:600, fontSize:14 }}>التالي</button>
   </div>
+);
+
+/* ─── Location Map Section (reusable for search/chat/image modes) ─── */
+const LocationMapSection = ({
+  showMap, setShowMap, userLocation, locationLoading, locationError,
+  nearbyWorkers, getUserLocation, navigate,
+}) => (
+  <>
+    {/* ── Map Toggle Button ── */}
+    <div style={{ marginBottom:14 }}>
+      <button
+        onClick={() => showMap ? setShowMap(false) : getUserLocation()}
+        disabled={locationLoading}
+        style={{
+          display:"flex", alignItems:"center", gap:8,
+          padding:"10px 20px", borderRadius:22,
+          border:`1.5px solid ${showMap ? THEME.primary : THEME.border}`,
+          background: showMap ? THEME.primaryLight : THEME.bgCard,
+          color: showMap ? THEME.primary : THEME.textMuted,
+          fontWeight:700, fontSize:14, cursor: locationLoading ? "wait" : "pointer",
+          fontFamily:"'Cairo',sans-serif", transition:"all 0.2s",
+          boxShadow: showMap ? "0 2px 8px rgba(249,115,22,0.15)" : "none",
+        }}
+      >
+        <span style={{ fontSize:16 }}>🗺️</span>
+        {locationLoading ? "جاري تحديد موقعك..." : showMap ? "إخفاء الخريطة" : "عرض العمال على الخريطة"}
+      </button>
+      {locationError && (
+        <p style={{ margin:"6px 0 0", fontSize:12, color:THEME.errorText }}>{locationError}</p>
+      )}
+    </div>
+
+    {/* ── Map Panel ── */}
+    {showMap && userLocation && (
+      <div style={{ marginBottom:20, borderRadius:16, overflow:"hidden", border:`1px solid ${THEME.border}`, boxShadow:"0 4px 16px rgba(0,0,0,0.07)" }}>
+        {/* Map header */}
+        <div style={{ background:THEME.primaryDark, color:"#fff", padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span style={{ fontWeight:700, fontSize:14 }}>
+            📍 العمال القريبون منك — {nearbyWorkers.length > 0 ? `${nearbyWorkers.length} عامل على الخريطة` : "لا يوجد عمال بإحداثيات بعد"}
+          </span>
+          <button onClick={() => setShowMap(false)} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.7)", cursor:"pointer", fontSize:18 }}>✕</button>
+        </div>
+
+        {/* Leaflet map */}
+        <MapContainer
+          center={[userLocation.lat, userLocation.lng]}
+          zoom={12}
+          style={{ height:400, width:"100%" }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <MapCenterHelper center={[userLocation.lat, userLocation.lng]} />
+
+          {/* User marker */}
+          <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
+            <Popup><strong>📍 موقعك الحالي</strong></Popup>
+          </Marker>
+
+          {/* Worker markers */}
+          {nearbyWorkers.map((w) => (
+            <Marker key={w.id} position={[w.latitude, w.longitude]} icon={workerIcon}>
+              <Popup>
+                <div style={{ direction:"rtl", minWidth:160, fontFamily:"'Cairo',sans-serif" }}>
+                  <p style={{ margin:"0 0 4px", fontWeight:700, fontSize:14 }}>{w.firstName} {w.lastName}</p>
+                  <p style={{ margin:"0 0 4px", fontSize:12, color:"#555" }}>{w.specialtyNames?.join(" · ") || "خدمات عامة"}</p>
+                  <p style={{ margin:"0 0 8px", fontSize:12, color:THEME.primary, fontWeight:700 }}>
+                    📏 {w.distanceKm.toFixed(1)} كم
+                  </p>
+                  <button
+                    onClick={() => navigate(`/worker-profile/${w.id}`)}
+                    style={{ width:"100%", padding:"6px 10px", background:THEME.primary, color:"#fff", border:"none", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Cairo',sans-serif" }}
+                  >عرض الملف</button>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+
+        {/* Nearby workers list (sorted by distance) */}
+        {nearbyWorkers.length > 0 && (
+          <div style={{ padding:"14px 16px", background:THEME.bgCanvas, borderTop:`1px solid ${THEME.border}` }}>
+            <p style={{ margin:"0 0 10px", fontSize:13, fontWeight:700, color:THEME.textMain }}>الأقرب إليك 👇</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {nearbyWorkers.slice(0,5).map((w) => (
+                <div key={w.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:THEME.bgCard, borderRadius:10, padding:"10px 14px", border:`1px solid ${THEME.border}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ width:38, height:38, borderRadius:10, overflow:"hidden", background:THEME.primaryLight, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, color:THEME.primary }}>
+                      {w.profileImage
+                        ? <img src={getImageUrl(w.profileImage)} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
+                        : w.firstName?.[0]
+                      }
+                    </div>
+                    <div style={{ direction:"rtl" }}>
+                      <p style={{ margin:0, fontWeight:700, fontSize:13, color:THEME.textMain }}>{w.firstName} {w.lastName}</p>
+                      <p style={{ margin:0, fontSize:11, color:THEME.textMuted }}>{w.specialtyNames?.[0] || "خدمات عامة"}</p>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:THEME.primary, background:THEME.primaryLight, padding:"3px 10px", borderRadius:20 }}>
+                      {w.distanceKm.toFixed(1)} كم
+                    </span>
+                    <button
+                      onClick={() => navigate(`/booking/${w.id}`)}
+                      style={{ padding:"6px 14px", background:THEME.primary, color:"#fff", border:"none", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Cairo',sans-serif" }}
+                    >احجز</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {nearbyWorkers.length === 0 && (
+          <div style={{ padding:"2rem", textAlign:"center", color:THEME.textMuted, background:THEME.bgCanvas, borderTop:`1px solid ${THEME.border}` }}>
+            <p style={{ fontSize:14, margin:0 }}>⚠️ لا يوجد عمال بإحداثيات جغرافية حتى الآن. يرجى التواصل مع الـ backend لإضافة حقلي <strong>latitude</strong> و <strong>longitude</strong> لكل عامل.</p>
+          </div>
+        )}
+      </div>
+    )}
+  </>
 );
 
 /* ─── Section divider ─── */
@@ -651,8 +767,11 @@ const [query, setQuery] = useState(() => {
         const userLng = pos.coords.longitude;
         setUserLocation({ lat: userLat, lng: userLng });
 
-        // Get the workers currently displayed (search results or all)
-        const workersToSort = results?.workers ?? allWorkers;
+        // Get the workers currently displayed: AI-detected workers in image
+        // mode, otherwise the active search results (or all workers)
+        const workersToSort = searchMode === "image"
+          ? (aiResult?.suggestedWorkers ?? [])
+          : (results?.workers ?? allWorkers);
 
         // Sort workers who have coordinates by distance
         const withCoords = workersToSort
@@ -681,6 +800,7 @@ const [query, setQuery] = useState(() => {
     } else {
       setAiImage(null); setAiPreview(null); setAiResult(null); setAiError(null);
     }
+    setShowMap(false); setNearbyWorkers([]);
     setAiMode(toAi);
   };
 
@@ -1211,7 +1331,20 @@ ${rawText}`
 
       {/* AI Result */}
       {searchMode==="image" && aiResult && (
-        <AiResultPanel result={aiResult} onSelectWorker={setSelectedWorker} onNavigate={navigate} />
+        <>
+          <AiResultPanel result={aiResult} onSelectWorker={setSelectedWorker} onNavigate={navigate} />
+
+          {/* ── Map (toggle button + panel) for AI-detected workers ── */}
+          {(aiResult.suggestedWorkers?.length > 0) && (
+            <div style={{ maxWidth:960, margin:"0 auto 1.5rem", padding:"0 1.5rem" }}>
+              <LocationMapSection
+                showMap={showMap} setShowMap={setShowMap} userLocation={userLocation}
+                locationLoading={locationLoading} locationError={locationError}
+                nearbyWorkers={nearbyWorkers} getUserLocation={getUserLocation} navigate={navigate}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Browse / Search Results ── */}
@@ -1226,120 +1359,13 @@ ${rawText}`
           </div>
         )}
 
-        {/* ── Map Toggle Button ── */}
+        {/* ── Map (toggle button + panel) ── */}
         {activeTab === "workers" && (
-          <div style={{ marginBottom:14 }}>
-            <button
-              onClick={() => showMap ? setShowMap(false) : getUserLocation()}
-              disabled={locationLoading}
-              style={{
-                display:"flex", alignItems:"center", gap:8,
-                padding:"10px 20px", borderRadius:22,
-                border:`1.5px solid ${showMap ? THEME.primary : THEME.border}`,
-                background: showMap ? THEME.primaryLight : THEME.bgCard,
-                color: showMap ? THEME.primary : THEME.textMuted,
-                fontWeight:700, fontSize:14, cursor: locationLoading ? "wait" : "pointer",
-                fontFamily:"'Cairo',sans-serif", transition:"all 0.2s",
-                boxShadow: showMap ? "0 2px 8px rgba(249,115,22,0.15)" : "none",
-              }}
-            >
-              <span style={{ fontSize:16 }}>🗺️</span>
-              {locationLoading ? "جاري تحديد موقعك..." : showMap ? "إخفاء الخريطة" : "عرض العمال على الخريطة"}
-            </button>
-            {locationError && (
-              <p style={{ margin:"6px 0 0", fontSize:12, color:THEME.errorText }}>{locationError}</p>
-            )}
-          </div>
-        )}
-
-        {/* ── Map Panel ── */}
-        {showMap && userLocation && (
-          <div style={{ marginBottom:20, borderRadius:16, overflow:"hidden", border:`1px solid ${THEME.border}`, boxShadow:"0 4px 16px rgba(0,0,0,0.07)" }}>
-            {/* Map header */}
-            <div style={{ background:THEME.primaryDark, color:"#fff", padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <span style={{ fontWeight:700, fontSize:14 }}>
-                📍 العمال القريبون منك — {nearbyWorkers.length > 0 ? `${nearbyWorkers.length} عامل على الخريطة` : "لا يوجد عمال بإحداثيات بعد"}
-              </span>
-              <button onClick={() => setShowMap(false)} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.7)", cursor:"pointer", fontSize:18 }}>✕</button>
-            </div>
-
-            {/* Leaflet map */}
-            <MapContainer
-              center={[userLocation.lat, userLocation.lng]}
-              zoom={12}
-              style={{ height:400, width:"100%" }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <MapCenterHelper center={[userLocation.lat, userLocation.lng]} />
-
-              {/* User marker */}
-              <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
-                <Popup><strong>📍 موقعك الحالي</strong></Popup>
-              </Marker>
-
-              {/* Worker markers */}
-              {nearbyWorkers.map((w) => (
-                <Marker key={w.id} position={[w.latitude, w.longitude]} icon={workerIcon}>
-                  <Popup>
-                    <div style={{ direction:"rtl", minWidth:160, fontFamily:"'Cairo',sans-serif" }}>
-                      <p style={{ margin:"0 0 4px", fontWeight:700, fontSize:14 }}>{w.firstName} {w.lastName}</p>
-                      <p style={{ margin:"0 0 4px", fontSize:12, color:"#555" }}>{w.specialtyNames?.join(" · ") || "خدمات عامة"}</p>
-                      <p style={{ margin:"0 0 8px", fontSize:12, color:THEME.primary, fontWeight:700 }}>
-                        📏 {w.distanceKm.toFixed(1)} كم
-                      </p>
-                      <button
-                        onClick={() => navigate(`/worker-profile/${w.id}`)}
-                        style={{ width:"100%", padding:"6px 10px", background:THEME.primary, color:"#fff", border:"none", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Cairo',sans-serif" }}
-                      >عرض الملف</button>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-
-            {/* Nearby workers list (sorted by distance) */}
-            {nearbyWorkers.length > 0 && (
-              <div style={{ padding:"14px 16px", background:THEME.bgCanvas, borderTop:`1px solid ${THEME.border}` }}>
-                <p style={{ margin:"0 0 10px", fontSize:13, fontWeight:700, color:THEME.textMain }}>الأقرب إليك 👇</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {nearbyWorkers.slice(0,5).map((w) => (
-                    <div key={w.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:THEME.bgCard, borderRadius:10, padding:"10px 14px", border:`1px solid ${THEME.border}` }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <div style={{ width:38, height:38, borderRadius:10, overflow:"hidden", background:THEME.primaryLight, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, color:THEME.primary }}>
-                          {w.profileImage
-                            ? <img src={getImageUrl(w.profileImage)} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
-                            : w.firstName?.[0]
-                          }
-                        </div>
-                        <div style={{ direction:"rtl" }}>
-                          <p style={{ margin:0, fontWeight:700, fontSize:13, color:THEME.textMain }}>{w.firstName} {w.lastName}</p>
-                          <p style={{ margin:0, fontSize:11, color:THEME.textMuted }}>{w.specialtyNames?.[0] || "خدمات عامة"}</p>
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:THEME.primary, background:THEME.primaryLight, padding:"3px 10px", borderRadius:20 }}>
-                          {w.distanceKm.toFixed(1)} كم
-                        </span>
-                        <button
-                          onClick={() => navigate(`/booking/${w.id}`)}
-                          style={{ padding:"6px 14px", background:THEME.primary, color:"#fff", border:"none", borderRadius:8, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Cairo',sans-serif" }}
-                        >احجز</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {nearbyWorkers.length === 0 && (
-              <div style={{ padding:"2rem", textAlign:"center", color:THEME.textMuted, background:THEME.bgCanvas, borderTop:`1px solid ${THEME.border}` }}>
-                <p style={{ fontSize:14, margin:0 }}>⚠️ لا يوجد عمال بإحداثيات جغرافية حتى الآن. يرجى التواصل مع الـ backend لإضافة حقلي <strong>latitude</strong> و <strong>longitude</strong> لكل عامل.</p>
-              </div>
-            )}
-          </div>
+          <LocationMapSection
+            showMap={showMap} setShowMap={setShowMap} userLocation={userLocation}
+            locationLoading={locationLoading} locationError={locationError}
+            nearbyWorkers={nearbyWorkers} getUserLocation={getUserLocation} navigate={navigate}
+          />
         )}
 
         {/* Status bar */}
