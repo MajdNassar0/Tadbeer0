@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Search,
 } from "lucide-react";
-import { useReverseGeocode } from "../../Utils/geocodeLocation"; // adjust path to match your project structure
+import { useReverseGeocode } from "../../Utils/geocodeLocation";
 
 const NAVY     = "#001F3F";
 const ORANGE   = "#F7A823";
@@ -67,30 +67,48 @@ function Workers() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [workers,     setWorkers    ] = useState([]);
-  const [loading,     setLoading    ] = useState(true);
-  const [page,        setPage       ] = useState(1);
-  // map of workerId -> { avg, count } for the selected specialty
+  const [workers,          setWorkers         ] = useState([]);
+  const [loading,          setLoading         ] = useState(true);
+  const [page,             setPage            ] = useState(1);
   const [specialtyRatings, setSpecialtyRatings] = useState({});
   const [ratingsLoading,   setRatingsLoading  ] = useState(false);
+  const [selectedSpecialtyName, setSelectedSpecialtyName] = useState(null);
 
   const [ratingFilter,  setRatingFilter ] = useState(null);
   const [pendingRating, setPendingRating] = useState(null);
 
   const specialtyIdFromUrl = searchParams.get("specialtyId");
 
-  // ── Fetch workers ──────────────────────────────────────────────────────────
+  // ── Fetch ALL workers (backend ignores specialtyId filter) ─────────────────
   useEffect(() => {
     const fetchWorkers = async () => {
       setLoading(true);
+      setPage(1);
+      setRatingFilter(null);
+      setPendingRating(null);
       try {
-        const params = {};
-        if (specialtyIdFromUrl) params.specialtyId = specialtyIdFromUrl;
-        const res = await axios.get(`${API_BASE}/General/Workers`, { params });
-        const rawData = Array.isArray(res.data)
-          ? res.data
-          : res.data?.workers ?? res.data?.items ?? res.data?.data ?? [];
-        setWorkers(rawData);
+        // Fetch all pages so the frontend filter works on the full dataset
+        let allWorkers = [];
+        let currentPage = 1;
+        const pageSize = 50;
+
+        while (true) {
+          const res = await axios.get(`${API_BASE}/General/Workers`, {
+            params: { pageNumber: currentPage, pageSize },
+          });
+          const data = res.data;
+          const batch = Array.isArray(data)
+            ? data
+            : data?.workers ?? data?.items ?? data?.data ?? [];
+
+          allWorkers = [...allWorkers, ...batch];
+
+          const totalCount = data?.totalCount ?? batch.length;
+          if (allWorkers.length >= totalCount || batch.length < pageSize) break;
+          currentPage++;
+        }
+
+        setWorkers(allWorkers);
       } catch (err) {
         console.error("Error fetching workers:", err);
       } finally {
@@ -98,16 +116,37 @@ function Workers() {
       }
     };
     fetchWorkers();
+  }, []);
+
+  // ── Fetch specialty name ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!specialtyIdFromUrl) {
+      setSelectedSpecialtyName(null);
+      return;
+    }
+    const fetchSpecialtyName = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/General/Specialties`);
+        const specialties = Array.isArray(res.data) ? res.data : [];
+        const match = specialties.find(
+          (s) => String(s.id).toLowerCase() === String(specialtyIdFromUrl).toLowerCase()
+        );
+        setSelectedSpecialtyName(match?.name ?? null);
+      } catch (err) {
+        console.error("Error fetching specialties:", err);
+      }
+    };
+    fetchSpecialtyName();
   }, [specialtyIdFromUrl]);
 
-  // ── Fetch reviews for all workers in parallel ──────────────────────────────
+  // ── Fetch reviews for filtered workers ────────────────────────────────────
   useEffect(() => {
     if (workers.length === 0) return;
     const fetchAllReviews = async () => {
       setRatingsLoading(true);
       try {
         const results = await Promise.allSettled(
-          workers.map(w => {
+          workers.map((w) => {
             const params = { workerId: w.id, pageNumber: 1, pageSize: 100 };
             if (specialtyIdFromUrl) params.specialtyId = specialtyIdFromUrl;
             return axios.get(`${API_BASE}/General/Reviews`, { params });
@@ -134,14 +173,6 @@ function Workers() {
     fetchAllReviews();
   }, [workers, specialtyIdFromUrl]);
 
-  const selectedSpecialtyName = useMemo(() => {
-    if (!specialtyIdFromUrl || workers.length === 0) return null;
-    const w = workers.find(w => w.specialtyIds?.some(id => String(id) === String(specialtyIdFromUrl)));
-    if (!w) return null;
-    const idx = w.specialtyIds.findIndex(id => String(id) === String(specialtyIdFromUrl));
-    return w.specialtyNames?.[idx] ?? null;
-  }, [workers, specialtyIdFromUrl]);
-
   // ── Availability helpers ───────────────────────────────────────────────────
   const JS_DAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 
@@ -151,7 +182,7 @@ function Workers() {
     const now     = new Date();
     const dayName = JS_DAYS[now.getDay()];
     const current = now.getHours() * 60 + now.getMinutes();
-    return wh.some(h => {
+    return wh.some((h) => {
       if (h.dayOfWeek?.toLowerCase() !== dayName) return false;
       const [sh, sm] = (h.startTime || "00:00").split(":").map(Number);
       const [eh, em] = (h.endTime   || "00:00").split(":").map(Number);
@@ -162,12 +193,12 @@ function Workers() {
   const isAvailableWithin24h = (worker) => {
     const wh = worker.workingHours;
     if (!wh || wh.length === 0) return false;
-    const now           = new Date();
-    const tomorrow      = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const todayName     = JS_DAYS[now.getDay()];
-    const tomorrowName  = JS_DAYS[tomorrow.getDay()];
-    const currentMins   = now.getHours() * 60 + now.getMinutes();
-    return wh.some(h => {
+    const now          = new Date();
+    const tomorrow     = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const todayName    = JS_DAYS[now.getDay()];
+    const tomorrowName = JS_DAYS[tomorrow.getDay()];
+    const currentMins  = now.getHours() * 60 + now.getMinutes();
+    return wh.some((h) => {
       const day = h.dayOfWeek?.toLowerCase();
       const [sh, sm] = (h.startTime || "00:00").split(":").map(Number);
       const [eh, em] = (h.endTime   || "00:00").split(":").map(Number);
@@ -180,23 +211,31 @@ function Workers() {
   // ── Filtering ─────────────────────────────────────────────────────────────
   const filteredWorkers = useMemo(() => {
     let result = [...workers];
-    if (specialtyIdFromUrl)
-      result = result.filter(w => w.specialtyIds?.some(id => String(id) === String(specialtyIdFromUrl)));
 
+    // ✅ Filter by specialty (case-insensitive GUID match)
+    if (specialtyIdFromUrl) {
+      result = result.filter((w) =>
+        Array.isArray(w.specialtyIds) &&
+        w.specialtyIds.some(
+          (id) => String(id).toLowerCase() === String(specialtyIdFromUrl).toLowerCase()
+        )
+      );
+    }
+
+    // ✅ Filter by rating
     if (ratingFilter) {
-      result = result.filter(w => {
+      result = result.filter((w) => {
         const rating = specialtyRatings[w.id]?.avg ?? w.avgRating ?? 0;
         return rating >= ratingFilter;
       });
     }
 
     return result;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workers, specialtyIdFromUrl, ratingFilter, specialtyRatings]);
 
-  const PAGE_SIZE      = 4;
-  const totalPages     = Math.max(1, Math.ceil(filteredWorkers.length / PAGE_SIZE));
-  const safePage       = Math.min(page, totalPages);
+  const PAGE_SIZE        = 4;
+  const totalPages       = Math.max(1, Math.ceil(filteredWorkers.length / PAGE_SIZE));
+  const safePage         = Math.min(page, totalPages);
   const paginatedWorkers = filteredWorkers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
@@ -233,7 +272,6 @@ function Workers() {
               <div>
                 <p className="text-sm font-bold text-gray-800 mb-4">التقييم</p>
 
-                {/* "All" option */}
                 <label className="flex items-center gap-3 mb-3 cursor-pointer">
                   <div className="relative flex items-center justify-center">
                     <input
@@ -249,7 +287,6 @@ function Workers() {
                   </span>
                 </label>
 
-                {/* Star rating options */}
                 {[
                   { val: 4.5, filled: 4, half: true },
                   { val: 4.0, filled: 4, half: false },
@@ -265,16 +302,13 @@ function Workers() {
                       />
                       <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F7A823] scale-0 peer-checked:scale-100 transition-transform"></div>
                     </div>
-                    {/* Visual stars row */}
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((i) => {
                         const isFilled = i <= filled;
                         const isHalf   = half && i === filled + 1;
                         return (
                           <span key={i} className="relative w-4 h-4 inline-block">
-                            {/* grey base */}
                             <Star className="absolute inset-0 w-4 h-4 text-gray-200" strokeWidth={1} />
-                            {/* filled or half overlay */}
                             {isFilled && (
                               <Star className="absolute inset-0 w-4 h-4 fill-amber-400 text-amber-400" strokeWidth={0} />
                             )}
@@ -294,7 +328,6 @@ function Workers() {
                 ))}
               </div>
 
-              {/* Apply */}
               <motion.button
                 whileHover={{ scale: 1.02, backgroundColor: "#002d5c" }}
                 whileTap={{ scale: 0.98 }}
@@ -307,10 +340,7 @@ function Workers() {
 
               {ratingFilter !== null && (
                 <button
-                  onClick={() => {
-                    setRatingFilter(null);  setPendingRating(null);
-                    setPage(1);
-                  }}
+                  onClick={() => { setRatingFilter(null); setPendingRating(null); setPage(1); }}
                   className="w-full text-center text-xs text-orange-500 font-bold underline"
                 >
                   إعادة ضبط الفلاتر
@@ -381,7 +411,14 @@ function Workers() {
                           </div>
                         </div>
 
-
+                        {displayRating !== null && (
+                          <StarRatingRow
+                            value={displayRating}
+                            count={specialtyRating?.count}
+                            serviceLabel={ratingLabel}
+                            isGeneral={!specialtyIdFromUrl}
+                          />
+                        )}
 
                         <div className="grid grid-cols-2 gap-3 mt-4">
                           <div className="bg-white rounded-xl px-3 py-3 border border-slate-200 shadow-sm">
