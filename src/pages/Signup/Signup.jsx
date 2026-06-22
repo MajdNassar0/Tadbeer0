@@ -141,6 +141,9 @@ const Signup = () => {
 
         if (response.data?.isSuccess) {
           toast.success("تم إنشاء الحساب بنجاح! يرجى تأكيد بريدك الإلكتروني 🎉");
+          if (values.role === "Worker" && workerLocation) {
+            localStorage.setItem("pendingLocation", JSON.stringify(workerLocation));
+          }
           setTimeout(() => navigate("/auth/login"), 1500);
         }
       } catch (err) {

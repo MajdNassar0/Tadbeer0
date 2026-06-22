@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { 
   Info, Phone, MapPin, Clock, Shield, Mail, User, Cake, Target, Navigation, Check, X
@@ -9,7 +9,7 @@ import Skeleton from "../../../components/UI/Skeleton";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useReverseGeocode } from "../../../Utils/geocodeLocation"; // adjust path to match your project structure
+import { useReverseGeocode } from "../../../Utils/geocodeLocation";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -32,11 +32,23 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
   const [editingLocation, setEditingLocation] = useState(false);
   const [newLocation, setNewLocation] = useState(null);
   const [locationSaving, setLocationSaving] = useState(false);
-  const [displayLocation, setDisplayLocation] = useState(
-    worker?.latitude ? { lat: worker.latitude, lng: worker.longitude } : null
-  );
+  const [displayLocation, setDisplayLocation] = useState(null);
 
   const GOAL_TARGET = 50;
+
+  // استخراج الـ role مباشرة من الـ token بدون انتظار fetchStats
+  const tokenRole = useMemo(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const isWorker = isWorkerRole || tokenRole === "Worker";
 
   const normalizeStatus = (status) => {
     const s = status?.toString().toLowerCase().trim().replace(/\s/g, "") ?? "";
@@ -49,17 +61,10 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
       const token = localStorage.getItem("token");
       if (!token) { setStatsLoading(false); return; }
 
-      let decodedRole = null;
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        decodedRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ?? null;
-      } catch {}
+      const isWorkerFromToken = tokenRole === "Worker";
+      setIsWorkerRole(isWorkerFromToken);
 
-      const isWorker = decodedRole === "Worker";
-      setIsWorkerRole(isWorker);
-
-      // Only workers fetch their completed bookings
-      if (!isWorker) { setStatsLoading(false); return; }
+      if (!isWorkerFromToken) { setStatsLoading(false); return; }
 
       try {
         const res = await axios.get(`${API_BASE}/Worker/Bookings`, {
@@ -77,16 +82,18 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
     };
 
     if (!loading) fetchStats();
-  }, [loading]);
+  }, [loading, tokenRole]);
 
   // Sync displayLocation when worker data loads
   useEffect(() => {
-    if (worker?.latitude) setDisplayLocation({ lat: worker.latitude, lng: worker.longitude });
+    if (worker?.latitude != null) {
+      setDisplayLocation({
+        lat: parseFloat(worker.latitude),
+        lng: parseFloat(worker.longitude),
+      });
+    }
   }, [worker?.latitude, worker?.longitude]);
 
-  // Human-readable place name resolved from the saved coordinates — shared
-  // with the same logic used on the public Workers listing, so the two
-  // always agree.
   const { placeName: locationPlaceName } = useReverseGeocode(
     displayLocation?.lat,
     displayLocation?.lng
@@ -101,8 +108,6 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
     setLocationSaving(true);
     try {
       const formData = new FormData();
-      // Preserve existing profile fields — this endpoint appears to replace
-      // the whole profile, not just the location, so we resend current values.
       formData.append("FirstName", worker?.firstName || "");
       formData.append("LastName", worker?.lastName || "");
       formData.append("PhoneNumber", worker?.phoneNumber || "");
@@ -119,10 +124,9 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
         formData.append(`WorkingHours[${i}].StartTime`, wh.startTime ?? "");
         formData.append(`WorkingHours[${i}].EndTime`, wh.endTime ?? "");
       });
-      // ProfileImage intentionally omitted — not changing the photo here.
 
       const res = await axios.put(`${API_BASE}/Worker/Profile/me`, formData, {
-        headers: { Authorization: `Bearer ${token}` }, // let the browser set multipart boundary
+        headers: { Authorization: `Bearer ${token}` },
       });
       console.log("Save response:", res.status, res.data);
       setDisplayLocation({ lat: newLocation.lat, lng: newLocation.lng });
@@ -219,10 +223,13 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
                 </p>
               )}
             </div>
-            {/* Edit location button — owner only, on the location row */}
-            {!loading && item.label === "الموقع" && isOwner && isWorkerRole && (
+            {/* زر تعديل الموقع — للمالك فقط */}
+            {!loading && item.label === "الموقع" && isOwner && isWorker && (
               <button
-                onClick={() => { setEditingLocation(true); setNewLocation(displayLocation ?? (worker?.latitude ? { lat: worker.latitude, lng: worker.longitude } : null)); }}
+                onClick={() => {
+                  setEditingLocation(true);
+                  setNewLocation(displayLocation ?? (worker?.latitude ? { lat: parseFloat(worker.latitude), lng: parseFloat(worker.longitude) } : null));
+                }}
                 className="shrink-0 text-[10px] font-bold text-orange-500 border border-orange-200 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-all"
               >تعديل</button>
             )}
@@ -243,12 +250,20 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { navigator.geolocation?.getCurrentPosition(pos => setNewLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })); }}
+                onClick={() => {
+                  navigator.geolocation?.getCurrentPosition(pos =>
+                    setNewLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                  );
+                }}
                 className="flex items-center gap-1 text-[10px] font-bold text-blue-700 border border-blue-100 bg-blue-50 px-2 py-1 rounded-lg hover:bg-blue-100 transition-all"
               >
                 <Navigation size={10} /> موقعي الحالي
               </button>
-              <button onClick={saveLocation} disabled={!newLocation || locationSaving} className="flex items-center gap-1 text-[10px] font-bold text-white bg-orange-500 px-2.5 py-1 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-all">
+              <button
+                onClick={saveLocation}
+                disabled={!newLocation || locationSaving}
+                className="flex items-center gap-1 text-[10px] font-bold text-white bg-orange-500 px-2.5 py-1 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-all"
+              >
                 <Check size={10} /> {locationSaving ? "جاري الحفظ..." : "حفظ"}
               </button>
               <button onClick={() => setEditingLocation(false)} className="text-gray-400 hover:text-gray-600">
@@ -292,7 +307,7 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
             <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
               <MapPin size={13} className="text-orange-400" /> الموقع الجغرافي
             </p>
-            {isOwner && isWorkerRole && (
+            {isOwner && isWorker && (
               <button
                 onClick={() => { setEditingLocation(true); setNewLocation(displayLocation); }}
                 className="text-[10px] font-bold text-orange-500 border border-orange-200 bg-orange-50 px-2.5 py-1 rounded-lg hover:bg-orange-100 transition-all"
@@ -326,6 +341,20 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
         </motion.div>
       )}
 
+      {/* إذا لم يحدد الموقع بعد — زر لتحديده للمالك فقط */}
+      {!loading && !displayLocation && !editingLocation && isOwner && isWorker && (
+        <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/30 p-4 text-center">
+          <MapPin size={20} className="text-orange-300 mx-auto mb-2" />
+          <p className="text-xs text-gray-500 mb-2">لم يتم تحديد موقعك الجغرافي بعد</p>
+          <button
+            onClick={() => setEditingLocation(true)}
+            className="text-[11px] font-bold text-white bg-orange-500 px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-all"
+          >
+            + تحديد الموقع الآن
+          </button>
+        </div>
+      )}
+
       {/* أوقات العمل المتاحة */}
       {!loading && worker?.workingHours?.length > 0 && (
         <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-100">
@@ -352,7 +381,7 @@ const OverviewTab = ({ worker, loading, isOwner }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             {/* معدل إتمام المهام — Workers only */}
-            {isWorkerRole && (
+            {isWorker && (
               <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-gray-700">معدل إتمام المهام</span>

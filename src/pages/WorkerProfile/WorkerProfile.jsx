@@ -62,7 +62,7 @@ const WorkerProfileInner = () => {
       .finally(() => setReviewsLoading(false));
   }, [workerId]);
 
-   const getSafeStoredUser = () => {
+  const getSafeStoredUser = () => {
     try {
       const raw = localStorage.getItem("user");
       if (!raw || raw === "undefined") return null;
@@ -71,25 +71,19 @@ const WorkerProfileInner = () => {
       return null;
     }
   };
-   const resolveIsOwner = () => {
-    // المصدر الأول: AuthContext (الأولوية دائماً)
+
+  const resolveIsOwner = () => {
     const currentUser = authUser ?? getSafeStoredUser();
-
     if (!currentUser) return false;
-
     const userId   = String(currentUser.id || currentUser.userId || currentUser._id || "");
     const userRole = (currentUser.role || currentUser.userType || currentUser.Role || "").toLowerCase();
-
-    // يجب أن يكون Role = "worker" وأن يطابق الـ ID في الرابط
     const isWorkerRole = userRole === "worker";
     const isIdMatch    = userId !== "" && userId === String(workerId);
-
     return isWorkerRole && isIdMatch;
   };
 
   const isOwner = resolveIsOwner();
-
-   const effectiveId = isOwner ? null : workerId ?? null;
+  const effectiveId = workerId ?? null;
 
   const {
     worker, workImages, loading, saving, toggling, error,
@@ -100,9 +94,41 @@ const WorkerProfileInner = () => {
     deleteWorkingHour,
   } = useWorkerProfile(effectiveId);
 
+  // ── حفظ الموقع المعلق من الـ Signup ──────────────────────────────────────
+  useEffect(() => {
+    if (!isOwner || loading || !worker) return;
+    if (worker.latitude != null) return; // الموقع محفوظ مسبقاً
 
-  // ✅ لما الحساب يبقى "Deleted"، نستنى ثانيتين قبل شاشة إعادة التفعيل
-  // عشان المستخدم يشوف الـ toast والزرار يتحدث لـ "تم التعطيل ✓"
+    const pending = localStorage.getItem("pendingLocation");
+    if (!pending) return;
+
+    try {
+      const loc = JSON.parse(pending);
+      if (!loc?.lat || !loc?.lng) return;
+
+      updateWorker({
+        FirstName:      worker.firstName      || "",
+        LastName:       worker.lastName       || "",
+        PhoneNumber:    worker.phoneNumber    || "",
+        JobDescription: worker.jobDescription || "",
+        ExperienceYears: worker.experienceYears ?? "",
+        DateOfBirth:    worker.dateOfBirth    || "",
+        Latitude:       loc.lat,
+        Longitude:      loc.lng,
+        SpecialtyIds:   worker.specialtyIds   || [],
+        WorkingHours:   worker.workingHours   || [],
+      }).then((res) => {
+        if (res.ok) {
+          localStorage.removeItem("pendingLocation");
+          toast("تم حفظ موقعك الجغرافي تلقائياً ✅");
+        }
+      });
+    } catch {
+      localStorage.removeItem("pendingLocation");
+    }
+  }, [isOwner, loading, worker]);
+
+  // ── Reactivate screen ────────────────────────────────────────────────────
   useEffect(() => {
     if (!loading && isOwner && worker?.status === "Deleted") {
       const timer = setTimeout(() => setShowReactivate(true), 2000);
@@ -112,21 +138,16 @@ const WorkerProfileInner = () => {
     }
   }, [loading, isOwner, worker?.status]);
 
-  // ── Handlers ────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────
 
   const handleToggleStatus = async () => {
     const res = await toggleStatus();
-
     if (res.ok) {
-      // ✅ الـ Backend بيستخدم "Existed" / "Deleted"
       const newStatus = res.worker?.status ??
         (worker.status === "Existed" ? "Deleted" : "Existed");
-
       const msg = newStatus === "Deleted" ? "تم تعطيل الحساب" : "تم تفعيل الحساب";
       toast(`${msg} بنجاح ✓`);
-
       updateUser({ status: newStatus });
-
       return res;
     } else {
       toast(res.error || "فشل تغيير الحالة", "error");
@@ -156,13 +177,12 @@ const WorkerProfileInner = () => {
     else toast(res.error || "فشل حذف الصورة", "error");
   };
 
-  // ✅ شاشة إعادة التفعيل تظهر بعد ثانيتين من التعطيل
   if (showReactivate) {
     return (
       <ReactivateScreen
         onReactivate={handleToggleStatus}
         loading={toggling}
-        onLogout={logout} // 👈 مرري دالة الـ logout الجاهزة مباشرة هنا وبس!
+        onLogout={logout}
       />
     );
   }
@@ -199,7 +219,7 @@ const WorkerProfileInner = () => {
         addWorkingHour={addWorkingHour}
         updateWorkingHour={updateWorkingHour}
         deleteWorkingHour={deleteWorkingHour}
-         setWorker={setWorker} 
+        setWorker={setWorker}
       />
     ) : null,
   };
