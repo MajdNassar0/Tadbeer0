@@ -46,9 +46,16 @@ const StatsBar = ({ worker }) => {
             : Promise.resolve(null),
         ]);
 
+
         const reviews      = reviewsRes.data?.items ?? reviewsRes.data ?? [];
-        const totalReviews = reviewsRes.data?.totalCount ?? reviews.length;
-        const avgRating    = worker.avgRating ?? 0;
+const totalReviews = reviewsRes.data?.totalCount ?? reviews.length;
+
+// حساب المتوسط من الـ reviews نفسها (الحقل اسمه rate مش rating)
+const computedAvg = reviews.length > 0
+  ? reviews.reduce((sum, r) => sum + (r.rate ?? r.rating ?? 0), 0) / reviews.length
+  : 0;
+
+const avgRating = computedAvg || (worker.avgRating ?? 0);
 
         const allBookings   = bookingsRes ? (bookingsRes.data?.items ?? bookingsRes.data ?? []) : [];
         const completedJobs = isWorkerRole
